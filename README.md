@@ -2,7 +2,7 @@
 
 ## What this is
 
-The shared contracts of the Web Block services, in one place. It holds the gRPC protos under `proto/` and the JSON Schemas of the events under `events/`. The layout follows the Notion page "Web Block architecture", section 3.7. It holds no code. Each service copies what it needs from a pinned commit.
+The shared contracts of the Web Block services, in one place. It holds the gRPC protos under `proto/`, the JSON Schemas of the events under `events/`, and the action list of CheckAccess under `access/`. The layout follows the Notion page "Web Block architecture", section 3.7. It holds no code. Each service copies what it needs from a pinned commit.
 
 ```text
 proto/webblock/<service>/v1/*.proto
@@ -10,6 +10,8 @@ events/envelope.v1.schema.json
 events/<service>/<event>.v1.schema.json
 events/examples/valid/*.json
 events/examples/invalid/*.json
+access/actions.v1.json
+access/actions.v1.schema.json
 ```
 
 ## Owners
@@ -19,13 +21,13 @@ Each file belongs to one service. Only that service changes it.
 | File | Owner |
 | --- | --- |
 | `events/envelope.v1.schema.json` | all services (Notion 4.1) |
-| `proto/webblock/project/v1/*.proto`, `events/project/*` | project |
+| `proto/webblock/project/v1/*.proto`, `events/project/*`, `access/*` | project |
 | `proto/webblock/payment/v1/*.proto`, `events/payment/*` | payment |
 | `events/provisioning/*` | provisioning |
 
 ## Status headers
 
-The first line of each proto, and the start of each schema's `description`, gives its status.
+The first line of each proto, and the start of each schema's `description`, gives its status. A data file such as `access/actions.v1.json` has the status of its schema.
 
 - `ACCEPTED`: taken word for word from Notion. Change it only when Notion changes.
 - `OWNED BY <service>`: the owner wrote it and keeps it.
@@ -42,6 +44,10 @@ The first line of each proto, and the start of each schema's `description`, give
 
 `events/examples/valid` holds at least one valid message for each event. Each file in `events/examples/invalid` differs from one valid file in exactly one property. Its name says the rule it breaks, for example `source-published-39-char-sha.json`. Every invalid example fails its schema alone, without any other check.
 
+## Action list
+
+`access/actions.v1.json` names every action that `AccessService/CheckAccess` accepts. Each action has `name`, `write` and `admin_allowed`. `write` is true when the action changes state and false for a get or list action. `admin_allowed` is true when a caller may let an admin through without asking Project. `access/actions.v1.schema.json` checks the file. Names are unique.
+
 ## How a service pins it
 
-A service never reads this repository live. It keeps the full commit SHA it uses in its own `contracts.lock` file. A script copies `events/` and `proto/` from that commit and generates code from the protos. A check fails when the copy differs from the pinned commit. To take a change, a service moves its SHA and runs its sync again, in one reviewed change.
+A service never reads this repository live. It keeps the full commit SHA it uses in its own `contracts.lock` file. A script copies the files it needs from `events/`, `proto/` and `access/` at that commit and generates code from the protos. A check fails when the copy differs from the pinned commit. To take a change, a service moves its SHA and runs its sync again, in one reviewed change.
