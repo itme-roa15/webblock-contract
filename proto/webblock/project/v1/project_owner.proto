@@ -1,0 +1,20 @@
+// DRAFT, proposed by project, waits for notification. Owner: project.
+// Serves Project PR-22 (Notion "Web Block architecture" 5.1).
+syntax = "proto3";
+package webblock.project.v1;
+
+// Called by Notification to find who owns a project. Deadline 2 s. Safe to retry on UNAVAILABLE, at most 2 times.
+service ProjectOwnerService {
+  // NOT_FOUND with ErrorInfo.reason PROJECT_NOT_FOUND when no project has this ID.
+  // A deleted project is found: it answers its owner with deleted = true.
+  rpc GetProjectOwner(GetProjectOwnerRequest) returns (GetProjectOwnerResponse);
+}
+
+message GetProjectOwnerRequest {
+  string project_id = 1;      // UUID
+}
+
+message GetProjectOwnerResponse {
+  string owner_user_id = 1;   // UUID of the Account user who owns the project; never changes
+  bool deleted = 2;           // true when the client deleted the project
+}
