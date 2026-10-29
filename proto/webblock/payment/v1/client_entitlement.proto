@@ -1,0 +1,29 @@
+// DRAFT, proposed by project, waits for payment. Owner: payment.
+// Shape from Project's payment-contract.md section 2.5. No Project FR or PR names it yet; it feeds the UI.
+// Transport open (C1): written there as HTTP GET /internal/v1/clients/{clientUserId}/entitlement, and absent from
+// Notion "Web Block architecture" 5.1. Open points before ACCEPTED:
+//   1. Payment must add the method to Notion 5.1, or Project drops this need.
+//   2. The answer for a client Payment does not know is not written.
+//   3. Whether the attempt counts may be absent, as in AdmitGenerationAttempt, is not written.
+syntax = "proto3";
+package webblock.payment.v1;
+
+// Called by Project, for the UI only; never used to admit anything. Deadline 2 s. Read only: safe to retry on
+// UNAVAILABLE, at most 2 times.
+service ClientEntitlementService {
+  rpc GetClientEntitlement(GetClientEntitlementRequest) returns (GetClientEntitlementResponse);
+}
+
+message GetClientEntitlementRequest {
+  string client_user_id = 1;  // UUID
+}
+
+message GetClientEntitlementResponse {
+  string plan_code = 1;
+  string trial_ends_at = 2;   // RFC 3339 UTC; empty when the client is not on the trial
+  int64 websites_used = 3;
+  int64 websites_limit = 4;
+  int64 attempts_used = 5;
+  int64 attempts_limit = 6;
+  string period_end = 7;      // RFC 3339 UTC
+}
