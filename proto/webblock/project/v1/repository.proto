@@ -1,4 +1,10 @@
 // DRAFT, proposed by provisioning, waits for project. Owner: project.
+// Project's answer (PR-18): accepted as written. Open points before ACCEPTED:
+//   1. clone_url: Project stores no URL. It would build one from a configured Gitea base and full_name.
+//      Which host: the in-cluster Gitea, or the Cloudflare Access address Jenkins clones through?
+//   2. Commit SHA: the answer carries none, so Project does not confirm the commit of a request.
+//   3. Unknown or deleted project: proposed NOT_FOUND with REPOSITORY_NOT_FOUND, as for no repository.
+//   4. Mesh caller: provisioning-build-worker only (Notion "Web Block architecture" 3.8).
 syntax = "proto3";
 package webblock.project.v1;
 
