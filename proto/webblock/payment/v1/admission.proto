@@ -1,8 +1,9 @@
 // DRAFT, proposed by project, waits for payment. Owner: payment.
 // Serves Project FR-11, FR-12, FR-26, PR-7, PR-15. Shape from Project's payment-contract.md sections 2.1 to 2.3.
-// Transport open (C1): Project calls these over HTTP today (POST /internal/v1/website-admissions,
-// DELETE /internal/v1/website-admissions/{projectId}, POST /internal/v1/generation-admissions); Notion
-// "Web Block architecture" 5.1 names these gRPC methods. Open points before ACCEPTED:
+// Transport: gRPC (owner ruling C1), as Notion "Web Block architecture" 5.1 names these methods. Project's HTTP calls
+// (POST /internal/v1/website-admissions, DELETE /internal/v1/website-admissions/{projectId},
+// POST /internal/v1/generation-admissions) move to these methods. Releasing a deleted website's admission frees its
+// slot in the client's current plan (owner ruling A2). Open points before ACCEPTED:
 //   1. HTTP 409 PROJECT_IN_USE has no row in Notion table 2.3; proposed FAILED_PRECONDITION.
 //   2. ReleaseWebsiteAdmission names the project only, not one admission (known limit on Project's side).
 //   3. A refusal of AdmitGenerationAttempt "has the same shape as 2.1": read here as decision and reason only.

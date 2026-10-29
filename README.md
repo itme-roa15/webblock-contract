@@ -92,9 +92,9 @@ IDs are the consumer's own spec IDs (Project's or Provisioning's numbering).
 | provisioning | payment | event | `payment/hosting_entitlement_ended.v1` | DRAFT | FR-26, FR-30 |
 | provisioning | payment | event | `payment/hosting_entitlement_restored.v1` | DRAFT | FR-27, FR-30 |
 
-The three Payment methods of `admission.proto` and `client_entitlement.proto` are HTTP today (Project's
-`payment-contract.md` sections 2.1 to 2.5); Notion "Web Block architecture" 5.1 names gRPC. Which one holds is the
-owner's question C1, written at the top of each file.
+The Payment methods of `admission.proto` and `client_entitlement.proto` are gRPC (owner ruling C1); Project's HTTP
+calls of `payment-contract.md` sections 2.1 to 2.5 move to them. Deleting a website frees its slot in the client's
+current plan (owner ruling A2).
 
 ### What the others need from Project and Provisioning
 
