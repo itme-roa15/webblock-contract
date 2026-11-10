@@ -1,0 +1,354 @@
+openapi: 3.1.0
+info:
+  title: WebBlock Payment internal API v1
+  version: 1.0.0
+  description: |
+    OWNED BY payment. Agreed with project (issues 10 and 11), provisioning (OD-04) and account (user-service).
+
+    Service-to-service routes of payment-service, reachable only through the mesh (never through the public
+    gateway). There is no user token: the caller is the workload identity the Istio sidecar writes into
+    `X-Forwarded-Client-Cert` (`URI=spiffe://<principal>`). Istio's AuthorizationPolicy (Payment chart,
+    `authorization.internalRules`) admits the principals named in `x-callers` first; Payment checks the same list
+    per route again. No principal is `401 CALLER_UNKNOWN`, another one `403 ACCESS_DENIED`; a user's JWT does not
+    open these routes.
+
+    Principals (namespace `webblock`, set by `WEBBLOCK_INTERNAL_*_PRINCIPAL`):
+    - project: `cluster.local/ns/webblock/sa/project`
+    - provisioning: `cluster.local/ns/webblock/sa/provisioning-api`
+    - user: `cluster.local/ns/webblock/sa/user-service`
+
+    Answers are the bare object or array: there is no `{success, data}` envelope (issue 11). Errors are problem
+    details (`application/problem+json`) whose code is the top-level `code` property (`NOT_ADMITTED`, ...); `type`
+    stays `about:blank` here (the `urn:webblock:problem:` types are for the public v2 only). A refusal is a normal
+    200 answer, never an error. Callers use a 2-second timeout.
+
+    Plan codes: the admission and entitlement routes keep v1's spelling (`trial`, or the plan's own code, lower
+    case); the client-plan routes for user-service use the UI's (`FREE_TRIAL`, `PLUS`, `PRO`, `ULTRA`).
+servers:
+  - url: http://payment/internal/v1
+paths:
+  /website-admissions:
+    post:
+      operationId: admitWebsite
+      summary: May this client add this website to its plan (Project, when a website is created)
+      description: Idempotent on `projectId`; a repeat answers the first decision.
+      x-callers: [project]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientUserId, projectId]
+              properties:
+                clientUserId: { type: string, format: uuid }
+                projectId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The decision.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WebsiteAdmission' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/CallerUnknown' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: The same `projectId` was admitted for another client (`IDEMPOTENCY_CONFLICT`).
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /website-admissions/{projectId}:
+    parameters:
+      - { name: projectId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      operationId: releaseWebsiteAdmission
+      summary: The website was deleted; free its plan slot
+      description: |
+        Usage rows stay for billing. Issue 5: with Endy's branch merged the slot is always freed (204). Until then a
+        website that was ever deployed answers `422 PROJECT_IN_USE` (422, not 409).
+      x-callers: [project]
+      responses:
+        '204': { description: Released. }
+        '401': { $ref: '#/components/responses/CallerUnknown' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: No admission for this website, or already released (`NOT_ADMITTED`). Callers treat it as done.
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+        '422':
+          description: '`PROJECT_IN_USE`, until the issue-5 change is merged.'
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /generation-admissions:
+    post:
+      operationId: admitGenerationAttempt
+      summary: May this generation run (Project's admission job)
+      description: Idempotent on `generationRequestId` (it is also the usage row's event key).
+      x-callers: [project]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientUserId, projectId, generationRequestId]
+              properties:
+                clientUserId: { type: string, format: uuid }
+                projectId: { type: string, format: uuid }
+                generationRequestId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The decision.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenerationAdmission' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/CallerUnknown' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: The same `generationRequestId` was sent with other ids (`IDEMPOTENCY_CONFLICT`).
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /generation-admissions/{generationRequestId}:
+    parameters:
+      - { name: generationRequestId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      operationId: giveBackGenerationAttempt
+      summary: A generation failed for a platform reason; it doesn't count (issue 1)
+      description: |
+        Built by Endy on his branch, which is not merged yet: until it is, this route answers 404 for every id.
+        Contract agreed with Project: 204 given back; 404 `NOT_ADMITTED` for an id never admitted or already given
+        back (Project treats both as done). Project calls it after commit, retried through its outbox.
+      x-callers: [project]
+      x-status: "waits for Endy's branch"
+      responses:
+        '204': { description: Given back. }
+        '401': { $ref: '#/components/responses/CallerUnknown' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: '`NOT_ADMITTED`.'
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/entitlement:
+    parameters:
+      - { name: projectId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getProjectEntitlement
+      summary: Is this website's hosting paid for, and may it be (re)deployed now (OD-04, REST)
+      description: |
+        Provisioning's deploy gate (provisioning-api, deploy and admin redeploy): go ahead only when
+        `hosting == ENTITLED` and `publish == ALLOWED`. Any other answer, a non-200, a timeout or an unknown value
+        fails closed (Provisioning answers a retryable 503). A website Payment never admitted answers 200 with
+        `ENDED` / `NOT_ADMITTED`, never 404, so the answer does not show what exists.
+      x-callers: [provisioning, project]
+      responses:
+        '200':
+          description: The entitlement.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Entitlement' }
+        '401': { $ref: '#/components/responses/CallerUnknown' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /clients/{clientUserId}/entitlement:
+    parameters:
+      - { name: clientUserId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getClientEntitlement
+      summary: What the client's plan allows and uses (display only, never used to admit)
+      x-callers: [user, project]
+      responses:
+        '200':
+          description: The client's plan.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientEntitlement' }
+        '401': { $ref: '#/components/responses/CallerUnknown' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /clients/plans:
+    get:
+      operationId: listClientPlans
+      summary: The plan each client is on now (one page of User's admin list)
+      description: One item per distinct id, in the order first asked. `plan` is `null` for a client with neither a plan nor a running trial.
+      x-callers: [user]
+      parameters:
+        - name: clientUserId
+          in: query
+          required: true
+          style: form
+          explode: true
+          schema: { type: array, minItems: 1, maxItems: 100, items: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The plans.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [clientUserId, plan]
+                  properties:
+                    clientUserId: { type: string, format: uuid }
+                    plan:
+                      oneOf: [{ $ref: '#/components/schemas/PlanCode' }, { type: 'null' }]
+        '400':
+          description: No id, more than 100 distinct ones, or one that is not a UUID (`VALIDATION_FAILED`, `INVALID_PARAMETER`).
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+        '401': { $ref: '#/components/responses/CallerUnknown' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /clients:
+    get:
+      operationId: listClientsOnPlan
+      summary: The clients on one plan now (User's admin list `plan` filter)
+      description: Sorted by id, at most 10,000; `total` is how many there are (User answers 422 above 10,000).
+      x-callers: [user]
+      parameters:
+        - { name: plan, in: query, required: true, schema: { $ref: '#/components/schemas/PlanCode' } }
+      responses:
+        '200':
+          description: The clients.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [clientUserIds, total]
+                properties:
+                  clientUserIds: { type: array, maxItems: 10000, items: { type: string, format: uuid } }
+                  total: { type: integer, minimum: 0 }
+        '400':
+          description: A missing or unknown plan code (`INVALID_PARAMETER`).
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+        '401': { $ref: '#/components/responses/CallerUnknown' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /clients/stats:
+    get:
+      operationId: getClientStats
+      summary: How many clients are on the free trial and how many pay (UserStats)
+      description: A client counts once. `paying` = clients with a paid subscription that covers them now (inside its period, or its grace time); `onFreeTrial` = clients with a running trial and no such subscription.
+      x-callers: [user]
+      responses:
+        '200':
+          description: The counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [onFreeTrial, paying]
+                properties:
+                  onFreeTrial: { type: integer, minimum: 0 }
+                  paying: { type: integer, minimum: 0 }
+        '401': { $ref: '#/components/responses/CallerUnknown' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+components:
+  responses:
+    BadRequest:
+      description: '`VALIDATION_FAILED`, `BAD_REQUEST_BODY`.'
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    CallerUnknown:
+      description: No mesh identity in `X-Forwarded-Client-Cert` (`CALLER_UNKNOWN`).
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Forbidden:
+      description: The calling workload is not an allowed caller of this route (`ACCESS_DENIED`).
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Unavailable:
+      description: The database is down (`DATABASE_UNAVAILABLE`). Retryable.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+  schemas:
+    Problem:
+      type: object
+      required: [title, status, code]
+      properties:
+        type: { type: string, example: about:blank }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        code: { type: string, example: NOT_ADMITTED }
+        timestamp: { type: string, format: date-time }
+    PlanCode:
+      type: string
+      enum: [FREE_TRIAL, PLUS, PRO, ULTRA]
+    WebsiteAdmission:
+      type: object
+      required: [decision, projectId, planCode, websitesUsed]
+      properties:
+        decision: { type: string, enum: [ADMITTED, REFUSED] }
+        reason:
+          type: string
+          enum: [WEBSITE_LIMIT_REACHED, TRIAL_ENDED, NO_ACTIVE_PLAN, CLIENT_SUSPENDED]
+          description: Absent when ADMITTED. A reason added later within v1 is read as "other".
+        projectId: { type: string, format: uuid }
+        planCode: { type: string, description: '`trial` or the plan code; "" without a plan.' }
+        websitesUsed: { type: integer }
+        websitesLimit: { type: integer, description: Absent = unlimited. }
+    GenerationAdmission:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [ADMITTED, REFUSED] }
+        reason:
+          type: string
+          enum: [TRIAL_GENERATION_LIMIT_REACHED, TRIAL_ENDED, NO_ACTIVE_PLAN, CLIENT_SUSPENDED, PROJECT_NOT_ADMITTED]
+          description: Absent when ADMITTED.
+        attemptsUsed: { type: integer, description: Absent when the plan has no generation limit. }
+        attemptsLimit: { type: integer, description: Absent when the plan has no generation limit. }
+    Entitlement:
+      type: object
+      required: [projectId, hosting, publish, planCode, publishesUsed]
+      properties:
+        projectId: { type: string, format: uuid }
+        hosting: { type: string, enum: [ENTITLED, ENDED] }
+        publish: { type: string, enum: [ALLOWED, LIMIT_REACHED] }
+        reason:
+          type: string
+          enum: [TRIAL_ENDED, GRACE_EXPIRED, PLAN_CANCELED, OVER_WEBSITE_LIMIT, NOT_ADMITTED]
+          description: Absent when ENTITLED.
+        planCode: { type: string, description: '`trial` or the plan code; "" for a website never admitted.' }
+        publishesUsed: { type: integer }
+        publishesLimit: { type: integer, description: Absent = unlimited. }
+        periodEnd: { type: string, format: date-time, description: Absent when there is none. }
+    ClientEntitlement:
+      type: object
+      required: [planCode, websitesUsed]
+      properties:
+        planCode: { type: string, description: '`trial`, the plan code, or "" without a plan.' }
+        trialEndsAt: { type: string, format: date-time }
+        websitesUsed: { type: integer }
+        websitesLimit: { type: integer, description: Absent = unlimited. }
+        attemptsUsed: { type: integer }
+        attemptsLimit: { type: integer }
+        periodEnd: { type: string, format: date-time }
+
+x-needs:
+  description: |
+    Internal routes payment-service calls, with what it reads. 2-second timeout; on a failure the fields are null
+    and the answer still goes out. Caller principal: `cluster.local/ns/webblock/sa/payment`.
+  project-service:
+    - route: "GET /internal/v1/projects?id={id}&id={id}..."
+      exists: "agreed with project (its project-v2.yaml x-internal-routes)"
+      reads: "projectId, ownerId, name, domain, imageUrl, productCount"
+  user-service:
+    - route: "GET /internal/v1/users?id={id}&id={id}..."
+      exists: "user-internal-v1.yaml"
+      reads: "userId, fullName, email, avatarUrl"
+    - route: "GET /internal/v1/users/ids?q={text}"
+      exists: false
+      reads: '{"userIds": [...]} for the admin subscription search'
+    - route: "GET /internal/v1/users/stats?createdSince={iso}"
+      exists: false
+      reads: '{"newAccounts": 0} for AdminOverview.newAccounts'
+  provisioning-service:
+    - route: "GET /internal/v1/websites/stats"
+      exists: "provisioning-internal-v1.yaml"
+      reads: "liveWebsites, failedDeploys, latestFailed {projectId, releaseId, failedAt}"
