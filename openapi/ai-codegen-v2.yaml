@@ -89,6 +89,12 @@ security:
 tags:
   - name: ai-messages
     description: The project's WebBlock AI design assistant chat.
+  - name: generation-runs
+    description: Code generation runs and their output.
+  - name: conversations
+    description: Design assistant conversations and their messages.
+  - name: change-sets
+    description: The page edits the assistant proposes.
 paths:
   /projects/{projectId}/ai-messages:
     parameters:
@@ -189,6 +195,297 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /projects/{projectId}/generation-runs:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: listGenerationRuns
+      tags: [generation-runs]
+      summary: The project's generation runs, newest first by default
+      description: Each run without its log; read one run for the log.
+      x-replaces: "GET /v1/generation-runs"
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+        - name: sort
+          in: query
+          schema: { type: string, enum: ["createdAt,desc", "createdAt,asc"], default: "createdAt,desc" }
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GenerationRunPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /projects/{projectId}/generation-runs/{runId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - { name: runId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getGenerationRun
+      tags: [generation-runs]
+      summary: One generation run, with its log
+      x-replaces: "GET /v1/generation-runs/{run_id}"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GenerationRun" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /projects/{projectId}/generation-runs/{runId}/files:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - { name: runId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getGenerationRunFiles
+      tags: [generation-runs]
+      summary: The source the run produced
+      description: Every file of the generated site, sorted by path. An empty array when the run produced none.
+      x-replaces: "GET /v1/generation-runs/{run_id}/files"
+      responses:
+        "200":
+          description: The files.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RunFile" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /projects/{projectId}/generation-runs/{runId}/check-report:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - { name: runId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getGenerationRunCheckReport
+      tags: [generation-runs]
+      summary: The run's check report
+      description: The report as the run stored it (`summary`, `changed_files` and the checks). 404 while the run has none.
+      x-replaces: "GET /v1/generation-runs/{run_id}/check-report"
+      responses:
+        "200":
+          description: The report.
+          content:
+            application/json:
+              schema: { type: object }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /projects/{projectId}/conversations:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: listConversations
+      tags: [conversations]
+      summary: The project's design assistant conversations
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+        - name: sort
+          in: query
+          schema: { type: string, enum: ["createdAt,desc", "createdAt,asc"], default: "createdAt,desc" }
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConversationPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: createConversation
+      tags: [conversations]
+      summary: Start a conversation
+      description: Owned by the caller (the token's `sub`). Answers 201 with `Location`.
+      x-replaces: ["POST /v1/projects/{project_id}/conversations", "POST /v1/conversations"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateConversation" }
+      responses:
+        "201":
+          description: The new conversation.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Conversation" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /projects/{projectId}/conversations/{conversationId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - { name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getConversation
+      tags: [conversations]
+      summary: One conversation
+      description: Its messages and change sets are the two lists below it (v1 embedded them).
+      x-replaces: "GET /v1/conversations/{conversation_id}"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Conversation" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /projects/{projectId}/conversations/{conversationId}/messages:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - { name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listConversationMessages
+      tags: [conversations]
+      summary: The conversation's messages, oldest first by default
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+        - name: sort
+          in: query
+          schema: { type: string, enum: ["createdAt,asc", "createdAt,desc"], default: "createdAt,asc" }
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessagePage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: sendConversationMessage
+      tags: [conversations]
+      summary: Ask the assistant
+      description: |
+        Stores the prompt, asks the model about the project's current draft, and answers 201 with the reply, the change
+        set it proposes and a warning when its proposal was invalid (then no change set). The change set is only
+        proposed: PATCH it to apply it. `Location` is the reply.
+      x-replaces: "POST /v1/conversations/{conversation_id}/messages"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SendAiMessage" }
+      responses:
+        "201":
+          description: The assistant's turn.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssistantTurn" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /projects/{projectId}/conversations/{conversationId}/messages/{messageId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - { name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: messageId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getConversationMessage
+      tags: [conversations]
+      summary: One message
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /projects/{projectId}/conversations/{conversationId}/change-sets:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - { name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listConversationChangeSets
+      tags: [change-sets]
+      summary: The change sets the assistant proposed in this conversation
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+        - name: sort
+          in: query
+          schema: { type: string, enum: ["createdAt,asc", "createdAt,desc"], default: "createdAt,asc" }
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeSetPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /projects/{projectId}/change-sets/{changeSetId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - { name: changeSetId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getChangeSet
+      tags: [change-sets]
+      summary: One change set
+      x-replaces: "GET /v1/change-sets/{change_set_id}"
+      responses:
+        "200":
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeSet" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    patch:
+      operationId: decideChangeSet
+      tags: [change-sets]
+      summary: Apply or discard a proposed change set
+      description: |
+        `APPLIED` saves it as the project's draft through Project (`PUT /internal/v1/projects/{id}/page/draft`) and
+        answers the change set with `appliedEditRevision`; `DISCARDED` drops it. 409 when it is no longer `PROPOSED` or
+        the page changed since it was proposed (`rejectionCode` `STALE_EDIT_REVISION`); 422 when Project refuses the
+        page (`PROJECT_READ_ONLY`, `PUCK_TREE_INVALID`); 503 when Project is down (it stays `PROPOSED`, retry).
+      x-replaces: "PATCH /v1/change-sets/{change_set_id}"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DecideChangeSet" }
+      responses:
+        "200":
+          description: The decided change set.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeSet" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
 components:
   securitySchemes:
     bearerAuth:
@@ -259,6 +556,168 @@ components:
         instance: { type: string, description: The request path. }
         code: { type: string, description: "The code of `type` in UPPER_SNAKE, for example `NOT_FOUND`." }
         requestId: { type: string, description: The caller's `X-Request-Id`, or a new one. }
+    GenerationRun:
+      type: object
+      required: [id, projectId, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        generationRequestId: { type: [string, "null"], format: uuid }
+        flow: { type: string, enum: [INITIAL_GENERATION, EXISTING_APP_UPDATE] }
+        status: { type: string, enum: [QUEUED, RUNNING, SUCCEEDED, FAILED] }
+        step: { type: [string, "null"], description: "The pipeline step the run is at (PREPARE, AI_CODE_UPDATE, BUILD, GITHUB_PUSH, DEPLOY), or DONE." }
+        attempt: { type: integer }
+        strategy: { type: [string, "null"] }
+        modelName: { type: [string, "null"] }
+        inputTokens: { type: [integer, "null"] }
+        outputTokens: { type: [integer, "null"] }
+        errorCode: { type: [string, "null"] }
+        errors: { type: [string, "null"] }
+        commitSha: { type: [string, "null"] }
+        promoted: { type: boolean, description: The request accepted this run's result. }
+        repositoryUrl: { type: [string, "null"] }
+        summary: { type: [string, "null"] }
+        changedFiles: { type: array, items: { type: string } }
+        validations: { type: array, items: { $ref: "#/components/schemas/Validation" } }
+        deployment:
+          oneOf: [{ $ref: "#/components/schemas/Deployment" }, { type: "null" }]
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: [string, "null"], format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        log: { type: string, description: Only on getGenerationRun. }
+    Validation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string }
+        attempt: { type: integer }
+        required: { type: boolean }
+        status: { type: string, enum: [RUNNING, PASSED, FAILED, SKIPPED] }
+        error: { type: [string, "null"] }
+        startedAt: { type: [string, "null"], format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+    Deployment:
+      type: object
+      properties:
+        releaseId: { type: string, format: uuid }
+        status: { type: [string, "null"] }
+        deployStatus: { type: [string, "null"] }
+        hostingStatus: { type: [string, "null"] }
+        live: { type: boolean }
+        failureCode: { type: [string, "null"] }
+        failureSummary: { type: [string, "null"] }
+        promotedAt: { type: [string, "null"], format: date-time }
+    GenerationRunPage:
+      type: object
+      additionalProperties: false
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/GenerationRun" } }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1 }
+        totalItems: { type: integer, minimum: 0 }
+    RunFile:
+      type: object
+      additionalProperties: false
+      required: [path, content]
+      properties:
+        path: { type: string }
+        content: { type: string }
+    Conversation:
+      type: object
+      additionalProperties: false
+      required: [id, projectId, title, userId, createdAt, lastMessageAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        title: { type: [string, "null"] }
+        userId: { type: [string, "null"], format: uuid }
+        createdAt: { type: string, format: date-time }
+        lastMessageAt: { type: [string, "null"], format: date-time }
+    ConversationPage:
+      type: object
+      additionalProperties: false
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Conversation" } }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1 }
+        totalItems: { type: integer, minimum: 0 }
+    CreateConversation:
+      type: object
+      additionalProperties: false
+      properties:
+        title: { type: [string, "null"], maxLength: 255 }
+    Message:
+      description: The UI's AiMessage, plus the page it was about.
+      type: object
+      additionalProperties: false
+      required: [id, role, text, pageId, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [USER, ASSISTANT] }
+        text: { type: string }
+        pageId: { type: [string, "null"], format: uuid }
+        createdAt: { type: string, format: date-time }
+    MessagePage:
+      type: object
+      additionalProperties: false
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Message" } }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1 }
+        totalItems: { type: integer, minimum: 0 }
+    AssistantTurn:
+      type: object
+      additionalProperties: false
+      required: [message, changeSet, warning]
+      properties:
+        message: { $ref: "#/components/schemas/Message" }
+        changeSet:
+          oneOf: [{ $ref: "#/components/schemas/ChangeSet" }, { type: "null" }]
+        warning: { type: [string, "null"] }
+    ChangeSet:
+      type: object
+      additionalProperties: false
+      required: [id, conversationId, messageId, pageId, status, baseEditRevision, appliedEditRevision, rejectionCode, items, createdAt, decidedAt]
+      properties:
+        id: { type: string, format: uuid }
+        conversationId: { type: string, format: uuid }
+        messageId: { type: string, format: uuid }
+        pageId: { type: string, format: uuid }
+        status: { type: string, enum: [PROPOSED, APPLIED, DISCARDED, REJECTED] }
+        baseEditRevision: { type: integer }
+        appliedEditRevision: { type: [integer, "null"] }
+        rejectionCode: { type: [string, "null"] }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              order: { type: integer }
+              operation: { type: string, enum: [ADD, UPDATE, REMOVE, MOVE] }
+              componentId: { type: [string, "null"] }
+              componentType: { type: [string, "null"] }
+              position: { type: [object, "null"] }
+              propsPatch: { type: [object, "null"] }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, "null"], format: date-time }
+    ChangeSetPage:
+      type: object
+      additionalProperties: false
+      required: [items, page, size, totalItems]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ChangeSet" } }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1 }
+        totalItems: { type: integer, minimum: 0 }
+    DecideChangeSet:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [APPLIED, DISCARDED] }
   responses:
     BadRequest:
       description: "Invalid input: a malformed id or body, or a query parameter out of range (`urn:webblock:problem:bad-request`)."
@@ -291,6 +750,16 @@ components:
       headers:
         Retry-After:
           schema: { type: integer }
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Conflict:
+      description: "The change set is no longer PROPOSED, or the page changed since it was proposed (`urn:webblock:problem:conflict`)."
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Unprocessable:
+      description: "Project refused the page: the website is suspended or deleted, or the result breaks the component rules (`urn:webblock:problem:unprocessable`)."
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
