@@ -11,6 +11,7 @@ of the events under `events/`, the action list of CheckAccess under `access/`, a
 proto/webblock/<service>/v1/*.proto
 events/envelope.v1.schema.json
 events/<service>/<event>.v1.schema.json
+events/audit/audit_recorded.v1.schema.json   (one shape, sent by several services)
 events/examples/valid/*.json
 events/examples/invalid/*.json
 access/actions.v1.json
@@ -31,6 +32,7 @@ Each file belongs to one service. Only that service changes it.
 | `events/ai_codegen/*` | ai_codegen |
 | `events/account/*` | account |
 | `openapi/notification-v2.yaml` | notification |
+| `events/audit/*` (sent by account, payment, provisioning and project; owner's decision of 10 November 2026) | notification |
 
 ## Status headers
 
@@ -123,6 +125,21 @@ Not in this repository: the Keycloak token rules (Project's `authentication-cont
 Provisioning FR-1, FR-2) and the shared catalog database (Notion "6 · Shared catalog", Project FR-35, PR-17).
 Links that involve neither Project nor Provisioning, such as Payment to Account `GetSignupTime` and Notification to
 Account `GetUserContact`, get their rows when those teams write their files.
+
+### The admin activity feed (Notification)
+
+Owner's decision of 10 November 2026: Notification stores the admin-visible actions of every service and serves the
+UI's activity log (`GET /api/notification/v2/admin/activity`). Each producer sends `events/audit/audit_recorded.v1`
+on its own exchange, routing key = `message_type`, and fills in the names the UI shows.
+
+| Producer | Exchange and routing key | Actions | Status |
+| --- | --- | --- | --- |
+| account | `account.events`, `account.audit_recorded.v1` | SUSPEND_USER, REACTIVATE_USER | DRAFT |
+| payment | `payment.events`, `payment.audit_recorded.v1` | CHANGE_PLAN | DRAFT |
+| provisioning | `provisioning.events`, `provisioning.audit_recorded.v1` | SUSPEND_HOSTING, RESUME_HOSTING, ROLLBACK | DRAFT |
+| project | `project.events`, `project.audit_recorded.v1` | hosting actions it starts itself (see the schema) | DRAFT |
+
+Notification's queue is `notification.audit_recorded.v1`, bound to all four.
 
 ### Gaps
 
