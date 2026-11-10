@@ -48,10 +48,12 @@ paths:
       description: |
         Either `id` (1 to 100, repeated) or one of the filters. With `id`, the answer has one item per known website
         in the order asked; an id Provisioning never saw is left out (its website was never deployed: Project shows
-        `NOT_DEPLOYED`). With `siteStatus` or `releaseStatus` the answer lists every matching website (at most 1000;
-        `X-Truncated: true` when there are more), for Project's admin filters.
+        `NOT_DEPLOYED`). A repeated id is answered once. The `siteStatus` and `releaseStatus` filters (every
+        matching website, at most 1000, `X-Truncated: true` when there are more) are x-phase 3 and not served yet;
+        a query with them is `400 validation-failed`. `hostname` is null when provisioning-api has no site domain
+        configured (SITE_DOMAIN).
       x-callers: [project-service]
-      x-phase: 3
+      x-phase: 2
       parameters:
         - name: id
           in: query
