@@ -60,6 +60,87 @@ x-internal-routes:
         - '400 VALIDATION_FAILED: no ownerId, more than 100 distinct ids, or an id that is not a UUID (field `ownerId`).'
       timeout: "The caller's (User: 2 s, a failure is shown as null). Project answers from one indexed query."
 
+    - route: GET /internal/v1/projects
+      x-phase: 3
+      status: ACCEPTED by payment (agent 76e8d818, 10 November 2026); also for provisioning
+      callers: [payment-service, provisioning-service]
+      purpose: Website name, domain and image on orders, receipts and admin subscriptions; productCount for usage meters.
+      query:
+        id:
+          description: A project id. Repeat it, 1 to 100 distinct values (a repeated value counts once).
+          type: string
+          format: uuid
+          required: true
+          repeated: true
+      answer:
+        status: 200
+        description: A bare array in the order first asked. Unknown and deleted projects are left out.
+        schema:
+          type: array
+          items:
+            type: object
+            required: [projectId, ownerId, name, domain, imageUrl, logoUrl, templateSlug, productCount, status]
+            properties:
+              projectId: {type: string, format: uuid}
+              ownerId: {type: string, format: uuid}
+              name: {type: string}
+              domain: {type: [string, 'null'], description: The public host; null until the website has one.}
+              imageUrl: {type: [string, 'null'], description: The template's thumbnail.}
+              logoUrl: {type: [string, 'null'], description: The business logo.}
+              templateSlug: {type: string}
+              productCount: {type: [integer, 'null'], description: The website's catalog products; null when the catalog cannot be read.}
+              status: {type: string, enum: [DRAFT, LIVE, SUSPENDED]}
+      errors:
+        - '400 VALIDATION_FAILED: no id, more than 100 distinct ids, or an id that is not a UUID (field `id`).'
+    - route: GET /internal/v1/projects/{projectId}/page
+      x-phase: 3
+      status: ACCEPTED by ai_codegen (agent 4c7a416d, its openapi/ai-codegen-v2.yaml x-needs-from-project, 10 November 2026)
+      callers: [ai-codegen-service]
+      purpose: The AI chat reads the website's draft and its edit revision before a change set (issue 9, UI question 6).
+      answer:
+        status: 200
+        schema:
+          type: object
+          required: [projectId, name, componentCatalogVersion, editRevision, draft, updatedAt]
+          properties:
+            projectId: {type: string, format: uuid}
+            name: {type: string}
+            componentCatalogVersion: {type: string}
+            editRevision: {type: integer, description: The revision v2's page ETag carries.}
+            draft: {type: object, description: The Puck document of the home page (v2 PageData).}
+            updatedAt: {type: string, format: date-time}
+      errors:
+        - '404 PROJECT_NOT_FOUND: unknown or deleted. A suspended website is still answered.'
+    - route: PUT /internal/v1/projects/{projectId}/page/draft
+      x-phase: 3
+      status: ACCEPTED by ai_codegen (as above)
+      callers: [ai-codegen-service]
+      purpose: |
+        The AI chat applies a change set to the website's draft, so the editor shows it. AI Codegen checks the owner
+        first (POST /internal/v1/access-checks, manage_site); userId is recorded as the actor only, never authorization.
+      body:
+        type: object
+        required: [draft, expectedEditRevision, changeSetId, userId]
+        properties:
+          draft: {type: object, description: The new Puck document of the home page.}
+          expectedEditRevision: {type: integer, minimum: 0}
+          changeSetId: {type: string, format: uuid, description: Idempotency key of the save.}
+          userId: {type: string, format: uuid}
+      answer:
+        status: 200
+        description: The same changeSetId again answers the first save's 200, even if the page moved on since.
+        schema:
+          type: object
+          required: [editRevision, updatedAt]
+          properties:
+            editRevision: {type: integer}
+            updatedAt: {type: string, format: date-time}
+      errors:
+        - '400 VALIDATION_FAILED (bad body) or PUCK_TREE_INVALID (the draft breaks the component catalog; field errors).'
+        - '404 PROJECT_NOT_FOUND.'
+        - '409 STALE_EDIT_REVISION: the draft moved on; 409 IDEMPOTENCY_KEY_REUSED: a used changeSetId with another body.'
+        - '422 PROJECT_READ_ONLY: the website is suspended or deleted.'
+
 servers:
   - url: /api/project/v2
 security:
