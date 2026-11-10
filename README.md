@@ -3,7 +3,8 @@
 ## What this is
 
 The shared contracts of the Web Block services, in one place. It holds the gRPC protos under `proto/`, the JSON Schemas
-of the events under `events/`, and the action list of CheckAccess under `access/`. The layout follows the Notion page
+of the events under `events/`, the action list of CheckAccess under `access/`, and the public REST APIs (v2, OpenAPI
+3.1) under `openapi/`, one file per service. The layout follows the Notion page
 "Web Block architecture", section 3.7. It holds no code. Each service copies what it needs from a pinned commit.
 
 ```text
@@ -14,6 +15,7 @@ events/examples/valid/*.json
 events/examples/invalid/*.json
 access/actions.v1.json
 access/actions.v1.schema.json
+openapi/<service>-v2.yaml
 ```
 
 ## Owners
@@ -28,6 +30,7 @@ Each file belongs to one service. Only that service changes it.
 | `events/provisioning/*` | provisioning |
 | `events/ai_codegen/*` | ai_codegen |
 | `events/account/*` | account |
+| `openapi/notification-v2.yaml` | notification |
 
 ## Status headers
 
