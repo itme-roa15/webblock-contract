@@ -1,0 +1,124 @@
+openapi: 3.1.0
+info:
+  title: WebBlock User internal API v1
+  version: 1.0.0
+  description: |
+    DRAFT, proposed by account, waits for project and notification.
+
+    Service-to-service routes of user-service, reachable only through the mesh (never through the public gateway).
+    The caller is the workload identity Istio checks (AuthorizationPolicy on the source principal); there is no user
+    token. Each route answers only the fields named here: no password state, no Keycloak ids other than `userId`
+    (which is the Keycloak `sub`), no private admin notes.
+
+    Callers that need these (from the other services' v2 drafts):
+    - project-service: `AdminWebsite.ownerName`, `ownerEmail`, `ownerAvatarUrl` (admin website list and popup).
+    - notification-service: the owner's contact (name, email) for messages to an owner.
+
+    The second half of this file, "Needs", lists the internal routes user-service needs from other services to
+    answer its v2 types. Those routes belong to their services; their agents write and build them, and may change
+    the shapes proposed here.
+servers:
+  - url: http://user-service/internal/v1
+paths:
+  /users/{userId}:
+    get:
+      operationId: getUserSummary
+      summary: One user's display data
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummary' }
+        '404':
+          description: No such user (`user-not-found`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /users:
+    get:
+      operationId: listUserSummaries
+      summary: Several users at once (for a page of an admin list)
+      description: Unknown ids are left out of the answer, not an error. At most 100 ids.
+      parameters:
+        - name: id
+          in: query
+          required: true
+          style: form
+          explode: true
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 100
+            items: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The users that exist, in no particular order.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/UserSummary' }
+        '400':
+          description: No id, more than 100, or one that is not a UUID (`validation-failed`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+x-needs:
+  description: |
+    Internal routes user-service calls to answer its v2 types. Each call has a 2-second timeout; on a timeout or an
+    error the field is null and the answer still goes out (owner decision 3a). Proposed shapes only; the owning
+    service decides.
+  payment-service:
+    - route: "GET /internal/v1/clients/{clientUserId}/entitlement"
+      exists: true
+      use: "`Profile.plan` (planCode) for the signed-in user."
+    - route: "GET /internal/v1/clients/plans?clientUserId={id}&clientUserId={id}..."
+      exists: false
+      use: "`UserAccount.plan` for one page of the admin list (up to 100 ids) without 100 single calls."
+      answer: '[{"clientUserId": "<uuid>", "plan": "FREE_TRIAL|PLUS|PRO|ULTRA"}]'
+    - route: "GET /internal/v1/clients?plan={PlanCode}"
+      exists: false
+      use: "The admin list's `plan` filter: the user ids on that plan."
+      answer: '{"clientUserIds": ["<uuid>", "..."]}'
+    - route: "GET /internal/v1/clients/stats"
+      exists: false
+      use: "`UserStats.onFreeTrial` and `UserStats.paying`."
+      answer: '{"onFreeTrial": 0, "paying": 0}'
+  project-service:
+    - route: "GET /internal/v1/owners/website-counts?ownerId={id}&ownerId={id}..."
+      exists: false
+      use: "`UserAccount.websiteCount` (websites not deleted) for one page of the admin list, and the CSV `Websites` column."
+      answer: '[{"ownerId": "<uuid>", "websiteCount": 0}]'
+  provisioning-service:
+    - route: "GET /internal/v1/websites/stats"
+      exists: false
+      use: "`UserStats.liveWebsites` (websites currently LIVE)."
+      answer: '{"liveWebsites": 0}'
+
+components:
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, description: '`urn:webblock:problem:<code>`.' }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+    UserSummary:
+      type: object
+      required: [userId, fullName, email, avatarUrl, status, deletedInKeycloak]
+      properties:
+        userId: { type: string, format: uuid, description: The Keycloak `sub`. }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        avatarUrl: { type: [string, 'null'] }
+        status: { type: string, enum: [ACTIVE, SUSPENDED] }
+        deletedInKeycloak: { type: boolean }
