@@ -632,6 +632,11 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: More than 10,000 users are on the `plan` asked for, too many to filter by (`plan-filter-too-large`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '503': { $ref: '#/components/responses/Unavailable' }
   /admin/users/stats:
     get:
