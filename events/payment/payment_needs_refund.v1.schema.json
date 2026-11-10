@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webblock.invalid/contracts/events/payment/payment_needs_refund.v1.schema.json",
+  "title": "Payment: payment needs refund v1",
+  "description": "OWNED BY payment. Agreed with notification. Owner decision Payment 8 (10 November 2026): money reached a bill Payment can't apply, so it is recorded, never kept quietly, the admins are alerted (Notification, admin bell) and support refunds the payer by hand. BILL_VOIDED: paid on a voided QR (the bill stays VOID); SUBSCRIPTION_ENDED: a bill paid after its subscription ended; PLAN_CHANGED: an upgrade's difference paid when the plan was no longer active. Sent on payment.events with routing key payment_needs_refund.v1, persistent, application/json, AMQP type = message_type, through Payment's outbox after the database commit. One event per payment received: event_key is needs-refund:<provider>:<provider_reference>, so a redelivery dedupes. No payer name, phone or account number: support reads those in Payment or the provider.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "message_id",
+    "message_type",
+    "occurred_at",
+    "correlation_id",
+    "project_id",
+    "event_key",
+    "reason",
+    "bill_id",
+    "subscription_id",
+    "user_id",
+    "amount",
+    "currency",
+    "paid_at",
+    "voided_at",
+    "provider",
+    "provider_reference"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "message_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "message_type": {
+      "const": "payment.payment_needs_refund.v1"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "event_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "reason": {
+      "enum": [
+        "BILL_VOIDED",
+        "SUBSCRIPTION_ENDED",
+        "PLAN_CHANGED"
+      ]
+    },
+    "bill_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "subscription_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "user_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]{1,2})?$",
+      "description": "What was received, a decimal string."
+    },
+    "currency": {
+      "enum": [
+        "USD",
+        "KHR"
+      ]
+    },
+    "paid_at": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "voided_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "maxLength": 40,
+      "description": "When the bill was voided; null exactly when reason is not BILL_VOIDED."
+    },
+    "provider": {
+      "enum": [
+        "WEBILL",
+        "BAKONG"
+      ]
+    },
+    "provider_reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "WeBill's transaction id or the Bakong payment hash: what support needs to find the payment to refund."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "reason": {
+            "const": "BILL_VOIDED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "voided_at": {
+            "type": "string"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "voided_at": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}
