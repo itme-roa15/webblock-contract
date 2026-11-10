@@ -639,8 +639,8 @@ paths:
       operationId: getUserStats
       summary: User KPI cards
       description: |
-        `totalAccounts` is user-service's own count (role `user`, not deleted in Keycloak). `onFreeTrial` and `paying`
-        come from Payment, `liveWebsites` from Provisioning; each is null while its service is down.
+        `totalAccounts` is user-service's own count of accounts (admins included, as in v1). `onFreeTrial` and
+        `paying` come from Payment, `liveWebsites` from Provisioning; each is null while its service is down.
       x-replaces: "GET /api/user/v1/ui/admin/users/stats"
       responses:
         '200':
