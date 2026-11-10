@@ -1,0 +1,866 @@
+openapi: 3.1.0
+info:
+  title: WebBlock Payment API v2
+  version: 2.0.0
+  description: |
+    OWNED BY payment.
+
+    Public API of payment-service, version 2 (owner's decision, 10 November 2026). It replaces the v1 `ui/` routes,
+    which stay unchanged and are deprecated until every client has moved. The UI's TypeScript types are the contract
+    for every answer (`webblock-web-ui/src/features/{account,billing,landing,monitoring,admin}/types.ts`).
+
+    Rules for every operation:
+    - Authentication is a Keycloak bearer JWT. The caller is `sub`; no operation takes a user id from the path or body.
+    - `/projects/{projectId}/...` checks on the server that the caller owns the website. Payment's own proof is the
+      website admission it recorded for that owner; another owner's website answers 404, so ids don't leak.
+    - `/admin/...` requires the realm role `admin`.
+    - Lists are `Page<T>` (`items`, zero-based `page`, `size` (1 to 100, default 20), `totalItems`), with
+      `?page=&size=&sort=field,asc|desc` where a list can be sorted.
+    - Errors are RFC 9457 problem details (`application/problem+json`) with `type` = `urn:webblock:problem:<code>`,
+      `title`, `status`, `detail`. The UI shows `title` and `detail` and branches on `status`.
+    - Money is a decimal string ("12.00"), in USD unless `currency` says otherwise. Ids are UUIDs. Times are ISO 8601
+      in UTC.
+    - Plan codes are `FREE_TRIAL`, `PLUS`, `PRO`, `ULTRA`. A `null` limit means unlimited.
+
+    Data from other services (owner's decision 3a): Payment gathers it through their internal routes over the mesh,
+    each with a 2-second timeout. When a service is down or its route doesn't exist yet, its fields are `null` and the
+    answer still goes out. The routes Payment needs are listed under `x-needs` at the end of this file.
+
+    Outbound providers: WeBill 365 and Bakong (KHQR). Tests never call them.
+servers:
+  - url: /api/payment/v2
+tags:
+  - name: public
+    description: No token needed.
+  - name: me
+    description: The signed-in owner's own plan, orders and receipts.
+  - name: projects
+    description: One of the signed-in owner's websites. The caller must own it.
+  - name: admin
+    description: Admin-only routes. Realm role `admin` required.
+security:
+  - bearerAuth: []
+paths:
+  /plans:
+    get:
+      tags: [public]
+      operationId: listPlans
+      summary: The plans on sale, cheapest first, the free trial included
+      description: |
+        One representation for the landing page (`landing/types.ts` `Plan`) and the billing page
+        (`billing/types.ts` `BillingPlan`): each item carries both field sets, so `priceMonthly` and `monthlyPrice`
+        hold the same value. The billing page reads `items`. The free trial's `features` are its own lines
+        (`clock` "Free for 14 days", ...); a paid plan's lines start with `check` "Everything in <cheaper plan>" where
+        that applies. A token is accepted but not needed.
+      security: [{}, {bearerAuth: []}]
+      x-replaces:
+        - "GET /api/payment/v1/ui/public/plans"
+        - "GET /api/payment/v1/ui/plans"
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: One page of plans (all of them fit on the first page).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /me/subscription:
+    get:
+      tags: [me]
+      operationId: getMySubscription
+      summary: The signed-in owner's plan, trial dates, price and usage meters
+      description: |
+        Plans are per account. The plan is the paid subscription that covers the account now, else the free trial.
+        `trialStartsAt`, `trialEndsAt` and `trialDays` describe the account's free trial, also after the owner moved to
+        a paid plan; they are `null` only for an account that never had one. `usage[].used` for products is `null`
+        until Project's counts route exists (`x-needs`).
+      x-replaces: "GET /api/payment/v1/ui/me/subscription"
+      responses:
+        '200':
+          description: The account's plan.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: The account has neither a trial nor a plan (`no-subscription`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /me/orders:
+    get:
+      tags: [me]
+      operationId: listMyOrders
+      summary: Billing history of the signed-in owner's plan orders
+      description: Orders that have ended (paid or expired). An order still waiting for payment is not listed.
+      x-replaces: "GET /api/payment/v1/ui/me/orders"
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/OrderStatus' }
+        - name: plan
+          in: query
+          schema: { $ref: '#/components/schemas/PlanCode' }
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - name: sort
+          in: query
+          description: '`createdAt` or `amount`, then `,asc` or `,desc`. Default `createdAt,desc`.'
+          schema: { type: string, example: 'createdAt,desc' }
+      responses:
+        '200':
+          description: One page of orders.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanOrderPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [me]
+      operationId: createMyOrder
+      summary: Create a plan order with a KHQR code to pay (valid 10 minutes)
+      description: |
+        The server prices the plan; the body never carries an amount. `websiteId` is the website the owner was
+        deploying, or `null` when they came from Settings; the caller must own it (404 otherwise). The website's name,
+        domain and image are looked up, not taken from the body: v1's `websiteName`, `websiteDomain` and
+        `websiteImageUrl` fields are accepted and ignored.
+
+        `Idempotency-Key` (1 to 128 characters) is optional but recommended, mainly for `RENEW`: the same key with the
+        same body answers the same order again (201, same `id`), with another body 422, and 409 while the first
+        request still runs. Without a key, a repeated `SUBSCRIBE` or `CHANGE` still returns the open order.
+      x-replaces: "POST /api/payment/v1/ui/payments"
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrder' }
+      responses:
+        '201':
+          description: The new order, waiting for payment.
+          headers:
+            Location:
+              description: '`/api/payment/v2/me/orders/{orderId}`'
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentOrder' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: Unknown plan (`plan-not-found`), or a website the caller doesn't own (`project-not-found`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /me/orders/{orderId}:
+    parameters:
+      - $ref: '#/components/parameters/orderId'
+    get:
+      tags: [me]
+      operationId: getMyOrder
+      summary: One order (the UI polls it), or its PDF receipt
+      description: |
+        `Accept: application/json` (default) answers the order. While it is `PENDING` the read also asks the payment
+        provider, at most once every 5 seconds per order, so polling this route replaces v1's `status-check`.
+
+        `Accept: application/pdf` answers the receipt of a paid order as a download
+        (`Content-Disposition: attachment; filename=webblock-receipt-<reference>.pdf`). The billed-to name and email
+        come from User; while User is down the receipt shows the account id instead. An order that isn't paid has
+        no receipt (409 `no-receipt`).
+      x-replaces:
+        - "GET /api/payment/v1/ui/payments/{id}"
+        - "POST /api/payment/v1/ui/payments/{id}/status-check"
+      responses:
+        '200':
+          description: The order, or its receipt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentOrder' }
+            application/pdf:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '406': { $ref: '#/components/responses/NotAcceptable' }
+        '409':
+          description: A receipt was asked for an order that isn't paid (`no-receipt`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/deploy-access:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [projects]
+      operationId: getDeployAccess
+      summary: May the owner deploy this website now, and why not
+      description: The same rule as the admission check Project and Provisioning use before a real deploy.
+      x-replaces: "GET /api/payment/v1/ui/me/deploy-access?projectId={projectId}"
+      responses:
+        '200':
+          description: The decision.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeployAccess' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/usage:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [projects]
+      operationId: getProjectUsage
+      summary: The plan's limits and this website's usage (monitoring page)
+      description: |
+        Websites and redeploys are counted per account (the plan is per account); products are this website's count
+        from Project, `null` while Project's route doesn't exist or is down. `resetsAt` is when the redeploy count
+        goes back to 0 (the end of the trial or of the paid period).
+      x-replaces: "GET /api/payment/v1/ui/me/usage"
+      responses:
+        '200':
+          description: The usage.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanUsage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: A website the caller doesn't own (`project-not-found`), or an account with neither a trial nor a plan (`no-subscription`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/overview:
+    get:
+      tags: [admin]
+      operationId: getAdminOverview
+      summary: Dashboard numbers, the revenue chart and the attention cards
+      description: |
+        `monthlyRevenue` and `revenueByMonth` (last 12 months, oldest first, the current month last) are money
+        received. `newAccounts` (this calendar month, UTC) comes from User; `websitesPublished`, `failedDeploys` and
+        the `FAILED_DEPLOYS` card from Provisioning. Each of those is `null` (or the card left out) while its service
+        is down. `PLAN_EXPIRED`, `PAYMENTS_PAST_DUE` and `TRIALS_ENDING` are Payment's own.
+      x-replaces: "GET /api/payment/v1/ui/admin/revenue"
+      responses:
+        '200':
+          description: The overview.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminOverview' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/subscriptions:
+    get:
+      tags: [admin]
+      operationId: listAdminSubscriptions
+      summary: Subscription table
+      description: |
+        `q` matches part of the owner's name or email (asked from User at query time; while User is down, or until
+        its search route exists, a `q` search answers 503 `user-search-unavailable`). The owner and website fields come from User and Project and are `null` while those are
+        down. `status` is `SUSPENDED` when the owner's account is suspended, whatever the subscription's own state.
+      x-replaces: "GET /api/payment/v1/ui/admin/subscriptions"
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 100 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/SubscriptionStatus' }
+        - name: plan
+          in: query
+          schema: { $ref: '#/components/schemas/PlanCode' }
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - name: sort
+          in: query
+          description: '`startAt` or `endAt`, then `,asc` or `,desc`. Default `startAt,desc`.'
+          schema: { type: string }
+      responses:
+        '200':
+          description: One page of subscriptions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSubscriptionPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/subscriptions/stats:
+    get:
+      tags: [admin]
+      operationId: getAdminSubscriptionStats
+      summary: Subscription KPI cards
+      description: |
+        `monthlyRevenue`: money received this calendar month (UTC). `activePlans`: paid subscriptions that cover their
+        owner now, owners with a suspended account left out. `trialsEndingSoon`: free trials ending in the next 3 days.
+        `pending`: subscriptions waiting for their first payment.
+      x-replaces: "GET /api/payment/v1/ui/admin/subscriptions/attention"
+      responses:
+        '200':
+          description: The numbers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionStats' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/subscriptions/{subscriptionId}:
+    parameters:
+      - $ref: '#/components/parameters/subscriptionId'
+    get:
+      tags: [admin]
+      operationId: getAdminSubscription
+      summary: One subscription (popup)
+      x-replaces: "GET /api/payment/v1/ui/admin/subscriptions/{id}"
+      responses:
+        '200':
+          description: The subscription.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSubscription' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/subscriptions/{subscriptionId}/payments:
+    parameters:
+      - $ref: '#/components/parameters/subscriptionId'
+    get:
+      tags: [admin]
+      operationId: listAdminSubscriptionPayments
+      summary: The payments of one subscription, newest first
+      description: Payments that have ended; one still waiting for the owner is not listed.
+      x-replaces: "GET /api/payment/v1/ui/admin/subscriptions/{id}/payments"
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: One page of payments.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPaymentPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/plans:
+    get:
+      tags: [admin]
+      operationId: listAdminPlans
+      summary: Plans with their subscriber counts
+      x-replaces: "GET /api/payment/v1/ui/admin/plans"
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: One page of plans.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPlanPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/plans/{planId}:
+    parameters:
+      - $ref: '#/components/parameters/planId'
+    get:
+      tags: [admin]
+      operationId: getAdminPlan
+      summary: One plan (edit page)
+      x-replaces: "GET /api/payment/v1/ui/admin/plans/{planId}"
+      responses:
+        '200':
+          description: The plan.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPlan' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    put:
+      tags: [admin]
+      operationId: updateAdminPlan
+      summary: Replace a plan's price and limits
+      description: |
+        Applies to new subscriptions and renewals; a period already paid keeps its price. Every field is required
+        (a missing limit would silently mean "unlimited" for every subscriber). Each changed field is recorded in the
+        plan's change history (audit `CHANGE_PLAN`).
+      x-replaces: "PUT /api/payment/v1/ui/admin/plans/{id}"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanInput' }
+      responses:
+        '200':
+          description: The plan after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPlan' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    page:
+      name: page
+      in: query
+      description: Zero-based page number.
+      schema: { type: integer, minimum: 0, default: 0 }
+    size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    orderId:
+      name: orderId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    projectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    subscriptionId:
+      name: subscriptionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    planId:
+      name: planId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    BadRequest:
+      description: Invalid input (`validation-failed`, `invalid-sort`, `invalid-idempotency-key`, ...).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: No token, or a bad or expired one (`token-missing`, `token-invalid`, `token-expired`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: The admin role is missing (`access-denied`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: No such resource, or one the caller may not see.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotAcceptable:
+      description: An `Accept` the route can't answer.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: The first request with this `Idempotency-Key` still runs (`request-in-progress`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unprocessable:
+      description: |
+        A business rule (`plan-not-payable`, `plan-change-not-supported`, `plan-mismatch`,
+        `idempotency-key-reused`, `subscription-not-found` for a RENEW without a plan to renew, `project-required`
+        for a SUBSCRIBE or CHANGE without `websiteId` while subscriptions are still bought per website).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unavailable:
+      description: The database, the broker or the payment provider is down (`service-unavailable`, `provider-unavailable`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, description: '`urn:webblock:problem:<code>`', example: 'urn:webblock:problem:plan-not-found' }
+        title: { type: string, example: Not Found }
+        status: { type: integer, example: 404 }
+        detail: { type: string, example: Plan not found }
+        instance: { type: string }
+        traceId: { type: string, description: Only on 500, to quote to support. }
+
+    PlanCode:
+      type: string
+      enum: [FREE_TRIAL, PLUS, PRO, ULTRA]
+    PaidPlanCode:
+      type: string
+      enum: [PLUS, PRO, ULTRA]
+    Money:
+      type: string
+      pattern: '^\d+\.\d{2}$'
+      example: '12.00'
+
+    PlanFeature:
+      type: object
+      required: [icon, text]
+      properties:
+        icon: { type: string, enum: [check, clock, globe, rocket, box, pulse, file] }
+        text: { type: string, example: 3 websites }
+
+    Plan:
+      description: Landing `Plan` and billing `BillingPlan` in one.
+      type: object
+      required: [id, code, name, priceMonthly, monthlyPrice, currency, trialDays, websiteLimit, redeploysPerMonth,
+                 productLimit, logsEnabled, popular, features]
+      properties:
+        id: { type: string, format: uuid }
+        code: { $ref: '#/components/schemas/PlanCode' }
+        name: { type: string }
+        priceMonthly: { $ref: '#/components/schemas/Money' }
+        monthlyPrice: { $ref: '#/components/schemas/Money' }
+        currency: { type: string, enum: [USD, KHR] }
+        trialDays: { type: [integer, 'null'], description: The free trial only. }
+        websiteLimit: { type: [integer, 'null'] }
+        redeploysPerMonth: { type: [integer, 'null'] }
+        productLimit: { type: [integer, 'null'], description: Per website. }
+        logsEnabled: { type: boolean }
+        popular: { type: boolean }
+        features:
+          type: array
+          items: { $ref: '#/components/schemas/PlanFeature' }
+    PlanPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/Plan' } }
+
+    UsageMetric:
+      type: object
+      required: [key, label, cardLabel, used, limit]
+      properties:
+        key: { type: string, enum: [websites, redeploys, generations, products] }
+        label: { type: string, example: Websites }
+        cardLabel: { type: string, example: Website }
+        used: { type: [integer, 'null'], description: '`null` when the owning service could not be asked.' }
+        limit: { type: [integer, 'null'], description: '`null` = unlimited.' }
+
+    Subscription:
+      description: '`account/types.ts` `Subscription`.'
+      type: object
+      required: [plan, planName, trialStartsAt, trialEndsAt, trialDays, renewsAt, monthlyPrice, startingPrice, usage,
+                 includes]
+      properties:
+        plan: { $ref: '#/components/schemas/PlanCode' }
+        planName: { type: string }
+        trialStartsAt: { type: [string, 'null'], format: date-time }
+        trialEndsAt: { type: [string, 'null'], format: date-time }
+        trialDays: { type: [integer, 'null'] }
+        renewsAt: { type: [string, 'null'], format: date-time, description: Paid plans only. }
+        monthlyPrice:
+          description: Paid plans only (what this subscription pays).
+          oneOf: [{ $ref: '#/components/schemas/Money' }, { type: 'null' }]
+        startingPrice: { $ref: '#/components/schemas/Money' }
+        usage: { type: array, items: { $ref: '#/components/schemas/UsageMetric' } }
+        includes: { type: array, items: { type: string } }
+
+    DeployReason:
+      type: string
+      enum: [FIRST_FREE_DEPLOY, WITHIN_PLAN, SUBSCRIPTION_REQUIRED, PLAN_EXPIRED, WEBSITE_LIMIT, REDEPLOY_LIMIT]
+    DeployAccess:
+      type: object
+      required: [allowed, reason, plan, planName, firstDeploy]
+      properties:
+        allowed: { type: boolean }
+        reason: { $ref: '#/components/schemas/DeployReason' }
+        plan:
+          description: '`null` when the account has neither a trial nor a plan.'
+          oneOf: [{ $ref: '#/components/schemas/PlanCode' }, { type: 'null' }]
+        planName: { type: [string, 'null'] }
+        firstDeploy: { type: boolean, description: The website was never deployed. }
+
+    PlanUsage:
+      type: object
+      required: [plan, planName, resetsAt, metrics]
+      properties:
+        plan: { $ref: '#/components/schemas/PlanCode' }
+        planName: { type: string }
+        resetsAt: { type: [string, 'null'], format: date-time }
+        metrics: { type: array, items: { $ref: '#/components/schemas/UsageMetric' } }
+
+    OrderStatus:
+      type: string
+      enum: [PAID, EXPIRED]
+      description: A failed or voided bill shows as `EXPIRED`.
+    PlanOrder:
+      description: '`account/types.ts` `PlanOrder`.'
+      type: object
+      required: [id, plan, planName, websiteName, period, createdAt, amount, currency, status]
+      properties:
+        id: { type: string, format: uuid }
+        plan: { $ref: '#/components/schemas/PlanCode' }
+        planName: { type: string }
+        websiteName: { type: [string, 'null'], description: From Project; `null` while Project is down. }
+        period: { type: [string, 'null'], example: Monthly, description: '"Monthly" or "Monthly · renewal".' }
+        createdAt: { type: string, format: date-time }
+        amount: { $ref: '#/components/schemas/Money' }
+        currency: { type: string, enum: [USD, KHR] }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+    PlanOrderPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/PlanOrder' } }
+
+    PaymentKind:
+      type: string
+      enum: [SUBSCRIBE, CHANGE, RENEW]
+      description: SUBSCRIBE = first paid plan after the trial, CHANGE = another paid plan, RENEW = more time.
+    CreateOrder:
+      type: object
+      required: [plan, kind]
+      properties:
+        plan: { $ref: '#/components/schemas/PaidPlanCode' }
+        kind: { $ref: '#/components/schemas/PaymentKind' }
+        websiteId: { type: [string, 'null'], format: uuid }
+        websiteName: { type: string, description: Ignored (looked up). }
+        websiteDomain: { type: string, description: Ignored (looked up). }
+        websiteImageUrl: { type: string, description: Ignored (looked up). }
+    PaymentOrder:
+      description: '`billing/types.ts` `PaymentOrder`.'
+      type: object
+      required: [id, reference, plan, planName, kind, websiteId, websiteName, websiteDomain, websiteImageUrl, amount,
+                 currency, status, qrImageUrl, createdAt, expiresAt, paidAt, nextPaymentAt]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, example: WB-7K3Q-0142, description: Receipt number. }
+        plan: { $ref: '#/components/schemas/PaidPlanCode' }
+        planName: { type: string }
+        kind: { $ref: '#/components/schemas/PaymentKind' }
+        websiteId: { type: [string, 'null'], format: uuid }
+        websiteName: { type: [string, 'null'] }
+        websiteDomain: { type: [string, 'null'] }
+        websiteImageUrl: { type: [string, 'null'] }
+        amount: { $ref: '#/components/schemas/Money' }
+        currency: { type: string, enum: [USD] }
+        status: { type: string, enum: [PENDING, PAID, EXPIRED] }
+        qrImageUrl:
+          type: [string, 'null']
+          description: |
+            The KHQR code as a `data:image/png;base64,...` URL, while the order is `PENDING`; `null` after. The page
+            only displays it (an `<img>` can't send the bearer token, so it is not a separate image route).
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        paidAt: { type: [string, 'null'], format: date-time }
+        nextPaymentAt: { type: string, format: date-time, description: First day of the next billing period. }
+
+    SubscriptionStatus:
+      type: string
+      enum: [ACTIVE, PENDING, CANCELED, EXPIRED, SUSPENDED]
+      description: |
+        A past-due subscription inside its grace time is `ACTIVE`, after it `EXPIRED`. `SUSPENDED` = the owner's
+        account is suspended.
+    AdminSubscription:
+      description: '`admin/types.ts` `Subscription`.'
+      type: object
+      required: [id, userId, userName, userEmail, userAvatarUrl, websiteId, websiteName, websiteDomain, plan, status,
+                 startAt, endAt, redeploysLeft, redeployLimit]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        userName: { type: [string, 'null'], description: From User. }
+        userEmail: { type: [string, 'null'], description: From User. }
+        userAvatarUrl: { type: [string, 'null'], description: From User. }
+        websiteId: { type: [string, 'null'], format: uuid }
+        websiteName: { type: [string, 'null'], description: From Project. }
+        websiteDomain: { type: [string, 'null'], description: From Project. }
+        plan: { $ref: '#/components/schemas/PlanCode' }
+        status: { $ref: '#/components/schemas/SubscriptionStatus' }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        redeploysLeft: { type: [integer, 'null'], description: '`null` = unlimited.' }
+        redeployLimit: { type: [integer, 'null'], description: '`null` = unlimited.' }
+    AdminSubscriptionPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/AdminSubscription' } }
+
+    SubscriptionStats:
+      type: object
+      required: [monthlyRevenue, activePlans, trialsEndingSoon, pending]
+      properties:
+        monthlyRevenue: { $ref: '#/components/schemas/Money' }
+        activePlans: { type: integer }
+        trialsEndingSoon: { type: integer }
+        pending: { type: integer }
+
+    AdminPayment:
+      description: '`admin/types.ts` `Payment`.'
+      type: object
+      required: [id, subscriptionId, plan, periodStart, amount, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        subscriptionId: { type: string, format: uuid }
+        plan: { $ref: '#/components/schemas/PlanCode' }
+        periodStart: { type: string, format: date-time, description: First day of the billed period. }
+        amount: { $ref: '#/components/schemas/Money' }
+        status: { type: string, enum: [PAID, FAILED], description: An expired or voided bill shows as `FAILED`. }
+        createdAt: { type: string, format: date-time }
+    AdminPaymentPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/AdminPayment' } }
+
+    AdminPlan:
+      description: '`admin/types.ts` `Plan`.'
+      type: object
+      required: [id, code, name, priceMonthly, trialDays, websiteLimit, redeploysPerMonth, productLimit, monitoring,
+                 subscriberCount, mostPopular]
+      properties:
+        id: { type: string, format: uuid }
+        code: { $ref: '#/components/schemas/PlanCode' }
+        name: { type: string }
+        priceMonthly: { $ref: '#/components/schemas/Money' }
+        trialDays: { type: [integer, 'null'] }
+        websiteLimit: { type: [integer, 'null'] }
+        redeploysPerMonth: { type: [integer, 'null'] }
+        productLimit: { type: [integer, 'null'] }
+        monitoring: { type: [string, 'null'], example: basic }
+        subscriberCount: { type: integer, description: Owners whose plan this is now. }
+        mostPopular: { type: boolean }
+    AdminPlanPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/AdminPlan' } }
+    PlanInput:
+      type: object
+      required: [priceMonthly, websiteLimit, redeploysPerMonth, productLimit, monitoring]
+      properties:
+        priceMonthly: { $ref: '#/components/schemas/Money' }
+        websiteLimit: { type: integer, minimum: 0, maximum: 1000000 }
+        redeploysPerMonth: { type: integer, minimum: 0, maximum: 1000000 }
+        productLimit: { type: integer, minimum: 0, maximum: 1000000 }
+        monitoring: { type: string, pattern: '^[A-Za-z0-9 _-]{1,50}$' }
+
+    AttentionItem:
+      type: object
+      required: [kind, count, latestName, latestAt, latestOwnerName, amountAtRisk, retryInDays]
+      properties:
+        kind: { type: string, enum: [FAILED_DEPLOYS, PLAN_EXPIRED, PAYMENTS_PAST_DUE, TRIALS_ENDING] }
+        count: { type: integer }
+        latestName: { type: [string, 'null'] }
+        latestAt: { type: [string, 'null'], format: date-time }
+        latestOwnerName: { type: [string, 'null'], description: From User. }
+        amountAtRisk:
+          description: PAYMENTS_PAST_DUE only.
+          oneOf: [{ $ref: '#/components/schemas/Money' }, { type: 'null' }]
+        retryInDays: { type: [integer, 'null'], description: PAYMENTS_PAST_DUE only. }
+    AdminOverview:
+      type: object
+      required: [newAccounts, websitesPublished, monthlyRevenue, failedDeploys, revenueByMonth, attention]
+      properties:
+        newAccounts: { type: [integer, 'null'], description: From User. }
+        websitesPublished: { type: [integer, 'null'], description: From Provisioning. }
+        monthlyRevenue: { $ref: '#/components/schemas/Money' }
+        failedDeploys: { type: [integer, 'null'], description: Deploys that failed in the last 24 hours. From Provisioning. }
+        revenueByMonth:
+          type: array
+          items:
+            type: object
+            required: [month, amount]
+            properties:
+              month: { type: string, format: date, description: First day of the month. }
+              amount: { $ref: '#/components/schemas/Money' }
+        attention: { type: array, items: { $ref: '#/components/schemas/AttentionItem' } }
+
+    PageMeta:
+      type: object
+      required: [page, size, totalItems]
+      properties:
+        page: { type: integer, description: Zero-based. }
+        size: { type: integer }
+        totalItems: { type: integer }
+
+x-v1-without-v2:
+  - route: "GET /api/payment/v1/ui/admin/audit"
+    why: The single admin activity feed (entries from User, Payment and Provisioning) waits for the owner. v1 stays.
+
+x-needs:
+  description: |
+    Internal routes payment-service calls to answer its v2 types. Each call has a 2-second timeout; on a timeout or
+    an error the fields are `null` and the answer still goes out. Proposed shapes only; the owning service decides.
+  user-service:
+    - route: "GET /internal/v1/users?id={id}&id={id}..."
+      exists: "drafted in user-internal-v1.yaml"
+      use: "AdminSubscription.userName, userEmail, userAvatarUrl; AttentionItem.latestOwnerName; receipt billed-to."
+    - route: "GET /internal/v1/users/ids?q={text}"
+      exists: false
+      use: "The admin subscription table's `q` search: the ids of users whose name or email matches (at most 1000)."
+      answer: '{"userIds": ["<uuid>", "..."]}'
+    - route: "GET /internal/v1/users/stats?createdSince={iso-date-time}"
+      exists: false
+      use: "AdminOverview.newAccounts (accounts created since the start of the month)."
+      answer: '{"createdSince": "<iso>", "newAccounts": 0}'
+  project-service:
+    - route: "GET /internal/v1/projects?id={id}&id={id}..."
+      exists: false
+      use: |
+        Website name, domain and image on orders, receipts and admin subscriptions, and the product count on
+        /projects/{projectId}/usage and the products meter. Replaces the single GET /internal/v1/projects/{projectId}
+        Payment's ProjectFeignClient calls today, which Project doesn't serve (brief item 5).
+      answer: '[{"projectId": "<uuid>", "ownerId": "<uuid>", "name": "", "domain": "shop.example.com or null", "imageUrl": "<url or null>", "productCount": 0}]'
+  provisioning-service:
+    - route: "GET /internal/v1/websites/stats"
+      exists: "proposed by user-service with liveWebsites only"
+      use: "AdminOverview.websitesPublished and failedDeploys, and the FAILED_DEPLOYS attention card."
+      answer: '{"liveWebsites": 0, "failedDeploys": 0, "latestFailed": {"projectId": "<uuid>", "name": "", "ownerId": "<uuid>", "failedAt": "<iso>"}}'
