@@ -1,0 +1,292 @@
+openapi: 3.1.0
+info:
+  title: WebBlock Provisioning internal API v1
+  version: 1.0.0
+  description: |
+    DRAFT, proposed by provisioning, waits for project, payment and account.
+
+    Service-to-service routes of provisioning-api, reachable only through the mesh (never through the public
+    gateway). The caller is the workload identity from `X-Forwarded-Client-Cert` (Istio mTLS), checked per route
+    against the allowed callers named in `x-callers` (webblock-commons `allowed_callers`); anyone else is
+    `403 access-denied`. There is no user token: a route that acts for a person takes that person's id in `x-user-id`
+    (the Keycloak `sub`), as every inner call does. Errors are problem details as in `provisioning-v2.yaml`.
+
+    Callers and what they use (from the other services' v2 drafts):
+    - payment-service: `AdminOverview.websitesPublished`, `failedDeploys`, the FAILED_DEPLOYS card.
+    - user-service: `UserStats.liveWebsites`.
+    - project-service: `AdminWebsite` (siteStatus, releaseStatus, routingStatus, liveRelease, lastDeployAt,
+      sslValidUntil), the owner's website list (LIVE or SUSPENDED), a deployment's release steps, and the admin
+      suspend and resume of a website.
+
+    The second half, `x-needs`, lists the internal routes provisioning-api calls on other services to answer its v2
+    types. Each call has a 2-second timeout; when it fails the fields it fills are `null` and the answer still goes
+    out, except the entitlement check (OD-04), which fails closed.
+servers:
+  - url: http://provisioning-api/internal/v1
+paths:
+  /websites/stats:
+    get:
+      operationId: getWebsiteStats
+      summary: Live websites and failed deploys across the platform
+      x-callers: [payment-service, user-service]
+      x-phase: 2
+      responses:
+        '200':
+          description: The counts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WebsiteStats' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /websites:
+    get:
+      operationId: listWebsiteHosting
+      summary: The hosting state of up to 100 websites, by id or by state
+      description: |
+        Either `id` (1 to 100, repeated) or one of the filters. With `id`, the answer has one item per known website
+        in the order asked; an id Provisioning never saw is left out (its website was never deployed: Project shows
+        `NOT_DEPLOYED`). With `siteStatus` or `releaseStatus` the answer lists every matching website (at most 1000;
+        `X-Truncated: true` when there are more), for Project's admin filters.
+      x-callers: [project-service]
+      x-phase: 2
+      parameters:
+        - name: id
+          in: query
+          style: form
+          explode: true
+          schema: { type: array, maxItems: 100, items: { type: string, format: uuid } }
+        - name: siteStatus
+          in: query
+          schema: { type: string, enum: [ONLINE, OFFLINE_BILLING, SUSPENDED] }
+        - name: releaseStatus
+          in: query
+          schema: { type: string, enum: [LIVE, GOING_LIVE, FAILED] }
+      responses:
+        '200':
+          description: The websites.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/WebsiteHosting' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/releases:
+    get:
+      operationId: findRelease
+      summary: The release of one generation request, with its steps
+      description: |
+        For Project's `getDeployment` (the UI polls it): `generationRequestId` is Project's deployment id. Answers
+        the v2 `Release` (see `provisioning-v2.yaml`) as a one-item array, or an empty array when the release does
+        not exist yet (the source event has not arrived).
+      x-callers: [project-service]
+      x-phase: 2
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: generationRequestId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Zero or one release.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 1
+                items: { $ref: 'provisioning-v2.yaml#/components/schemas/Release' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/hosting:
+    put:
+      operationId: setHosting
+      summary: An admin suspends a website's hosting or brings it back
+      description: |
+        Project calls it after recording `PATCH /api/project/v2/admin/projects/{projectId}` `{"siteStatus": ...}`
+        (it has already checked the admin role and, for `ONLINE`, that the owner's account is active).
+        `SUSPENDED` adds the reason `ADMIN_SUSPENDED` (the website goes offline, content kept); `ONLINE` removes it
+        (the website comes back only when no other reason, such as billing, holds it offline). It runs the same
+        command as v1's admin suspend and resume, so the audit entry SUSPEND_HOSTING or RESUME_HOSTING names the
+        admin from `x-user-id`. Idempotent by `Idempotency-Key`; setting the state it already has answers the earlier
+        command.
+      x-callers: [project-service]
+      x-phase: 2
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 249 }
+        - name: x-user-id
+          in: header
+          required: true
+          description: The admin who asked (Keycloak `sub`).
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status: { type: string, enum: [SUSPENDED, ONLINE] }
+      responses:
+        '202':
+          description: Durably accepted; `Location` names the command (`/api/provisioning/v2/projects/{projectId}/commands/{commandId}`).
+          content:
+            application/json:
+              schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Command' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: '`deployment-not-found`: the website has never been deployed (nothing to suspend).'
+          content: { application/problem+json: { schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Problem' } } }
+        '409':
+          description: '`command-in-progress`, `idempotency-key-reused`.'
+          content: { application/problem+json: { schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Problem' } } }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/rollbacks:
+    post:
+      operationId: rollBackToRelease
+      summary: Serve an earlier release again (Project's restore of a page version)
+      description: |
+        DRAFT (x-phase 3). Project's `PATCH /projects/{projectId}/page` `{"currentVersionId": ...}` restores a page
+        version; Provisioning then promotes the release built from that version's commit, if it is still kept
+        (`REPLACED` and its image in the registry). Body `{"gitCommitSha": "..."}`; answers the `PROMOTE` command, or
+        `422 release-not-kept` when no kept release has that commit (Project then publishes the version anew). Audit
+        ROLLBACK names `x-user-id`.
+      x-callers: [project-service]
+      x-phase: 3
+      x-status: draft
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 249 }
+        - name: x-user-id
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [gitCommitSha]
+              properties:
+                gitCommitSha: { type: string, pattern: '^[0-9a-f]{40}([0-9a-f]{24})?$' }
+      responses:
+        '202':
+          description: The promote command.
+          content:
+            application/json:
+              schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Command' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: '`command-in-progress`.'
+          content: { application/problem+json: { schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Problem' } } }
+        '422':
+          description: '`release-not-kept`.'
+          content: { application/problem+json: { schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Problem' } } }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+components:
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    BadRequest:
+      description: '`validation-failed`.'
+      content: { application/problem+json: { schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Problem' } } }
+    Forbidden:
+      description: '`access-denied`: the calling workload is not an allowed caller of this route.'
+      content: { application/problem+json: { schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Problem' } } }
+    Unavailable:
+      description: '`dependency-unavailable` (database). Retryable.'
+      content: { application/problem+json: { schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Problem' } } }
+  schemas:
+    WebsiteStats:
+      type: object
+      required: [liveWebsites, failedDeploys, building, latestFailed]
+      properties:
+        liveWebsites: { type: integer, minimum: 0, description: Websites with a live release (hosting online or not). }
+        failedDeploys: { type: integer, minimum: 0, description: Releases that failed in the last 24 hours. }
+        building: { type: integer, minimum: 0, description: Websites with a release on its way. }
+        latestFailed:
+          description: |
+            The newest failed release. Provisioning has no website names or owners; Payment looks the name and
+            owner up in Project (`GET /internal/v1/projects?id=`).
+          oneOf:
+            - type: object
+              required: [projectId, releaseId, failedAt]
+              properties:
+                projectId: { type: string, format: uuid }
+                releaseId: { type: string, format: uuid }
+                failedAt: { type: string, format: date-time }
+            - type: 'null'
+
+    WebsiteHosting:
+      type: object
+      required: [projectId, siteStatus, releaseStatus, routingStatus, liveRelease, liveReleaseId, liveSince,
+                 lastDeployAt, hostname, sslValidUntil]
+      properties:
+        projectId: { type: string, format: uuid }
+        siteStatus:
+          type: string
+          enum: [ONLINE, NOT_DEPLOYED, OFFLINE_BILLING, SUSPENDED]
+          description: |
+            `ONLINE`: a live release and hosting online. `OFFLINE_BILLING`: offline for billing alone.
+            `SUSPENDED`: offline because an admin suspended the website, the owner's account is suspended or the
+            project was deleted. `NOT_DEPLOYED`: nothing went live yet.
+        releaseStatus:
+          type: [string, 'null']
+          enum: [LIVE, GOING_LIVE, FAILED, null]
+          description: The newest release's result (admin `ReleaseStatus`); null when the website has no release.
+        routingStatus: { type: string, enum: [STABLE, UPDATING] , description: '`UPDATING` while the route changes or is uncertain.' }
+        liveRelease: { type: [string, 'null'], example: R-12, description: Label of the release visitors get. }
+        liveReleaseId: { type: [string, 'null'], format: uuid }
+        liveSince: { type: [string, 'null'], format: date-time }
+        lastDeployAt: { type: [string, 'null'], format: date-time, description: When the newest release finished (went live or failed). }
+        hostname: { type: [string, 'null'], description: The public host the website is served on. }
+        sslValidUntil: { type: [string, 'null'], format: date-time, description: Null until certificates are tracked (x-phase 3). }
+
+x-needs:
+  description: |
+    Internal routes provisioning-api calls to answer its v2 types. Proposed shapes only; the owning service decides.
+  project-service:
+    - route: "POST /internal/v1/access-checks"
+      exists: true
+      use: "Every /v2/projects/{projectId}/... route (as v1)."
+    - route: "GET /internal/v1/projects?id={id}&id={id}..."
+      exists: "proposed by payment-service"
+      use: "AdminRelease.websiteName, websiteThumbnailUrl, websiteLogoUrl, websiteTemplateSlug; PipelineRun.websiteName, domain, logoUrl, templateSlug; the owner id for ownerName."
+      answer: '[{"projectId": "<uuid>", "ownerId": "<uuid>", "name": "", "domain": "shop.example.com or null", "imageUrl": "<url or null>", "logoUrl": "<url or null>", "templateSlug": "<code or null>"}]'
+    - route: "GET /internal/v1/projects/{projectId}/generation-requests/latest"
+      exists: false
+      use: "PipelineRun steps 1 to 3 and requestStatus (QUEUED, PUBLISHING, PUBLISHED, STUCK, FAILED), requestStuckMinutes."
+      answer: '{"generationRequestId": "<uuid>", "status": "PUBLISHED", "createdAt": "<iso>", "updatedAt": "<iso>", "gitCommitSha": "<sha or null>", "failureReason": null}'
+  account (user-service):
+    - route: "GET /internal/v1/users?id={id}&id={id}..."
+      exists: "drafted in user-internal-v1.yaml"
+      use: "Release.startedBy (fullName, initials) and AdminRelease.ownerName."
+  payment-service:
+    - route: "GET /internal/v1/projects/{projectId}/entitlement"
+      exists: "Payment's route (OD-04 decided REST)"
+      use: |
+        The deploy gate in provisioning-api (deploy and redeploy commands) and the 429 of adminRedeploy. Same auth as
+        issue 10 (Project and Payment agree it). 2-second timeout; when Payment does not answer, the command is
+        refused with a retryable `503 dependency-unavailable` (fail closed). The response fields are agreed with
+        Payment and written in Payment's internal contract.

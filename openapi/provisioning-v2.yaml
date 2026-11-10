@@ -1,0 +1,1239 @@
+openapi: 3.1.0
+info:
+  title: WebBlock Provisioning API v2
+  version: 2.0.0
+  description: |
+    OWNED BY provisioning.
+
+    Public API of provisioning-service, version 2 (owner's decision, 10 November 2026). v2 drops the client segment
+    `ui/` of v1 and answers every route without the `{success, data, meta}` envelope. v1 (`/api/provisioning/v1/...`,
+    both the enveloped routes and the bare `/v1/ui/...` routes) stays exactly as it is, deprecated until every client
+    has moved; the table `x-v1-replacements` at the end of this file maps each v1 route to its v2 route.
+
+    The UI's TypeScript types are the contract of every answer: `webblock-web-ui/src/features/monitoring/types.ts`
+    (`SiteStatus`, `Deploy`, `DeployStats`), `src/features/admin/types.ts` (`Deploy`) and
+    `src/features/admin/monitoring/types.ts` (`LogLine`, `LiveStats`, `PipelineRun`, `ActivityEntry`). A v2 answer
+    carries every field of its UI type, spelled the same way, and may carry more.
+
+    Rules for every operation:
+    - Authentication is a Keycloak bearer JWT. The caller is `sub`; no operation takes a user id from the path or the
+      body.
+    - `/projects/{projectId}/...` checks on the server that the caller may see the website (Project's access check,
+      `POST /internal/v1/access-checks`). A website the caller may not see answers `404 project-not-found`, the same
+      as one that does not exist, so ids don't leak. An `admin` reads any website without the check; the commands keep
+      the check for an admin, as v1 does.
+    - `/admin/...` requires the realm role `admin` (`403 access-denied` otherwise, before the website is looked at).
+    - Lists are `Page<T>`: `{items, page, size, totalItems}` with a zero-based `page`, `size` from 1 to 50 on owner
+      lists and 1 to 200 on admin lists (default 20), and `sort=<field>,asc|desc` on the one time field each list
+      names (default newest first). An unknown or repeated query parameter is `400 validation-failed`.
+    - Errors are RFC 9457 problem details (`application/problem+json`): `type` = `urn:webblock:problem:<code>`,
+      `title`, `status`, `detail`, plus Provisioning's `code` (UPPER_SNAKE), `requestId` and `errors` (one entry per
+      bad input of a 400). The UI shows `title` and `detail` and branches on `status`.
+    - Ids are UUID strings; times are ISO 8601 in UTC with `Z`. Field names are camelCase.
+    - Commands are asynchronous: they answer `202` with the command resource and a `Location` header naming it. The
+      `Idempotency-Key` header (1 to 249 bytes) is required; the same key with the same input answers the same
+      command, the same key with another input is `409 idempotency-key-reused`.
+    - Every response carries `X-Request-Id`; a valid incoming `X-Request-Id` is echoed.
+
+    Deploy flow (owner's decision 3a, 10 November 2026). A publish runs from Project's `source_published` event
+    straight through to LIVE: Provisioning builds the release, starts it privately (candidate) and, once the
+    candidate is ready, promotes it without a second call (`x-phase: 3`, see `x-open` "auto-promote"). Until that
+    lands, a release stops at `READY` and the owner promotes it with a `PROMOTE` command; `allowedCommands` on the
+    release says which commands it takes right now, so the UI shows "Go live" exactly when `PROMOTE` is in it. A
+    command the release does not take is `409 illegal-transition` with a `detail` that names the release state.
+
+    Stages. Every release answer carries `stage`, one of `BUILDING`, `DEPLOYING`, `LIVE`, `FAILED` (COMMON 3a's
+    `generating` is Project's, before a release exists). `state` is the finer release state:
+
+    | `state` | v1 `status` | `stage` |
+    | --- | --- | --- |
+    | `QUEUED` | `accepted` | `BUILDING` |
+    | `BUILDING` | `building` | `BUILDING` |
+    | `BUILT` | `built` | `DEPLOYING` |
+    | `READY` | `candidate_ready` | `DEPLOYING` |
+    | `GOING_LIVE` | `promoting` | `DEPLOYING` |
+    | `LIVE` | `live` | `LIVE` |
+    | `REPLACED` | `superseded` | `LIVE` (it was live; a newer release replaced it) |
+    | `FAILED` | `failed` | `FAILED` |
+    | `ROLLED_BACK` | `rolled_back` | `FAILED` |
+
+    `x-phase` on an operation: `2` is served on the data Provisioning holds today; `3` needs new behaviour or another
+    service's internal route, and is described here so the other services can build against it. Fields that come
+    from another service are `null` while that service is down or its internal route does not exist yet; the answer
+    still goes out (owner's decision 3a). Each internal call has a 2-second timeout.
+
+    Internal routes (service to service, mesh only) are in `provisioning-internal-v1.yaml`.
+servers:
+  - url: /api/provisioning/v2
+    description: Through the gateway. The service itself serves the same paths under /v2.
+tags:
+  - name: projects
+    description: One website. The caller must be allowed to see it (owner, or admin).
+  - name: commands
+    description: Asynchronous commands on one website.
+  - name: admin
+    description: Admin-only routes. Realm role `admin` required.
+security:
+  - bearerAuth: []
+paths:
+  /projects/{projectId}/status:
+    get:
+      tags: [projects]
+      operationId: getSiteStatus
+      summary: Is the public site reachable, and its uptime
+      description: |
+        `online` is true when the website has a live release and its hosting is online.
+        `uptimePercent` (last 30 days, decimal string) and `checkedAt` come from Provisioning's uptime check, which is
+        a new feature (`x-phase: 3`); until it runs they are `null`. A website that has never been deployed is
+        `404 deployment-not-found` (the UI shows no status).
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/ui/projects/{projectId}/status"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: The site status.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SiteStatus' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/hosting:
+    get:
+      tags: [projects]
+      operationId: getHosting
+      summary: The website's live release, route and hosting state
+      description: |
+        The deployment record of the website: which release serves visitors, whether the route is stable, whether
+        hosting is online, and the command in flight. `404 deployment-not-found` when the website has never been
+        deployed.
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/projects/{projectId}/deployment"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: The hosting record.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Hosting' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/releases:
+    get:
+      tags: [projects]
+      operationId: listReleases
+      summary: The website's releases (its deploy history), newest first
+      description: |
+        Each item is a release, which is one deploy of the website: the monitoring `Deploy` fields plus the release
+        state. Without `state`, only finished releases are listed (`status` is `SUCCEEDED` or `FAILED`), which is
+        what the Monitor screen shows. `state=RUNNING` lists the releases still on their way (`QUEUED` to
+        `GOING_LIVE`); `state=ALL` lists every release. `generationRequestId` keeps the release of one Project
+        generation request (at most one). `number` counts all the website's releases, whatever the filter.
+        `startedBy` comes from User (`x-phase: 3`); it is `null` until then and whenever User does not answer.
+      x-phase: 2
+      x-replaces:
+        - "GET /api/provisioning/v1/ui/projects/{projectId}/deploys"
+        - "GET /api/provisioning/v1/ui/projects/{projectId}/deployments"
+        - "GET /api/provisioning/v1/projects/{projectId}/releases"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: state
+          in: query
+          schema: { type: string, enum: [FINISHED, RUNNING, ALL], default: FINISHED }
+        - name: generationRequestId
+          in: query
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/OwnerSize'
+        - name: sort
+          in: query
+          schema: { type: string, enum: ['startedAt,desc', 'startedAt,asc'], default: 'startedAt,desc' }
+      responses:
+        '200':
+          description: One page of releases.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReleasePage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/releases/stats:
+    get:
+      tags: [projects]
+      operationId: getReleaseStats
+      summary: How many deploys the website had, and how many succeeded and failed
+      description: |
+        `total` counts finished releases; `succeeded` those that went live (`LIVE` or `REPLACED`); `failed` those that
+        did not (`FAILED`, `ROLLED_BACK`).
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/ui/projects/{projectId}/deploys/stats"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: The counts.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeployStats' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/releases/{releaseId}:
+    get:
+      tags: [projects]
+      operationId: getRelease
+      summary: One release, with its steps
+      description: |
+        `404 release-not-found` when the website has no such release. Steps are in stage order, then by attempt.
+      x-phase: 2
+      x-replaces:
+        - "GET /api/provisioning/v1/projects/{projectId}/releases/{releaseId}"
+        - "GET /api/provisioning/v1/ui/projects/{projectId}/deployments/{deploymentId} (by generation request: use listReleases?generationRequestId=)"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ReleaseId'
+      responses:
+        '200':
+          description: The release.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Release' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/releases/{releaseId}/diagnostics:
+    get:
+      tags: [projects]
+      operationId: getReleaseDiagnostics
+      summary: Why a release is where it is (support view)
+      description: The v1 diagnostics body of the release, without the envelope.
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/projects/{projectId}/releases/{releaseId}/diagnostics"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ReleaseId'
+      responses:
+        '200':
+          description: The diagnostics.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Diagnostics' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/releases/{releaseId}/builds:
+    post:
+      tags: [commands]
+      operationId: buildRelease
+      summary: Start or retry the build of a release
+      description: |
+        Requests the build of the release. Accepting a `source_published` event starts the first build by itself, so
+        this is for a retry. It applies to a `QUEUED` release, to the next attempt of a `BUILDING` release whose last
+        attempt failed, and (`x-phase: 3`, issue 1) to a `FAILED` release whose failure happened at build or image
+        push and is retryable: the release gets a new build attempt instead of costing a new generation.
+        A build is tracked on the release, not as a command (the domain has no build command), so this answers the
+        release and `Location` names it; no `Idempotency-Key` is taken (two requests for the same attempt start it
+        once). No request body.
+        - `409 build-in-progress`: an attempt is running.
+        - `422 release-not-buildable`: the release cannot be built again (it has no pending attempt, or it failed
+          later than the push, or not retryably).
+      x-phase: 2
+      x-replaces: "POST /api/provisioning/v1/projects/{projectId}/releases/{releaseId}/build"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ReleaseId'
+      responses:
+        '202':
+          description: The build was requested; read the release for progress.
+          headers:
+            X-Request-Id: { $ref: '#/components/headers/RequestId' }
+            Location: { $ref: '#/components/headers/ReleaseLocation' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Release' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/commands:
+    get:
+      tags: [commands]
+      operationId: listCommands
+      summary: The website's commands, newest first
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/projects/{projectId}/commands"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/OwnerSize'
+        - name: sort
+          in: query
+          schema: { type: string, enum: ['createdAt,desc', 'createdAt,asc'], default: 'createdAt,desc' }
+      responses:
+        '200':
+          description: One page of commands.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommandPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [commands]
+      operationId: createCommand
+      summary: Deploy, promote or roll back a release
+      description: |
+        Creates an asynchronous command (issue 7: every command answers the same `Command` resource, with no
+        envelope). `kind`:
+        - `DEPLOY`: start a `BUILT` release privately as the candidate. Public traffic does not move.
+        - `PROMOTE`: make a `READY` candidate live ("Go live"; under auto-promote it is only needed again for a
+          release that was promoted before, which is a rollback to it).
+        - `ROLLBACK`: roll an uncertain route back (admin only, as v1; anyone else `403 access-denied`).
+        The release must belong to the website. A command the release does not take now is `409 illegal-transition`
+        (the `detail` names the state, e.g. "Release 4 is LIVE; deploying it again is not possible"); a second
+        command while one is in flight is `409 command-in-progress`. In the production profile every command is
+        `503 operation-unavailable`, as in v1.
+      x-phase: 2
+      x-replaces:
+        - "POST /api/provisioning/v1/projects/{projectId}/releases/{releaseId}/deploy"
+        - "POST /api/provisioning/v1/projects/{projectId}/releases/{releaseId}/promote"
+        - "POST /api/provisioning/v1/projects/{projectId}/releases/{releaseId}/rollback"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommandRequest' }
+      responses:
+        '202':
+          description: Durably accepted.
+          headers:
+            X-Request-Id: { $ref: '#/components/headers/RequestId' }
+            Location: { $ref: '#/components/headers/CommandLocation' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Command' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /projects/{projectId}/commands/{commandId}:
+    get:
+      tags: [commands]
+      operationId: getCommand
+      summary: One command and its outcome
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/projects/{projectId}/commands/{commandId}"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: commandId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The command.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Command' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/releases:
+    get:
+      tags: [admin]
+      operationId: adminListReleases
+      summary: Releases across websites (admin deploy table), newest first
+      description: |
+        Items are the admin `Deploy` type. `projectId` keeps one website; `latestOnly=true` keeps each website's
+        newest release. `websiteName`, `websiteThumbnailUrl`, `websiteLogoUrl` and `websiteTemplateSlug` come from
+        Project, `ownerName` from User (`x-phase: 3`); they are `null` until those internal routes exist and while
+        those services do not answer.
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/ui/admin/deploys"
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: latestOnly
+          in: query
+          schema: { type: boolean, default: false }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/AdminSize'
+        - name: sort
+          in: query
+          schema: { type: string, enum: ['startedAt,desc', 'startedAt,asc'], default: 'startedAt,desc' }
+      responses:
+        '200':
+          description: One page of releases.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReleasePage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/releases/stats:
+    get:
+      tags: [admin]
+      operationId: adminGetReleaseStats
+      summary: Live, failed and building websites
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/ui/admin/stats"
+      responses:
+        '200':
+          description: The counts.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReleaseStats' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/projects/{projectId}/redeployments:
+    post:
+      tags: [admin]
+      operationId: adminRedeploy
+      summary: Redeploy the website's live release
+      description: |
+        Accepts a redeploy of the live release: its pods restart one by one with the same image; the route and the
+        release status do not change. The answer is the admin `Deploy` of that release (the type the UI reads) with
+        the accepted `command` inside it; `Location` names the command.
+        - `409 command-in-progress`: another command of the website is in flight.
+        - `422 redeploy-not-allowed`: no live release, or hosting is offline.
+        - `422 route-not-stable`: the route is changing.
+        - `429 redeploy-limit-reached` (`x-phase: 3`): the owner's plan has no redeploy left this month (Payment's
+          entitlement route, OD-04).
+      x-phase: 2
+      x-replaces:
+        - "POST /api/provisioning/v1/ui/admin/projects/{projectId}/redeploy"
+        - "POST /api/provisioning/v1/admin/projects/{projectId}/redeploy"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Durably accepted.
+          headers:
+            X-Request-Id: { $ref: '#/components/headers/RequestId' }
+            Location: { $ref: '#/components/headers/CommandLocation' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRedeployment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/TooMany' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/projects/{projectId}/commands:
+    get:
+      tags: [admin]
+      operationId: adminListCommands
+      summary: The website's commands with their requester
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/admin/projects/{projectId}/commands"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/AdminSize'
+        - name: sort
+          in: query
+          schema: { type: string, enum: ['createdAt,desc', 'createdAt,asc'], default: 'createdAt,desc' }
+      responses:
+        '200':
+          description: One page of commands.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCommandPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/projects/{projectId}/access-logs:
+    get:
+      tags: [admin]
+      operationId: adminListAccessLogs
+      summary: Access log lines of a live website, newest first
+      description: The last 24 hours, from Loki. `503 log-store-unavailable` when Loki does not answer.
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/ui/admin/projects/{projectId}/access-logs"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - name: level
+          in: query
+          schema: { $ref: '#/components/schemas/LogLevel' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/OwnerSize'
+        - name: sort
+          in: query
+          schema: { type: string, enum: ['at,desc'], default: 'at,desc' }
+      responses:
+        '200':
+          description: One page of log lines.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LogLinePage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/projects/{projectId}/access-stats:
+    get:
+      tags: [admin]
+      operationId: adminGetAccessStats
+      summary: Traffic of the last 5 minutes and the live release
+      description: |
+        The `LiveStats` type: the counts of the last 5 minutes from Loki, plus `liveSince`, `release` and
+        `previousRelease` (release labels `R-<number>`). `404 deployment-not-found` when nothing is live.
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/ui/admin/projects/{projectId}/access-stats"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: The live stats.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveStats' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/pipeline-runs:
+    get:
+      tags: [admin]
+      operationId: adminListPipelineRuns
+      summary: Each website's latest publish, steps 1 to 7 (Pipeline & Generation)
+      description: |
+        The `PipelineRun` type. Steps 1 to 3 (request received, generate code, save to Git) and the website's name,
+        domain, logo and template come from Project (internal route, see `provisioning-internal-v1.yaml` x-needs);
+        `ownerName` from User; steps 4 to 7 and `live` are Provisioning's. While Project does not answer, steps 1 to 3
+        are `WAITING` and `requestStatus` is `PUBLISHED` when a release exists. Default sort `currentStep,asc`.
+      x-phase: 3
+      x-replaces: "GET /api/provisioning/v1/ui/admin/releases/latest"
+      parameters:
+        - name: stage
+          in: query
+          schema: { type: string, enum: [REQUEST, GENERATION, RELEASE, LIVE] }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/AdminSize'
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: ['currentStep,asc', 'currentStep,desc', 'updatedAt,desc', 'updatedAt,asc']
+            default: 'currentStep,asc'
+      responses:
+        '200':
+          description: One page of pipeline runs.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PipelineRunPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/pipeline-runs/{projectId}:
+    get:
+      tags: [admin]
+      operationId: adminGetPipelineRun
+      summary: One website's latest publish
+      description: As `adminListPipelineRuns`, plus `diagnostics`. `404 release-not-found` when nothing was published.
+      x-phase: 3
+      x-replaces: "GET /api/provisioning/v1/ui/admin/projects/{projectId}/releases/latest"
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: The pipeline run.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PipelineRunWithDiagnostics' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/audit-entries:
+    get:
+      tags: [admin]
+      operationId: adminListAuditEntries
+      summary: Provisioning's own audit entries (hosting and rollback actions)
+      description: |
+        Provisioning's half of the admin activity log, as v1. The single feed across User, Payment and Provisioning
+        (`/admin/activity`) waits for the owner (COMMON 3a).
+      x-phase: 2
+      x-replaces: "GET /api/provisioning/v1/ui/admin/audit"
+      parameters:
+        - name: action
+          in: query
+          schema: { type: string, enum: [SUSPEND_HOSTING, RESUME_HOSTING, ROLLBACK, REDEPLOY] }
+        - name: actorUserId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: since
+          in: query
+          schema: { type: string, format: date-time }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/AdminSize'
+        - name: sort
+          in: query
+          schema: { type: string, enum: ['occurredAt,desc', 'occurredAt,asc'], default: 'occurredAt,desc' }
+      responses:
+        '200':
+          description: One page of audit entries.
+          headers: { X-Request-Id: { $ref: '#/components/headers/RequestId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuditEntryPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/activity:
+    get:
+      tags: [admin]
+      operationId: adminListActivity
+      summary: The single admin activity feed (DRAFT, waits for the owner)
+      description: |
+        DRAFT. The owner has not decided who serves the one feed with entries from User (SUSPEND_USER,
+        REACTIVATE_USER), Payment (CHANGE_PLAN) and Provisioning (hosting, ROLLBACK). Proposed: Provisioning serves it
+        from its own audit entries plus User's and Payment's internal audit routes, merged by time, each source with a
+        2-second timeout (a source that does not answer is left out and named in `X-Partial-Sources`). Not built.
+      x-status: waits-for-owner
+      x-phase: 3
+      parameters:
+        - name: action
+          in: query
+          schema: { $ref: '#/components/schemas/ActivityAction' }
+        - name: actor
+          in: query
+          description: '`admins`, `system`, or one admin''s email.'
+          schema: { type: string }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/AdminSize'
+      responses:
+        '200':
+          description: One page of activity entries.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivityEntryPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/activity/actors:
+    get:
+      tags: [admin]
+      operationId: adminListActivityActors
+      summary: Admin emails that appear in the activity feed (DRAFT, waits for the owner)
+      x-status: waits-for-owner
+      x-phase: 3
+      responses:
+        '200':
+          description: The emails, sorted.
+          content:
+            application/json:
+              schema: { type: array, items: { type: string, format: email } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Keycloak access token; `sub` is the caller; realm role `admin` for `/admin/...`.
+
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ReleaseId:
+      name: releaseId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 249 }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    OwnerSize:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+    AdminSize:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+
+  headers:
+    RequestId:
+      description: The request's id, echoed when the client sent a valid one.
+      schema: { type: string }
+    CommandLocation:
+      description: '`/api/provisioning/v2/projects/{projectId}/commands/{commandId}`'
+      schema: { type: string }
+    ReleaseLocation:
+      description: '`/api/provisioning/v2/projects/{projectId}/releases/{releaseId}`'
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: '`validation-failed`: a bad path, query, header or body input (named in `errors`, never echoed).'
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Unauthorized:
+      description: '`unauthenticated`: no token, or a bad or expired one.'
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Forbidden:
+      description: '`access-denied`: the caller lacks the role.'
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    NotFound:
+      description: '`project-not-found`, `release-not-found`, `command-not-found` or `deployment-not-found`.'
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Conflict:
+      description: |
+        `illegal-transition` (the release does not take that command in its state), `command-in-progress`,
+        `build-in-progress`, `idempotency-key-reused`, `concurrent-change`.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    PayloadTooLarge:
+      description: '`payload-too-large`.'
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Unprocessable:
+      description: A business rule, e.g. `release-not-buildable`, `redeploy-not-allowed`, `route-not-stable`.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    TooMany:
+      description: '`redeploy-limit-reached` (x-phase 3).'
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Unavailable:
+      description: |
+        `dependency-unavailable` (database, Project's access check, Loki), `operation-unavailable` (a command in the
+        production profile). Retryable; may carry `Retry-After`.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status, code, requestId]
+      properties:
+        type: { type: string, example: 'urn:webblock:problem:illegal-transition' }
+        title: { type: string, example: Illegal transition }
+        status: { type: integer, example: 409 }
+        detail: { type: string, example: Release 4 is LIVE; deploying it again is not possible. }
+        instance: { type: string }
+        code: { type: string, example: ILLEGAL_TRANSITION }
+        requestId: { type: string }
+        traceId: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, code]
+            properties:
+              field: { type: string }
+              code: { type: string, enum: [REQUIRED, INVALID_FORMAT, TOO_LONG] }
+        commandId: { type: string, format: uuid, description: On `command-in-progress`, the command in flight. }
+
+    Timestamp: { type: string, format: date-time, example: '2026-11-10T09:34:12Z' }
+
+    SiteStatus:
+      type: object
+      description: monitoring `SiteStatus`.
+      required: [websiteId, online, uptimePercent, checkedAt]
+      properties:
+        websiteId: { type: string, format: uuid }
+        online: { type: boolean }
+        uptimePercent: { type: [string, 'null'], pattern: '^\d{1,3}\.\d{2}$', description: Last 30 days. Null until the uptime check runs (x-phase 3). }
+        checkedAt: { type: [string, 'null'], format: date-time, description: Null until the uptime check runs. }
+
+    Hosting:
+      type: object
+      required: [websiteId, liveReleaseId, routingStatus, hostingStatus, offlineReasons, inFlightCommand, updatedAt]
+      properties:
+        websiteId: { type: string, format: uuid }
+        liveReleaseId: { type: [string, 'null'], format: uuid }
+        routingStatus: { type: string, enum: [STABLE, UPDATING, UNCERTAIN] }
+        hostingStatus: { type: string, enum: [ONLINE, OFFLINE] }
+        offlineReasons:
+          type: array
+          items: { type: string, enum: [BILLING, USER_SUSPENDED, PROJECT_DELETED, ADMIN_SUSPENDED] }
+        inFlightCommand: { oneOf: [{ $ref: '#/components/schemas/Command' }, { type: 'null' }] }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+
+    ReleaseState:
+      type: string
+      enum: [QUEUED, BUILDING, BUILT, READY, GOING_LIVE, LIVE, REPLACED, FAILED, ROLLED_BACK]
+    Stage:
+      type: string
+      enum: [BUILDING, DEPLOYING, LIVE, FAILED]
+    CommandKindAllowed:
+      type: string
+      enum: [BUILD, DEPLOY, PROMOTE, ROLLBACK]
+
+    ReleaseStep:
+      type: object
+      required: [name, attempt, status, startedAt, finishedAt, failureCode]
+      properties:
+        name: { type: string, enum: [BUILD, CANDIDATE, PROMOTION, ROLLBACK, ACCESS_SETUP, OBSERVATION] }
+        attempt: { type: integer, minimum: 1 }
+        status: { type: string, enum: [PENDING, RUNNING, SUCCEEDED, FAILED] }
+        startedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        finishedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        failureCode: { type: [string, 'null'] }
+
+    Release:
+      type: object
+      description: |
+        One release. The first nine fields are monitoring `Deploy` (Monitor screen); the rest is the release itself.
+        `status` is the deploy's outcome: `SUCCEEDED` once the release went live (`LIVE`, `REPLACED`), `FAILED` for
+        `FAILED` and `ROLLED_BACK`, `null` while it runs. `finishedAt` and `durationSeconds` are `null` while it runs.
+        `errorMessage` is a short plain-English reason for a failed release, never internal detail.
+      required: [id, websiteId, number, startedBy, startedAt, finishedAt, durationSeconds, status, errorMessage,
+                 state, stage, allowedCommands, generationRequestId, gitCommitSha, failureCode, failureRetryable,
+                 promotedAt, updatedAt, steps]
+      properties:
+        id: { type: string, format: uuid }
+        websiteId: { type: string, format: uuid }
+        number: { type: integer, minimum: 1, description: '1, 2, 3, ... per website. The label is `R-<number>`.' }
+        startedBy:
+          description: Who asked for it (User's name; x-phase 3). Null when unknown or User does not answer.
+          oneOf:
+            - type: object
+              required: [fullName, initials]
+              properties:
+                fullName: { type: string }
+                initials: { type: string, maxLength: 3 }
+            - type: 'null'
+        startedAt: { $ref: '#/components/schemas/Timestamp' }
+        finishedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        durationSeconds: { type: [integer, 'null'], minimum: 0 }
+        status: { type: [string, 'null'], enum: [SUCCEEDED, FAILED, null] }
+        errorMessage: { type: [string, 'null'] }
+        state: { $ref: '#/components/schemas/ReleaseState' }
+        stage: { $ref: '#/components/schemas/Stage' }
+        allowedCommands:
+          type: array
+          description: The commands the release takes now (a hint; the server decides when the command arrives).
+          items: { $ref: '#/components/schemas/CommandKindAllowed' }
+        generationRequestId: { type: string, format: uuid }
+        gitCommitSha: { type: string, pattern: '^[0-9a-f]{40}([0-9a-f]{24})?$' }
+        failureCode: { type: [string, 'null'] }
+        failureRetryable: { type: [boolean, 'null'] }
+        promotedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        steps: { type: array, items: { $ref: '#/components/schemas/ReleaseStep' } }
+
+    DeployStats:
+      type: object
+      required: [total, succeeded, failed]
+      properties:
+        total: { type: integer, minimum: 0 }
+        succeeded: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+
+    CommandRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, releaseId]
+      properties:
+        kind: { type: string, enum: [DEPLOY, PROMOTE, ROLLBACK] }
+        releaseId: { type: string, format: uuid }
+
+    Command:
+      type: object
+      required: [id, websiteId, releaseId, kind, number, status, failureCode, failureRetryable, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        websiteId: { type: string, format: uuid }
+        releaseId: { type: [string, 'null'], format: uuid, description: Null for hosting commands. }
+        kind: { type: string, enum: [DEPLOY, PROMOTE, ROLLBACK, SUSPEND_HOSTING, RESUME_HOSTING, REDEPLOY, SYNC_DOMAINS] }
+        number: { type: integer, minimum: 1, description: The website's command counter. }
+        status: { type: string, enum: [ACCEPTED, RUNNING, SUCCEEDED, FAILED, SKIPPED] }
+        failureCode: { type: [string, 'null'] }
+        failureRetryable: { type: [boolean, 'null'] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+
+    AdminCommand:
+      allOf:
+        - $ref: '#/components/schemas/Command'
+        - type: object
+          required: [requestedBySubject]
+          properties:
+            requestedBySubject: { type: [string, 'null'], description: The Keycloak subject that asked; null for the system. }
+
+    AdminRelease:
+      type: object
+      description: admin `Deploy`.
+      required: [id, websiteId, websiteName, websiteThumbnailUrl, websiteLogoUrl, ownerName, number, status,
+                 currentStep, totalSteps, stepLabel, startedAt, durationSeconds, state, requestedBySubject]
+      properties:
+        id: { type: string, format: uuid }
+        websiteId: { type: string, format: uuid }
+        websiteName: { type: [string, 'null'], description: From Project (x-phase 3). }
+        websiteThumbnailUrl: { type: [string, 'null'], description: From Project (x-phase 3). }
+        websiteLogoUrl: { type: [string, 'null'], description: From Project (x-phase 3). }
+        websiteTemplateSlug: { type: [string, 'null'], description: From Project (x-phase 3). }
+        ownerName: { type: [string, 'null'], description: From User (x-phase 3). }
+        number: { type: integer, minimum: 1 }
+        status:
+          type: string
+          enum: [LIVE, GOING_LIVE, FAILED, REPLACED]
+          description: '`GOING_LIVE` for QUEUED to GOING_LIVE; `FAILED` for FAILED and ROLLED_BACK.'
+        currentStep: { type: [integer, 'null'], minimum: 1, maximum: 5, description: While GOING_LIVE. }
+        totalSteps: { type: integer, const: 5 }
+        stepLabel:
+          type: [string, 'null']
+          description: While GOING_LIVE. 1 "Build", 2 "Start privately", 4 "Go live" (3 and 5 are not reported while running).
+        startedAt: { $ref: '#/components/schemas/Timestamp' }
+        durationSeconds: { type: [integer, 'null'], minimum: 0 }
+        state: { $ref: '#/components/schemas/ReleaseState' }
+        requestedBySubject: { type: [string, 'null'] }
+
+    AdminRedeployment:
+      allOf:
+        - $ref: '#/components/schemas/AdminRelease'
+        - type: object
+          required: [command]
+          properties:
+            command: { $ref: '#/components/schemas/Command' }
+
+    AdminReleaseStats:
+      type: object
+      required: [live, failed, building, failed24h, latestFailed]
+      properties:
+        live: { type: integer, minimum: 0, description: Websites with a live release. }
+        failed: { type: integer, minimum: 0, description: Websites whose newest release failed. }
+        building: { type: integer, minimum: 0, description: Websites with a release on its way. }
+        failed24h: { type: integer, minimum: 0, description: Releases that failed in the last 24 hours. }
+        latestFailed:
+          oneOf:
+            - type: object
+              required: [websiteId, releaseId, failedAt]
+              properties:
+                websiteId: { type: string, format: uuid }
+                releaseId: { type: string, format: uuid }
+                failedAt: { $ref: '#/components/schemas/Timestamp' }
+            - type: 'null'
+
+    LogLevel: { type: string, enum: [INFO, WARN, ERROR] }
+
+    LogLine:
+      type: object
+      required: [id, at, level, method, path, note, statusCode, durationMs]
+      properties:
+        id: { type: string }
+        at: { $ref: '#/components/schemas/Timestamp' }
+        level: { $ref: '#/components/schemas/LogLevel' }
+        method: { type: string }
+        path: { type: string }
+        note: { type: [string, 'null'] }
+        statusCode: { type: integer }
+        durationMs: { type: integer, minimum: 0 }
+
+    LiveStats:
+      type: object
+      required: [liveSince, release, previousRelease, requests5m, errors5m, errorRate5m, avgResponseMs, logCounts]
+      properties:
+        liveSince: { $ref: '#/components/schemas/Timestamp' }
+        release: { type: string, example: R-12 }
+        previousRelease: { type: [string, 'null'], example: R-11 }
+        requests5m: { type: integer, minimum: 0 }
+        errors5m: { type: integer, minimum: 0 }
+        errorRate5m: { type: string, pattern: '^\d{1,3}\.\d{2}$', example: '0.16' }
+        avgResponseMs: { type: integer, minimum: 0 }
+        logCounts:
+          type: object
+          required: [INFO, WARN, ERROR]
+          properties:
+            INFO: { type: integer, minimum: 0 }
+            WARN: { type: integer, minimum: 0 }
+            ERROR: { type: integer, minimum: 0 }
+
+    PipelineStepStatus: { type: string, enum: [DONE, RUNNING, FAILED, STUCK, WAITING, NOT_STARTED] }
+
+    PipelineRun:
+      type: object
+      description: admin monitoring `PipelineRun` (x-phase 3).
+      required: [id, websiteId, websiteName, domain, logoUrl, ownerName, stage, requestStatus, requestStuckMinutes,
+                 releaseState, currentStep, steps, current, live, updatedAt]
+      properties:
+        id: { type: string, format: uuid, description: The latest release id, or the generation request id before a release exists. }
+        websiteId: { type: string, format: uuid }
+        websiteName: { type: [string, 'null'] }
+        domain: { type: [string, 'null'] }
+        logoUrl: { type: [string, 'null'] }
+        templateSlug: { type: [string, 'null'] }
+        ownerName: { type: [string, 'null'] }
+        stage: { type: string, enum: [REQUEST, GENERATION, RELEASE, LIVE] }
+        requestStatus: { type: string, enum: [QUEUED, PUBLISHING, PUBLISHED, STUCK, FAILED] }
+        requestStuckMinutes: { type: [integer, 'null'] }
+        releaseState: { type: string, enum: [NONE_YET, BUILDING, DEPLOYING, READY, LIVE, ROLLED_BACK, FAILED] }
+        currentStep: { type: integer, minimum: 1, maximum: 7 }
+        steps:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items:
+            type: object
+            required: [number, title, subtitle, status]
+            properties:
+              number: { type: integer, minimum: 1, maximum: 7 }
+              title: { type: string }
+              subtitle: { type: string }
+              status: { $ref: '#/components/schemas/PipelineStepStatus' }
+        current:
+          type: object
+          required: [phase, title, status, tags, facts, checkGroup]
+          properties:
+            phase: { type: string }
+            title: { type: string }
+            status: { $ref: '#/components/schemas/PipelineStepStatus' }
+            tags: { type: array, items: { type: string } }
+            facts:
+              type: array
+              items:
+                type: object
+                required: [label, value, hint, tone]
+                properties:
+                  label: { type: string }
+                  value: { type: string }
+                  hint: { type: [string, 'null'] }
+                  tone: { type: string, enum: [default, danger, info] }
+            checkGroup:
+              oneOf:
+                - type: object
+                  required: [title, checks]
+                  properties:
+                    title: { type: string }
+                    checks:
+                      type: array
+                      items:
+                        type: object
+                        required: [title, detail, status]
+                        properties:
+                          title: { type: string }
+                          detail: { type: string }
+                          status: { type: string, enum: [PASSED, PENDING, FAILED] }
+                - type: 'null'
+        live: { oneOf: [{ $ref: '#/components/schemas/LiveStats' }, { type: 'null' }] }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+
+    PipelineRunWithDiagnostics:
+      allOf:
+        - $ref: '#/components/schemas/PipelineRun'
+        - type: object
+          required: [diagnostics]
+          properties:
+            diagnostics: { oneOf: [{ $ref: '#/components/schemas/Diagnostics' }, { type: 'null' }] }
+
+    Diagnostics:
+      type: object
+      description: The v1 `Diagnostics` object (release, steps, the last source event outcome), unchanged, without the envelope.
+      additionalProperties: true
+
+    AuditEntry:
+      type: object
+      required: [id, occurredAt, service, action, actorUserId, targetType, targetId, result]
+      properties:
+        id: { type: string, format: uuid }
+        occurredAt: { $ref: '#/components/schemas/Timestamp' }
+        service: { type: string, const: provisioning }
+        action: { type: string, enum: [SUSPEND_HOSTING, RESUME_HOSTING, ROLLBACK, REDEPLOY] }
+        actorUserId: { type: [string, 'null'], format: uuid }
+        targetType: { type: string, const: PROJECT }
+        targetId: { type: string, format: uuid }
+        result: { type: string, enum: [QUEUED, RUNNING, SUCCEEDED, FAILED] }
+
+    ActivityAction:
+      type: string
+      enum: [SUSPEND_HOSTING, RESUME_HOSTING, ROLLBACK, SUSPEND_USER, REACTIVATE_USER, CHANGE_PLAN]
+
+    ActivityEntry:
+      type: object
+      required: [id, action, targetName, targetDetail, actorEmail, result, createdAt]
+      properties:
+        id: { type: string }
+        action: { $ref: '#/components/schemas/ActivityAction' }
+        targetName: { type: string }
+        targetDetail: { type: string }
+        actorEmail: { type: [string, 'null'] }
+        result: { type: string, enum: [QUEUED, RUNNING, SUCCEEDED, FAILED] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+
+    PageMeta:
+      type: object
+      required: [page, size, totalItems]
+      properties:
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1 }
+        totalItems: { type: integer, minimum: 0 }
+    ReleasePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/Release' } } }
+    CommandPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/Command' } } }
+    AdminCommandPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/AdminCommand' } } }
+    AdminReleasePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/AdminRelease' } } }
+    LogLinePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/LogLine' } } }
+    PipelineRunPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/PipelineRun' } } }
+    AuditEntryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/AuditEntry' } } }
+    ActivityEntryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/ActivityEntry' } } }
+
+x-v1-replacements:
+  description: Every v1 route of provisioning-service and its v2 replacement. v1 stays, deprecated.
+  routes:
+    - { v1: "GET /v1/ui/projects/{projectId}/status", v2: "GET /v2/projects/{projectId}/status" }
+    - { v1: "GET /v1/ui/projects/{projectId}/deploys", v2: "GET /v2/projects/{projectId}/releases" }
+    - { v1: "GET /v1/ui/projects/{projectId}/deploys/stats", v2: "GET /v2/projects/{projectId}/releases/stats" }
+    - { v1: "GET /v1/ui/projects/{projectId}/deployments?status=RUNNING", v2: "GET /v2/projects/{projectId}/releases?state=RUNNING" }
+    - { v1: "GET /v1/ui/projects/{projectId}/deployments/{deploymentId}", v2: "GET /v2/projects/{projectId}/releases?generationRequestId={deploymentId}&state=ALL" }
+    - { v1: "GET /v1/ui/admin/stats", v2: "GET /v2/admin/releases/stats" }
+    - { v1: "GET /v1/ui/admin/deploys", v2: "GET /v2/admin/releases" }
+    - { v1: "GET /v1/ui/admin/releases/latest", v2: "GET /v2/admin/pipeline-runs (x-phase 3); GET /v2/admin/releases?latestOnly=true meanwhile" }
+    - { v1: "GET /v1/ui/admin/projects/{projectId}/releases/latest", v2: "GET /v2/admin/pipeline-runs/{projectId} (x-phase 3)" }
+    - { v1: "POST /v1/ui/admin/projects/{projectId}/redeploy", v2: "POST /v2/admin/projects/{projectId}/redeployments" }
+    - { v1: "POST /v1/ui/admin/projects/{projectId}/suspend", v2: "PATCH /api/project/v2/admin/projects/{projectId} {siteStatus: SUSPENDED} (Project), which calls PUT /internal/v1/projects/{projectId}/hosting" }
+    - { v1: "POST /v1/ui/admin/projects/{projectId}/resume", v2: "PATCH /api/project/v2/admin/projects/{projectId} {siteStatus: ONLINE} (Project), which calls PUT /internal/v1/projects/{projectId}/hosting" }
+    - { v1: "GET /v1/ui/admin/audit", v2: "GET /v2/admin/audit-entries (the single feed /v2/admin/activity waits for the owner)" }
+    - { v1: "GET /v1/ui/admin/projects/{projectId}/access-logs", v2: "GET /v2/admin/projects/{projectId}/access-logs" }
+    - { v1: "GET /v1/ui/admin/projects/{projectId}/access-stats", v2: "GET /v2/admin/projects/{projectId}/access-stats" }
+    - { v1: "POST /v1/projects/{projectId}/releases/{releaseId}/deploy", v2: "POST /v2/projects/{projectId}/commands {kind: DEPLOY, releaseId}" }
+    - { v1: "POST /v1/projects/{projectId}/releases/{releaseId}/promote", v2: "POST /v2/projects/{projectId}/commands {kind: PROMOTE, releaseId}" }
+    - { v1: "POST /v1/projects/{projectId}/releases/{releaseId}/rollback", v2: "POST /v2/projects/{projectId}/commands {kind: ROLLBACK, releaseId}" }
+    - { v1: "POST /v1/projects/{projectId}/releases/{releaseId}/build", v2: "POST /v2/projects/{projectId}/releases/{releaseId}/builds" }
+    - { v1: "GET /v1/projects/{projectId}/releases/{releaseId}", v2: "GET /v2/projects/{projectId}/releases/{releaseId}" }
+    - { v1: "GET /v1/projects/{projectId}/releases/{releaseId}/diagnostics", v2: "GET /v2/projects/{projectId}/releases/{releaseId}/diagnostics" }
+    - { v1: "GET /v1/projects/{projectId}/releases", v2: "GET /v2/projects/{projectId}/releases?state=ALL" }
+    - { v1: "GET /v1/projects/{projectId}/commands", v2: "GET /v2/projects/{projectId}/commands" }
+    - { v1: "GET /v1/projects/{projectId}/commands/{commandId}", v2: "GET /v2/projects/{projectId}/commands/{commandId}" }
+    - { v1: "GET /v1/projects/{projectId}/deployment", v2: "GET /v2/projects/{projectId}/hosting" }
+    - { v1: "POST /v1/admin/projects/{projectId}/hosting/suspend", v2: "PUT /internal/v1/projects/{projectId}/hosting (Project calls it)" }
+    - { v1: "POST /v1/admin/projects/{projectId}/hosting/resume", v2: "PUT /internal/v1/projects/{projectId}/hosting (Project calls it)" }
+    - { v1: "POST /v1/admin/projects/{projectId}/redeploy", v2: "POST /v2/admin/projects/{projectId}/redeployments" }
+    - { v1: "GET /v1/admin/projects/{projectId}/commands", v2: "GET /v2/admin/projects/{projectId}/commands" }
+    - { v1: "POST /mcp (MCP tools)", v2: "unchanged; MCP keeps the v1 tool set" }
+
+x-gateway:
+  description: Routes for the infra agent (gateway and mesh). The gateway strips `/api/provisioning` and forwards to provisioning-api.
+  routes:
+    - { match: "/api/provisioning/v2/projects/**", to: "provisioning-api /v2/projects/**", callers: "user (bearer JWT); the service checks the website" }
+    - { match: "/api/provisioning/v2/admin/**", to: "provisioning-api /v2/admin/**", callers: "admin (bearer JWT, realm role admin; the service checks the role)" }
+  internal:
+    - "/internal/v1/** is never routed by the gateway; mesh only, callers per route in provisioning-internal-v1.yaml."
+
+x-open:
+  - id: auto-promote
+    question: |
+      How does Provisioning know that a publish should run straight to LIVE? Proposed: Project adds the optional field
+      `auto_promote: true` to `project.source_published.v1` for v2 publishes (a field a reader may ignore keeps the
+      version). A v1 publish (field absent) keeps the two calls deploy and promote, so the deployed v1 web app is not
+      broken. Needs Project's agreement.
+  - id: OD-04
+    question: Decided REST (owner, 10 November 2026). Provisioning-api calls Payment's GET /internal/v1/projects/{projectId}/entitlement with a short timeout and fails closed with a retryable 503. The response fields are agreed with Payment in payment's internal contract.
+  - id: issue-2
+    question: The owner portal (OD-69 or per-site clients) waits for the owner; nothing here depends on it.
