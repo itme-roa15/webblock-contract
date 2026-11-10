@@ -136,7 +136,7 @@ on its own exchange, with the routing key that exchange already uses, and fills 
 | --- | --- | --- | --- |
 | account | `account.events`, `account.audit_recorded.v1` | SUSPEND_USER, REACTIVATE_USER | agreed (User Service Agent) |
 | payment | `payment.events`, `audit_recorded.v1` | CHANGE_PLAN (an admin's or the system's change of a user's plan) | agreed (Payment agent) |
-| provisioning | `provisioning.events`, `audit_recorded.v1` | SUSPEND_HOSTING, RESUME_HOSTING, ROLLBACK (only producer) | DRAFT, waits for provisioning |
+| provisioning | `provisioning.events`, `audit_recorded.v1` | SUSPEND_HOSTING, RESUME_HOSTING, ROLLBACK (only producer) | agreed (Provisioning agent) |
 | project | `project.events`, `audit_recorded.v1` | none today (reserved) | agreed (Project agent) |
 
 Notification's queue is `notification.audit_recorded.v1`, bound to all four.
