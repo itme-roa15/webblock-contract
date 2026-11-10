@@ -251,6 +251,7 @@ paths:
     get:
       tags: [websites]
       operationId: getWebsite
+      summary: One of the caller's websites.
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/projects/{projectId}", "GET /api/v1/projects/{projectId}"]
       responses:
@@ -305,6 +306,7 @@ paths:
     get:
       tags: [business-info]
       operationId: getBusinessInfo
+      summary: A website's business details.
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/projects/{projectId}/business-info"]
       responses:
@@ -342,6 +344,7 @@ paths:
     get:
       tags: [products]
       operationId: listProductCategories
+      summary: The website's product categories, in order.
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/projects/{projectId}/product-categories"]
       responses:
@@ -407,6 +410,7 @@ paths:
     get:
       tags: [products]
       operationId: listProducts
+      summary: The website's products (search, category, sort).
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/projects/{projectId}/products"]
       parameters:
@@ -432,6 +436,7 @@ paths:
     post:
       tags: [products]
       operationId: createProduct
+      summary: Adds a product.
       x-phase: 2
       x-replaces: ["POST /api/v1/ui/projects/{projectId}/products"]
       requestBody:
@@ -457,6 +462,7 @@ paths:
     get:
       tags: [products]
       operationId: countProducts
+      summary: Products per category, for the filter tabs.
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/projects/{projectId}/products/counts"]
       responses:
@@ -477,6 +483,7 @@ paths:
     get:
       tags: [products]
       operationId: getProduct
+      summary: One product.
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/projects/{projectId}/products/{productId}"]
       responses:
@@ -490,6 +497,7 @@ paths:
     put:
       tags: [products]
       operationId: updateProduct
+      summary: Edits a product.
       x-phase: 2
       x-replaces: ["PUT /api/v1/ui/projects/{projectId}/products/{productId}"]
       requestBody:
@@ -640,6 +648,7 @@ paths:
     get:
       tags: [media]
       operationId: listMedia
+      summary: The website's images.
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/projects/{projectId}/media"]
       parameters:
@@ -874,6 +883,7 @@ paths:
     get:
       tags: [admin]
       operationId: adminCountWebsites
+      summary: Websites per status, platform-wide.
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/admin/projects/counts"]
       security:
@@ -892,6 +902,7 @@ paths:
     get:
       tags: [admin]
       operationId: adminGetWebsite
+      summary: One website (admin popup).
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/admin/projects/{projectId}"]
       security:
@@ -944,6 +955,7 @@ paths:
     get:
       tags: [admin]
       operationId: adminListProjectGenerationRequests
+      summary: One website's generation requests.
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/admin/projects/{projectId}/generation-requests"]
       security:
@@ -966,6 +978,7 @@ paths:
     get:
       tags: [admin]
       operationId: adminListGenerationRequests
+      summary: Every website's generation requests.
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/admin/generation-requests"]
       security:
@@ -1310,7 +1323,7 @@ components:
         name: {type: string}
         description: {type: string}
         category: {type: string}
-        price: {type: [string, 'null'], description: Decimal string, e.g. "6.00"; null when hidden.}
+        price: {type: [string, 'null'], description: 'Decimal string, e.g. "6.00"; null when hidden.'}
         imageUrl: {type: [string, 'null']}
         version: {type: integer}
         createdAt: {type: string, format: date-time}
