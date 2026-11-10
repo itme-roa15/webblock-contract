@@ -4,7 +4,9 @@ info:
   version: 1.0.0
   description: |
     ACCEPTED, 11 November 2026: `websites/stats` by payment (agent 76e8d818) and account (agent 4ec40ad7); the
-    project routes (`websites`, `releases`, `hosting`, `rollbacks`) by project (agent cd76ff0c). `x-phase: 3` routes
+    project routes (`websites`, `releases`, `hosting`) by project (agent cd76ff0c). There is no rollback route: a
+    replaced release (`superseded`) is final in Provisioning's model, so restoring an older page version is a new
+    publish (Project answers 409 VERSION_NOT_LIVE_ANYMORE and the owner deploys it again). `x-phase: 3` routes
     and fields are agreed but not built yet.
 
     Service-to-service routes of provisioning-api, reachable only through the mesh (never through the public
@@ -161,54 +163,6 @@ paths:
           content: { application/problem+json: { schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Problem' } } }
         '409':
           description: '`command-in-progress`, `idempotency-key-reused`.'
-          content: { application/problem+json: { schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Problem' } } }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
-  /projects/{projectId}/rollbacks:
-    post:
-      operationId: rollBackToRelease
-      summary: Serve an earlier release again (Project's restore of a page version)
-      description: |
-        DRAFT (x-phase 3). Project's `PATCH /projects/{projectId}/page` `{"currentVersionId": ...}` restores a page
-        version (its id is the published generation request id); Provisioning then promotes the release of that
-        generation request, if it is still kept (`REPLACED` and its image in the registry). Body
-        `{"generationRequestId": "..."}`; answers the `PROMOTE` command, or `422 release-not-kept` when that release
-        is not kept (Project then publishes the version anew). Audit ROLLBACK names `x-user-id`.
-      x-callers: [project-service]
-      x-phase: 3
-      x-status: draft
-      parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - name: Idempotency-Key
-          in: header
-          required: true
-          schema: { type: string, minLength: 1, maxLength: 249 }
-        - name: x-user-id
-          in: header
-          required: true
-          schema: { type: string, format: uuid }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [generationRequestId]
-              properties:
-                generationRequestId: { type: string, format: uuid }
-      responses:
-        '202':
-          description: The promote command.
-          content:
-            application/json:
-              schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Command' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409':
-          description: '`command-in-progress`.'
-          content: { application/problem+json: { schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Problem' } } }
-        '422':
-          description: '`release-not-kept`.'
           content: { application/problem+json: { schema: { $ref: 'provisioning-v2.yaml#/components/schemas/Problem' } } }
         '503': { $ref: '#/components/responses/Unavailable' }
 
