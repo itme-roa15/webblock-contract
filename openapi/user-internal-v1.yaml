@@ -93,15 +93,17 @@ x-needs:
       use: "`UserStats.onFreeTrial` and `UserStats.paying`."
       answer: '{"onFreeTrial": 0, "paying": 0}'
   project-service:
+    # Built: Project dev e7db32b, contract openapi/project-v2.yaml x-internal-routes (that file is the source of truth)
     - route: "GET /internal/v1/owners/website-counts?ownerId={id}&ownerId={id}..."
-      exists: false
-      use: "`UserAccount.websiteCount` (websites not deleted) for one page of the admin list, and the CSV `Websites` column."
+      exists: true
+      use: "`UserAccount.websiteCount` (websites not deleted, 0 for none) for a page of the admin list, and the CSV `Websites` column. 1 to 100 ids."
       answer: '[{"ownerId": "<uuid>", "websiteCount": 0}]'
   provisioning-service:
+    # Built: Provisioning dev f5d0a4fc, contract on contracts dev f3cb1c5 (that file is the source of truth)
     - route: "GET /internal/v1/websites/stats"
-      exists: false
-      use: "`UserStats.liveWebsites` (websites currently LIVE)."
-      answer: '{"liveWebsites": 0}'
+      exists: true
+      use: "`UserStats.liveWebsites` (websites currently LIVE). The answer has more fields; User reads liveWebsites only."
+      answer: '{"liveWebsites": 0, "failedDeploys": 0, "building": 0, "latestFailed": null}'
 
 components:
   schemas:
