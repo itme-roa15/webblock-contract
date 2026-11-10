@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webblock.invalid/contracts/events/payment/subscription_canceled.v1.schema.json",
+  "title": "Payment: subscription canceled v1",
+  "description": "OWNED BY payment. Owner: payment. Sent on payment.events with routing key subscription_canceled.v1 (message_type without the 'payment.' prefix), persistent, application/json, AMQP type = message_type, through Payment's outbox after the database commit (at least once: event_key is stable, so a consumer drops a repeat). The owner canceled the renewal: access goes on until access_until (the end of the paid month).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "message_id",
+    "message_type",
+    "occurred_at",
+    "correlation_id",
+    "project_id",
+    "event_key",
+    "subscription_id",
+    "client_user_id",
+    "plan_id",
+    "status",
+    "access_until"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "message_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "message_type": {
+      "const": "payment.subscription_canceled.v1"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "event_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "subscription_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "client_user_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "plan_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "status": {
+      "const": "CANCELED"
+    },
+    "access_until": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "maxLength": 40
+    }
+  }
+}
