@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://webblock.invalid/contracts/events/project/source_published.v1.schema.json",
   "title": "Project: source published v1",
-  "description": "DRAFT, proposed by provisioning, waits for project. Owner: project. The accepted source of one generation request of a project is the given commit of the given repository. Provisioning confirms the repository with Project and creates one release per project and generation request. subdomain is optional: the site's DNS label when Project already knows it. auto_promote (optional) is set by API v2 deploys; agreed with provisioning (agent 2efb67d2, 10 November 2026).",
+  "description": "DRAFT, proposed by provisioning, waits for project. Owner: project. The accepted source of one generation request of a project is the given commit of the given repository. Provisioning confirms the repository with Project and creates one release per project and generation request. subdomain is optional: the site's DNS label when Project already knows it. auto_promote (optional) is set by API v2 deploys; agreed with provisioning (agent 2efb67d2, 10 November 2026). owner_user_id (optional) agreed with provisioning (agent 2efb67d2, 10 November 2026) for OD-69.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -91,6 +91,14 @@
     "auto_promote": {
       "type": "boolean",
       "description": "API v2 (owner decision of 10 November 2026): true when the owner's deploy must go live by itself, so Provisioning promotes the release once it is ready, without a second call. Absent or false: the v1 flow (deploy, then a separate promote). A field a reader may ignore, so the version stays 1."
+    },
+    "owner_user_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "description": "The website's owner: Project's owner id, the platform user id (the JWT's user_id claim, account.users). Sent on every publish (v1 and v2) so Provisioning can write SITE_OWNER_USER_ID into the site's runtime Secret (owner ruling OD-69). A website's owner never changes in Project (no transfer). Optional, a field a reader may ignore: the version stays 1."
     }
   }
 }
