@@ -619,8 +619,9 @@ paths:
       operationId: adminListAuditEntries
       summary: Provisioning's own audit entries (hosting and rollback actions)
       description: |
-        Provisioning's half of the admin activity log, as v1. The single feed across User, Payment and Provisioning
-        (`/admin/activity`) waits for the owner (COMMON 3a).
+        Provisioning's own audit entries, as v1. The admin activity feed is Notification's (owner's decision of
+        10 November 2026, DECISIONS.md): Provisioning publishes its audit events on `provisioning.events` in the
+        shape Notification proposes (x-phase 3), with the names the UI shows filled in.
       x-phase: 2
       x-replaces: "GET /api/provisioning/v1/ui/admin/audit"
       parameters:
@@ -649,54 +650,6 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '503': { $ref: '#/components/responses/Unavailable' }
-
-  /admin/activity:
-    get:
-      tags: [admin]
-      operationId: adminListActivity
-      summary: The single admin activity feed (DRAFT, waits for the owner)
-      description: |
-        DRAFT. The owner has not decided who serves the one feed with entries from User (SUSPEND_USER,
-        REACTIVATE_USER), Payment (CHANGE_PLAN) and Provisioning (hosting, ROLLBACK). Proposed: Provisioning serves it
-        from its own audit entries plus User's and Payment's internal audit routes, merged by time, each source with a
-        2-second timeout (a source that does not answer is left out and named in `X-Partial-Sources`). Not built.
-      x-status: waits-for-owner
-      x-phase: 3
-      parameters:
-        - name: action
-          in: query
-          schema: { $ref: '#/components/schemas/ActivityAction' }
-        - name: actor
-          in: query
-          description: '`admins`, `system`, or one admin''s email.'
-          schema: { type: string }
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/AdminSize'
-      responses:
-        '200':
-          description: One page of activity entries.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ActivityEntryPage' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /admin/activity/actors:
-    get:
-      tags: [admin]
-      operationId: adminListActivityActors
-      summary: Admin emails that appear in the activity feed (DRAFT, waits for the owner)
-      x-status: waits-for-owner
-      x-phase: 3
-      responses:
-        '200':
-          description: The emails, sorted.
-          content:
-            application/json:
-              schema: { type: array, items: { type: string, format: email } }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
 
 components:
   securitySchemes:
@@ -1129,22 +1082,6 @@ components:
         targetId: { type: string, format: uuid }
         result: { type: string, enum: [QUEUED, RUNNING, SUCCEEDED, FAILED] }
 
-    ActivityAction:
-      type: string
-      enum: [SUSPEND_HOSTING, RESUME_HOSTING, ROLLBACK, SUSPEND_USER, REACTIVATE_USER, CHANGE_PLAN]
-
-    ActivityEntry:
-      type: object
-      required: [id, action, targetName, targetDetail, actorEmail, result, createdAt]
-      properties:
-        id: { type: string }
-        action: { $ref: '#/components/schemas/ActivityAction' }
-        targetName: { type: string }
-        targetDetail: { type: string }
-        actorEmail: { type: [string, 'null'] }
-        result: { type: string, enum: [QUEUED, RUNNING, SUCCEEDED, FAILED] }
-        createdAt: { $ref: '#/components/schemas/Timestamp' }
-
     PageMeta:
       type: object
       required: [page, size, totalItems]
@@ -1194,12 +1131,6 @@ components:
         - type: object
           required: [items]
           properties: { items: { type: array, items: { $ref: '#/components/schemas/AuditEntry' } } }
-    ActivityEntryPage:
-      allOf:
-        - $ref: '#/components/schemas/PageMeta'
-        - type: object
-          required: [items]
-          properties: { items: { type: array, items: { $ref: '#/components/schemas/ActivityEntry' } } }
 
 x-v1-replacements:
   description: Every v1 route of provisioning-service and its v2 replacement. v1 stays, deprecated.
@@ -1216,7 +1147,7 @@ x-v1-replacements:
     - { v1: "POST /v1/ui/admin/projects/{projectId}/redeploy", v2: "POST /v2/admin/projects/{projectId}/redeployments" }
     - { v1: "POST /v1/ui/admin/projects/{projectId}/suspend", v2: "PATCH /api/project/v2/admin/projects/{projectId} {siteStatus: SUSPENDED} (Project), which calls PUT /internal/v1/projects/{projectId}/hosting" }
     - { v1: "POST /v1/ui/admin/projects/{projectId}/resume", v2: "PATCH /api/project/v2/admin/projects/{projectId} {siteStatus: ONLINE} (Project), which calls PUT /internal/v1/projects/{projectId}/hosting" }
-    - { v1: "GET /v1/ui/admin/audit", v2: "GET /v2/admin/audit-entries (the single feed /v2/admin/activity waits for the owner)" }
+    - { v1: "GET /v1/ui/admin/audit", v2: "GET /v2/admin/audit-entries; the admin activity feed is Notification's (audit events on provisioning.events)" }
     - { v1: "GET /v1/ui/admin/projects/{projectId}/access-logs", v2: "GET /v2/admin/projects/{projectId}/access-logs" }
     - { v1: "GET /v1/ui/admin/projects/{projectId}/access-stats", v2: "GET /v2/admin/projects/{projectId}/access-stats" }
     - { v1: "POST /v1/projects/{projectId}/releases/{releaseId}/deploy", v2: "POST /v2/projects/{projectId}/commands {kind: DEPLOY, releaseId}" }
@@ -1253,4 +1184,4 @@ x-open:
   - id: OD-04
     question: Decided REST (owner, 10 November 2026). Provisioning-api calls Payment's GET /internal/v1/projects/{projectId}/entitlement with a short timeout and fails closed with a retryable 503. The response fields are agreed with Payment in payment's internal contract.
   - id: issue-2
-    question: The owner portal (OD-69 or per-site clients) waits for the owner; nothing here depends on it.
+    question: Decided OD-69 (owner, 10 November 2026). Each site's route sends /portal/** through oauth2-proxy (Traefik ForwardAuth on k3s); site pods get no Keycloak settings. No public route of this API changes.

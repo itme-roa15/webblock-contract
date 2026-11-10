@@ -49,7 +49,7 @@ paths:
         `NOT_DEPLOYED`). With `siteStatus` or `releaseStatus` the answer lists every matching website (at most 1000;
         `X-Truncated: true` when there are more), for Project's admin filters.
       x-callers: [project-service]
-      x-phase: 2
+      x-phase: 3
       parameters:
         - name: id
           in: query
