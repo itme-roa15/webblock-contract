@@ -857,7 +857,7 @@ components:
         `errorMessage` is a short plain-English reason for a failed release, never internal detail.
       required: [id, websiteId, number, startedBy, startedAt, finishedAt, durationSeconds, status, errorMessage,
                  state, stage, allowedCommands, generationRequestId, gitCommitSha, failureCode, failureRetryable,
-                 promotedAt, updatedAt, steps]
+                 promotedAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         websiteId: { type: string, format: uuid }
@@ -888,7 +888,10 @@ components:
         failureRetryable: { type: [boolean, 'null'] }
         promotedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
-        steps: { type: array, items: { $ref: '#/components/schemas/ReleaseStep' } }
+        steps:
+          type: array
+          description: Only on a single release (getRelease, buildRelease and the internal findRelease); lists leave it out.
+          items: { $ref: '#/components/schemas/ReleaseStep' }
 
     DeployStats:
       type: object
