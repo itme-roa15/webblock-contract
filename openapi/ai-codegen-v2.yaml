@@ -20,6 +20,64 @@ info:
     `sub`, never an id in the request. A project-scoped call checks on the server that the caller may manage
     `{projectId}` (Project's access check, action `manage_site`, which fails closed). A project the caller does not
     manage answers 404, exactly like an unknown one, so project ids don't leak. The admin role grants nothing here.
+x-needs-from-project:
+  description: |
+    DRAFT, proposed by ai_codegen, waits for project (end-to-end test issue 9; UI inventory open question 6).
+
+    The chat (`sendAiMessage`) needs the project's current draft page, and its edit has to reach that draft so the
+    editor shows it. Today AI Codegen calls `GET /internal/v1/projects/{id}`, which Project doesn't serve, and it edits
+    only its own copy of the page. Proposed Project internal routes:
+    - mesh only, never through the gateway;
+    - the mesh's workload identity is the gate (caller `ai-codegen`), no token;
+    - bodies are bare, errors are problem details as in Project v2.
+
+    The owner check stays where it is: AI Codegen asks `POST /internal/v1/access-checks` (`manage_site`) before
+    either call. `userId` in the PUT is for Project's activity log, not for authorization.
+  routes:
+    - route: GET /internal/v1/projects/{projectId}/page
+      callers: [ai-codegen]
+      purpose: The page the assistant edits, with the revision its change set is made against.
+      answer:
+        status: 200
+        example: '{"projectId": "6c17b5d1-a784-4987-89ff-86079305776b", "name": "Sok Coffee", "componentCatalogVersion": "1.0.0", "editRevision": 7, "draft": {"root": {"props": {}}, "content": []}}'
+        schema:
+          type: object
+          required: [projectId, name, componentCatalogVersion, editRevision, draft]
+          properties:
+            projectId: {type: string, format: uuid}
+            name: {type: string}
+            componentCatalogVersion: {type: string}
+            editRevision: {type: integer, minimum: 0, description: "The same revision as the draft's `ETag` in Project v2."}
+            draft: {type: object, description: The saved draft as a Puck document (Project v2 `PageData`).}
+      errors:
+        - "404 NOT_FOUND: no such project, or it is deleted."
+    - route: PUT /internal/v1/projects/{projectId}/page/draft
+      callers: [ai-codegen]
+      purpose: |
+        Saves the assistant's applied change set as the new draft, only if the draft is still at
+        `expectedEditRevision`. Project bumps the revision, as for an owner's save, and records the edit in the project's
+        activity (actor `userId`, source AI chat).
+      body:
+        type: object
+        required: [draft, expectedEditRevision, changeSetId, userId]
+        properties:
+          draft: {type: object, description: The whole new Puck document.}
+          expectedEditRevision: {type: integer, minimum: 0}
+          changeSetId: {type: string, format: uuid, description: "AI Codegen's change set, for the activity log and for idempotency: the same changeSetId again answers the first save's 200."}
+          userId: {type: string, format: uuid, description: The owner who sent the prompt (the token's sub).}
+      answer:
+        status: 200
+        example: '{"editRevision": 8, "updatedAt": "2026-11-10T08:15:10Z"}'
+        schema:
+          type: object
+          required: [editRevision, updatedAt]
+          properties:
+            editRevision: {type: integer}
+            updatedAt: {type: string, format: date-time}
+      errors:
+        - "404 NOT_FOUND: no such project, or it is deleted."
+        - "409 STALE_EDIT_REVISION: the draft is no longer at expectedEditRevision. AI Codegen then rejects its change set, and the reply still stands."
+        - "400 VALIDATION_FAILED: the body is malformed, or the draft is not a Puck document."
 servers:
   - url: /api/ai-codegen/v2
 security:
