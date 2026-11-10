@@ -9,5 +9,6 @@
   "repository_id": 4242,
   "git_commit_sha": "4f9c2b7a1e3d5f60718293a4b5c6d7e8f9012345",
   "subdomain": "sunny-bakery",
-  "auto_promote": true
+  "auto_promote": true,
+  "owner_user_id": "0199e0a2-0000-7000-8000-0000000000aa"
 }
