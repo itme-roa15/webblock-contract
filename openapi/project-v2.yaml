@@ -328,9 +328,12 @@ paths:
       summary: '"Use template": creates a website with its page and business details.'
       description: |
         The plan's website limit is checked with Payment (admission). Sending the same body again for a website that
-        already exists answers 200 with it (no second website). `details.logoUrl` is kept as the business logo
-        when it is one of the platform's media URLs (phase 3); `category` and `thumbnailUrl` are ignored (the server
-        owns them).
+        already exists answers 200 with it (no second website). `details.logoUrl` is the wizard's logo as a
+        `data:image/...;base64,...` URL (the UI reads the chosen file into one) or null. It is checked before anything
+        is created, as a media upload: PNG or JPEG read from the bytes (never the declared type), at most 5 MiB
+        (400 VALIDATION_FAILED for anything else, 413, 415). It becomes the website's first media asset and, once the
+        catalog has registered the website, its business logo. The body may be up to 6 MiB. `category` and
+        `thumbnailUrl` are ignored (the server owns them).
       x-phase: 2
       x-replaces: ["POST /api/v1/ui/projects", "PUT /api/v1/projects/{projectId}"]
       requestBody:
@@ -355,6 +358,8 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '402': {$ref: '#/components/responses/PlanRequired'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/BadRequest'}
+        '415': {$ref: '#/components/responses/BadRequest'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /projects/counts:
     get:
@@ -1404,7 +1409,7 @@ components:
             businessName: {type: string}
             businessType: {type: string}
             description: {type: string}
-            logoUrl: {type: [string, 'null']}
+            logoUrl: {type: [string, 'null'], description: 'A data:image/...;base64 URL of the logo, or null.'}
             phone: {type: string}
             email: {type: string}
             address: {type: string}
