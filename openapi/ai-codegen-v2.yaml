@@ -1,0 +1,234 @@
+openapi: 3.1.0
+info:
+  title: WebBlock AI Codegen API
+  version: 2.0.0
+  description: |
+    OWNED BY ai_codegen. Consumer: the web UI (`webblock-web-ui`, `src/features/editor/api.ts`, `sendAiMessage`).
+
+    Version 2 of AI Codegen's public API (owner's decision of 10 November 2026, COMMON.md section 3):
+    - Paths are resources, with no client segment (`ui/`).
+    - Bodies are bare camelCase objects (no `{success, data}` envelope) shaped like the UI's types.
+    - Lists are `Page<T>` with a zero-based `page`.
+    - Errors are RFC 9457 problem details with `type` `urn:webblock:problem:<code>`.
+
+    v1 stays as it is and is deprecated. Each operation names the v1 route it replaces in `x-replaces`.
+
+    The service serves these paths under their full prefix `/api/ai-codegen/v2`, so the gateway forwards them unchanged
+    (no prefix strip, unlike v1).
+
+    **Authorization.** Every operation needs a Keycloak access token (`Authorization: Bearer`). The caller is the token's
+    `sub`, never an id in the request. A project-scoped call checks on the server that the caller may manage
+    `{projectId}` (Project's access check, action `manage_site`, which fails closed). A project the caller does not
+    manage answers 404, exactly like an unknown one, so project ids don't leak. The admin role grants nothing here.
+servers:
+  - url: /api/ai-codegen/v2
+security:
+  - bearerAuth: []
+tags:
+  - name: ai-messages
+    description: The project's WebBlock AI design assistant chat.
+paths:
+  /projects/{projectId}/ai-messages:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      operationId: listAiMessages
+      tags: [ai-messages]
+      summary: The project's AI chat, one page at a time
+      description: Every message of the project's design assistant conversation, the owner's prompts and the assistant's replies, oldest first by default.
+      x-replaces: "GET /v1/ui/projects/{project_id}/ai/messages"
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+        - name: sort
+          in: query
+          description: "`createdAt,asc` (default, oldest first) or `createdAt,desc`."
+          schema:
+            type: string
+            enum: ["createdAt,asc", "createdAt,desc"]
+            default: "createdAt,asc"
+      responses:
+        "200":
+          description: One page of messages.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiMessagePage"
+              example:
+                items:
+                  - { id: "0b7e9c1e-4f43-4c7b-9a51-3f3e4a2b9d10", role: USER, text: "Make the hero dark", createdAt: "2026-11-10T08:15:02Z" }
+                  - { id: "6a0f2d44-1c9b-4e5f-8d1e-7b2c3a4d5e6f", role: ASSISTANT, text: "I gave the hero a dark background.", createdAt: "2026-11-10T08:15:09Z" }
+                page: 0
+                size: 20
+                totalItems: 2
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: sendAiMessage
+      tags: [ai-messages]
+      summary: Ask WebBlock AI to edit the site
+      description: |
+        Stores the owner's prompt, asks the model, and stores and returns the assistant's reply. The project's
+        conversation is created on the first message.
+
+        The edit the assistant proposes is applied to the project's draft page as one change set, against the page's
+        current edit revision. The reply says what changed. If the page changed while the model was answering, nothing
+        is applied, and the reply still stands.
+
+        The answer is the assistant's reply, a new message: `201` with `Location` pointing at it. The owner's own
+        prompt is the message just before it in the list.
+      x-replaces: "POST /v1/ui/projects/{project_id}/ai/messages"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendAiMessage"
+            example:
+              prompt: Improve the layout and colors of our shop homepage
+      responses:
+        "201":
+          description: The assistant's reply.
+          headers:
+            Location:
+              description: "`/api/ai-codegen/v2/projects/{projectId}/ai-messages/{id}` of the reply."
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiMessage"
+              example: { id: "6a0f2d44-1c9b-4e5f-8d1e-7b2c3a4d5e6f", role: ASSISTANT, text: "I gave the hero a dark background.", createdAt: "2026-11-10T08:15:09Z" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /projects/{projectId}/ai-messages/{messageId}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+      - name: messageId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getAiMessage
+      tags: [ai-messages]
+      summary: One message of the project's AI chat
+      description: The target of `Location` after `sendAiMessage`. A message of another project answers 404.
+      responses:
+        "200":
+          description: The message.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiMessage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Keycloak access token of the WebBlock realm.
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      description: Zero-based page number.
+      schema: { type: integer, minimum: 0, default: 0 }
+    Size:
+      name: size
+      in: query
+      description: Items per page.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  schemas:
+    AiMessage:
+      description: "One message of the WebBlock AI chat: the UI's `AiMessage` (`src/features/editor/types.ts`)."
+      type: object
+      additionalProperties: false
+      required: [id, role, text, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [USER, ASSISTANT] }
+        text: { type: string }
+        createdAt: { type: string, format: date-time, description: ISO 8601 in UTC, with `Z`. }
+    AiMessagePage:
+      description: "`Page<AiMessage>` (`src/lib/api/types.ts`)."
+      type: object
+      additionalProperties: false
+      required: [items, page, size, totalItems]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AiMessage" }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1 }
+        totalItems: { type: integer, minimum: 0 }
+    SendAiMessage:
+      type: object
+      additionalProperties: false
+      required: [prompt]
+      properties:
+        prompt: { type: string, minLength: 1, maxLength: 4000, description: What the owner wants changed. }
+        pageId:
+          type: [string, "null"]
+          format: uuid
+          description: The page to edit. Absent or null means the home page. The UI doesn't send it today.
+    Problem:
+      description: RFC 9457 problem details. The UI shows `title` and `detail` and branches on `status`.
+      type: object
+      required: [type, title, status, detail]
+      properties:
+        type:
+          type: string
+          description: "`urn:webblock:problem:<code>`, for example `urn:webblock:problem:not-found`."
+        title: { type: string, description: A short summary of the problem type. }
+        status: { type: integer }
+        detail: { type: string, description: What went wrong this time. It never echoes the request or a token. }
+        instance: { type: string, description: The request path. }
+        code: { type: string, description: "The code of `type` in UPPER_SNAKE, for example `NOT_FOUND`." }
+        requestId: { type: string, description: The caller's `X-Request-Id`, or a new one. }
+  responses:
+    BadRequest:
+      description: "Invalid input: a malformed id or body, or a query parameter out of range (`urn:webblock:problem:bad-request`)."
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example: { type: "urn:webblock:problem:bad-request", title: Bad request, status: 400, detail: "prompt: String should have at least 1 character", instance: "/api/ai-codegen/v2/projects/6c17b5d1-a784-4987-89ff-86079305776b/ai-messages", code: BAD_REQUEST }
+    Unauthorized:
+      description: "No token, or an invalid or expired one (`urn:webblock:problem:unauthorized`, `WWW-Authenticate: Bearer`)."
+      headers:
+        WWW-Authenticate:
+          schema: { type: string, const: Bearer }
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    ProjectNotFound:
+      description: "No such project, or the caller does not manage it (`urn:webblock:problem:not-found`)."
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    NotFound:
+      description: "No such project or message, or the caller does not manage the project (`urn:webblock:problem:not-found`)."
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    ServiceUnavailable:
+      description: |
+        A dependency is down, with `Retry-After`: the model, Keycloak's key set, Project or the database
+        (`urn:webblock:problem:service-unavailable`).
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
