@@ -201,6 +201,60 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /admin/activity:
+    get:
+      tags: [admin]
+      operationId: listAdminActivity
+      summary: The admin activity log (hosting, users, plans), newest first
+      description: |
+        One feed from four services (owner's decision of 10 November 2026). Each entry comes from
+        `events/audit/audit_recorded.v1` (account, payment, provisioning, project); an action that moves from QUEUED to
+        SUCCEEDED or FAILED is one entry showing its latest result. The names come from the producer at the time of the
+        action. `actor`: `admins` = any admin, `system` = automatic actions, anything else = one admin's email.
+      x-replaces: "GET /ui/admin/audit in user-service, payment-service and provisioning-service (three separate v1 feeds)"
+      parameters:
+        - name: action
+          in: query
+          schema: { $ref: '#/components/schemas/ActivityAction' }
+        - name: actor
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 254 }
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - name: sort
+          in: query
+          description: 'createdAt (default, desc), action, targetName, actorEmail or result, each with ,asc or ,desc.'
+          schema: { type: string, default: 'createdAt,desc', pattern: '^(createdAt|action|targetName|actorEmail|result),(asc|desc)$' }
+      responses:
+        '200':
+          description: One page of the activity log.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityEntryPage'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /admin/activity/actors:
+    get:
+      tags: [admin]
+      operationId: listAdminActivityActors
+      summary: Admin emails that appear in the activity log (for the actor filter)
+      description: A small list, so a plain array (the UI type is `string[]`), sorted.
+      responses:
+        '200':
+          description: Distinct admin emails, sorted.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   /contact-messages:
     post:
       tags: [public]
@@ -473,6 +527,34 @@ components:
       required: [unread]
       properties:
         unread: { type: integer, format: int64, minimum: 0 }
+
+    ActivityAction:
+      type: string
+      enum: [SUSPEND_HOSTING, RESUME_HOSTING, ROLLBACK, SUSPEND_USER, REACTIVATE_USER, CHANGE_PLAN]
+
+    ActivityEntry:
+      description: '`ActivityEntry` in `src/features/admin/monitoring/types.ts`.'
+      type: object
+      required: [id, action, targetName, targetDetail, actorEmail, result, createdAt]
+      properties:
+        id: { type: string, format: uuid, description: The audit event's activity_id. }
+        action: { $ref: '#/components/schemas/ActivityAction' }
+        targetName: { type: string }
+        targetDetail: { type: string, description: 'Domain for websites, email for users.' }
+        actorEmail: { type: [string, 'null'], description: Admin email, or null when the system did it. }
+        result: { type: string, enum: [QUEUED, RUNNING, SUCCEEDED, FAILED] }
+        createdAt: { type: string, format: date-time, description: When the action was asked for. }
+
+    ActivityEntryPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ActivityEntry' }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer, format: int64 }
 
     OwnerMessageRequest:
       type: object
