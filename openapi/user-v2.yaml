@@ -1,0 +1,1070 @@
+openapi: 3.1.0
+info:
+  title: WebBlock User API v2
+  version: 2.0.0
+  description: |
+    OWNED BY account (user-service).
+
+    Public API of user-service, version 2 (owner's decision, 10 November 2026). It replaces the v1 `ui/` routes and
+    the v1 auth, register and password routes, which stay unchanged and deprecated until every client has moved
+    (`x-replaces` on each operation names the v1 route). The UI's TypeScript types are the contract for every answer
+    (`webblock-web-ui/src/features/{account,admin,auth}/types.ts` and `schemas.ts`, `src/lib/api/types.ts`).
+
+    Rules for every operation:
+    - Authentication is a Keycloak bearer JWT. The caller is `sub` (the `user_id` claim); no operation takes the
+      caller's own id from the path or body.
+    - `/admin/...` requires the realm role `admin` (403 otherwise). Operations tagged `public` need no token.
+    - No `{success, data}` envelope. Lists are `Page<T>` (`items`, zero-based `page`, `size`, `totalItems`).
+    - Errors are RFC 9457 problem details (`application/problem+json`) with `type` = `urn:webblock:problem:<code>`,
+      `title`, `status` and `detail`; `fieldErrors` names each invalid field. No answer echoes a value the caller sent.
+    - Ids are UUID strings; times are ISO 8601 in UTC; field names are camelCase as the UI spells them.
+
+    Data from other services (owner decision 3a): user-service answers the full UI type and gathers the rest through
+    internal routes over the mesh, each with a timeout. When a service is down, its fields are `null` and the rest
+    of the answer is still sent; a page never fails because of another service.
+    - `plan` (Profile, UserAccount) and `onFreeTrial`, `paying` (UserStats): payment-service.
+    - `websiteCount` (UserAccount): project-service.
+    - `liveWebsites` (UserStats): provisioning-service.
+    The routes user-service needs from them are listed at the end of `user-internal-v1.yaml` ("Needs").
+
+    Outbound hosts: Keycloak only (token endpoint and Admin API), plus the S3-compatible store for profile photos.
+servers:
+  - url: /api/user/v2
+tags:
+  - name: public
+    description: No token. Sign in, register and reset a password.
+  - name: me
+    description: The signed-in user's own account.
+  - name: admin
+    description: Admin-only routes. Realm role `admin` required.
+security:
+  - bearerAuth: []
+paths:
+  # ---------------------------------------------------------------------------------------------------------------
+  # Sessions (sign in, refresh, sign out)
+  # ---------------------------------------------------------------------------------------------------------------
+  /sessions:
+    post:
+      tags: [public]
+      operationId: createSession
+      summary: Sign in with email and password
+      description: |
+        Exchanges the email and password for Keycloak tokens. The first sign-in of an account with the role `user`
+        publishes `account.user_first_login.v1` (Payment starts the free trial from it). A user re-created in
+        Keycloak with the same email is matched by email and keeps their account (issue 4).
+      x-replaces: "POST /api/user/v1/auth/login"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignInRequest' }
+      responses:
+        '201':
+          description: Signed in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenSet' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Wrong email or password (`invalid-credentials`). The answer never says which one.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '403':
+          description: The account is suspended (`account-suspended`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          description: The email belongs to another WebBlock account (`account-email-in-use`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /sessions/refresh:
+    post:
+      tags: [public]
+      operationId: refreshSession
+      summary: New tokens for a refresh token
+      description: |
+        Kept as a sub-resource with a verb-like name on purpose: a refresh is neither a new session nor an update of a
+        resource the caller can address (the refresh token is the credential, so it travels in the body, never in the
+        path). Same answer as `createSession`.
+      x-replaces: "POST /api/user/v1/ui/auth/refresh"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshTokenRequest' }
+      responses:
+        '200':
+          description: New tokens. The old refresh token may no longer work (Keycloak rotation).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenSet' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: The refresh token is expired, revoked or not valid (`session-expired`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '403':
+          description: The account is suspended (`account-suspended`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /sessions/revocations:
+    post:
+      tags: [public]
+      operationId: revokeSession
+      summary: Sign out (end the session of this refresh token)
+      description: |
+        Creates a revocation instead of `DELETE /sessions/{id}`: the session has no id the client knows, and the
+        refresh token must not appear in a path. Answers 204 also when the token was already ended.
+      x-replaces: "POST /api/user/v1/ui/auth/logout"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshTokenRequest' }
+      responses:
+        '204': { description: Signed out. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # Registration (3 steps: start, verify the code, confirm with a password)
+  # ---------------------------------------------------------------------------------------------------------------
+  /registrations:
+    post:
+      tags: [public]
+      operationId: startRegistration
+      summary: 'Register step 1: full name and email; sends a 6-digit code'
+      x-replaces: "POST /api/user/v1/register/start"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartRegistrationRequest' }
+      responses:
+        '202':
+          description: A code was sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CodeSent' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: The email already has an account (`account-already-exists`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /registrations/codes:
+    post:
+      tags: [public]
+      operationId: resendRegistrationCode
+      summary: Send a new registration code (Resend)
+      x-replaces: "POST /api/user/v1/register/resend-otp"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailRequest' }
+      responses:
+        '202':
+          description: A new code was sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CodeSent' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429':
+          description: Asked again within 60 seconds (`otp-resend-too-soon`). `Retry-After` gives the seconds to wait.
+          headers:
+            Retry-After: { schema: { type: integer, minimum: 1 } }
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /registrations/verifications:
+    post:
+      tags: [public]
+      operationId: verifyRegistrationCode
+      summary: 'Register step 2: check the code, get a verification token'
+      x-replaces: "POST /api/user/v1/register/verify-otp"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VerifyCodeRequest' }
+      responses:
+        '201':
+          description: The code is right.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Verification' }
+        '400':
+          description: Invalid input, a wrong code (`otp-invalid`) or an expired one (`otp-expired`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429':
+          description: Too many wrong codes (`otp-too-many-attempts`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /registrations/confirmations:
+    post:
+      tags: [public]
+      operationId: confirmRegistration
+      summary: 'Register step 3: set the password and create the account'
+      description: |
+        Creates the account (or adds a password to an existing Google-only account). `Location` points at
+        `/api/user/v2/me`, readable after sign-in.
+      x-replaces: "POST /api/user/v1/register/complete"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewPasswordRequest' }
+      responses:
+        '201':
+          description: Account created. Next step is sign-in.
+          headers:
+            Location: { schema: { type: string, examples: ['/api/user/v2/me'] } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Registered' }
+        '400':
+          description: Invalid input, passwords that differ (`password-mismatch`) or an expired token (`verification-token-invalid`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          description: The email already has an account (`account-already-exists`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: Keycloak's password policy refused the password (`password-too-weak`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # Password reset (forgot password: request, verify the code, confirm with a new password)
+  # ---------------------------------------------------------------------------------------------------------------
+  /password-resets:
+    post:
+      tags: [public]
+      operationId: requestPasswordReset
+      summary: 'Forgot password step 1 (and Resend): send a code if the email has an account'
+      description: The answer is the same whether or not the email has an account.
+      x-replaces: "POST /api/user/v1/password/forgot"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailRequest' }
+      responses:
+        '202':
+          description: A code was sent if the email has an account.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CodeSent' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /password-resets/verifications:
+    post:
+      tags: [public]
+      operationId: verifyPasswordResetCode
+      summary: 'Forgot password step 2: check the code, get a verification token'
+      x-replaces: "POST /api/user/v1/password/verify-otp"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VerifyCodeRequest' }
+      responses:
+        '201':
+          description: The code is right.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Verification' }
+        '400':
+          description: Invalid input, a wrong code (`otp-invalid`) or an expired one (`otp-expired`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429':
+          description: Too many wrong codes (`otp-too-many-attempts`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /password-resets/confirmations:
+    post:
+      tags: [public]
+      operationId: confirmPasswordReset
+      summary: 'Forgot password step 3: set the new password; signs out every session'
+      x-replaces: "POST /api/user/v1/password/reset"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewPasswordRequest' }
+      responses:
+        '204': { description: Password changed; every session of the account has ended. }
+        '400':
+          description: Invalid input, passwords that differ (`password-mismatch`) or an expired token (`verification-token-invalid`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: Keycloak's password policy refused the password (`password-too-weak`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # The signed-in user
+  # ---------------------------------------------------------------------------------------------------------------
+  /me:
+    get:
+      tags: [me]
+      operationId: getMyProfile
+      summary: My profile (creates the account row on the first call)
+      x-replaces: "GET /api/user/v1/ui/me"
+      responses:
+        '200':
+          description: The UI `Profile`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: The account is suspended (`account-suspended`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: The token carries no email (`account-email-missing`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    patch:
+      tags: [me]
+      operationId: updateMyProfile
+      summary: Change my full name (also in Keycloak)
+      x-replaces: "PUT /api/user/v1/ui/me"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FullNameUpdate' }
+      responses:
+        '200':
+          description: The updated `Profile`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /me/password:
+    put:
+      tags: [me]
+      operationId: setMyPassword
+      summary: Change my password, or set a first one on a Google-only account; signs out every session
+      description: |
+        `currentPassword` is required when the account already has a password, and is checked against Keycloak.
+        Every session ends, the caller's too, so the client signs in again with the new password.
+      x-replaces: "PUT /api/user/v1/ui/me/password"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetPasswordRequest' }
+      responses:
+        '200':
+          description: The `Profile` (now with `hasPassword` true).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '400':
+          description: Invalid input, a missing (`current-password-required`) or wrong (`current-password-wrong`) current password.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: Keycloak's password policy refused the password (`password-too-weak`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /me/avatar:
+    put:
+      tags: [me]
+      operationId: setMyAvatar
+      summary: Upload or change my profile photo
+      description: The server checks the file's bytes (PNG or JPEG), never the client's content type. 5 MB at most.
+      x-replaces: "PUT /api/user/v1/ui/me/avatar"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/AvatarUpload' }
+      responses:
+        '200':
+          description: The `Profile` with the new `avatarUrl`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '400':
+          description: No file (`photo-required`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/PhotoTooLarge' }
+        '415': { $ref: '#/components/responses/PhotoTypeNotAllowed' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      tags: [me]
+      operationId: removeMyAvatar
+      summary: Remove my profile photo (the UI shows my initials)
+      x-replaces: "DELETE /api/user/v1/ui/me/avatar"
+      responses:
+        '200':
+          description: The `Profile` with `avatarUrl` null.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /me/sign-in-methods:
+    get:
+      tags: [me]
+      operationId: getMySignInMethods
+      summary: Do I have a password? Is Google connected?
+      description: The same two facts are also in `Profile` (`hasPassword`, `googleEmail`).
+      x-replaces: "GET /api/user/v1/me/sign-in-methods"
+      responses:
+        '200':
+          description: How this account can sign in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SignInMethods' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /me/sign-in-methods/google:
+    delete:
+      tags: [me]
+      operationId: disconnectMyGoogle
+      summary: Disconnect Google (only when the account also has a password)
+      x-replaces: "DELETE /api/user/v1/me/sign-in-methods/google"
+      responses:
+        '200':
+          description: The `Profile` with `googleEmail` null.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: Google is not connected (`google-not-connected`), or the account has no password yet (`password-required-to-disconnect`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503':
+          description: |
+            Keycloak refused or did not answer (`dependency-unavailable`). `detail` names the Keycloak call and its
+            HTTP status, for example "Keycloak answered 403 to DELETE federated-identity" (issue 2).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # Admin: the signed-in admin
+  # ---------------------------------------------------------------------------------------------------------------
+  /admin/me:
+    get:
+      tags: [admin]
+      operationId: getAdminProfile
+      summary: The signed-in admin's profile (header)
+      x-replaces: "GET /api/user/v1/ui/admin/me"
+      responses:
+        '200':
+          description: The UI `AdminProfile`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    patch:
+      tags: [admin]
+      operationId: updateAdminProfile
+      summary: The admin changes their display name (email and role stay)
+      x-new: "No v1 route (UI inventory: missing)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FullNameUpdate' }
+      responses:
+        '200':
+          description: The updated `AdminProfile`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProfile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /admin/me/avatar:
+    put:
+      tags: [admin]
+      operationId: setAdminAvatar
+      summary: The admin uploads or changes their photo
+      x-replaces: "PUT /api/user/v1/ui/me/avatar (answered Profile, not AdminProfile)"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/AvatarUpload' }
+      responses:
+        '200':
+          description: The `AdminProfile` with the new `avatarUrl`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProfile' }
+        '400':
+          description: No file (`photo-required`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/PhotoTooLarge' }
+        '415': { $ref: '#/components/responses/PhotoTypeNotAllowed' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      tags: [admin]
+      operationId: removeAdminAvatar
+      summary: The admin removes their photo
+      x-replaces: "DELETE /api/user/v1/ui/me/avatar (answered Profile, not AdminProfile)"
+      responses:
+        '200':
+          description: The `AdminProfile` with `avatarUrl` null.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # Admin: user accounts
+  # ---------------------------------------------------------------------------------------------------------------
+  /admin/users:
+    get:
+      tags: [admin]
+      operationId: listUsers
+      summary: 'Accounts page, or the same list as CSV (`Accept: text/csv`)'
+      description: |
+        `q` matches part of the email or the full name. `plan` filters by the plan Payment holds for the user (asked
+        from Payment at query time); while Payment is down, a `plan` filter answers 503 and an unfiltered list answers
+        with `plan` null. `status` is kept from v1 (the UI does not send it).
+
+        A user deleted in Keycloak never fails the page (issue 4): the row is answered from user-service's data with
+        `deletedInKeycloak` true.
+
+        With `Accept: text/csv` the same filters answer a file with the columns `Name,Email,Websites,Plan,Status,Joined`
+        (the UI's export), no paging, at most `webblock.admin-export.max-rows` rows (413 above it).
+      x-replaces: "GET /api/user/v1/ui/admin/users; GET /api/user/v1/ui/admin/users/export (with Accept: text/csv)"
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 320 }
+        - name: plan
+          in: query
+          schema: { $ref: '#/components/schemas/PlanCode' }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/AccountStatus' }
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - name: sort
+          in: query
+          description: '`field,asc|desc`; field is one of `joinedAt`, `fullName`, `email`, `status`.'
+          schema: { type: string, default: 'joinedAt,desc', pattern: '^(joinedAt|fullName|email|status),(asc|desc)$' }
+      responses:
+        '200':
+          description: One page of accounts, or the CSV file.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserAccountPage' }
+            text/csv:
+              schema:
+                type: string
+                examples: ["Name,Email,Websites,Plan,Status,Joined\r\nSok Dara,dara@example.test,2,PLUS,ACTIVE,2026-11-01T08:30:00Z\r\n"]
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413':
+          description: Too many rows for one CSV (`export-too-large`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /admin/users/stats:
+    get:
+      tags: [admin]
+      operationId: getUserStats
+      summary: User KPI cards
+      description: |
+        `totalAccounts` is user-service's own count (role `user`, not deleted in Keycloak). `onFreeTrial` and `paying`
+        come from Payment, `liveWebsites` from Provisioning; each is null while its service is down.
+      x-replaces: "GET /api/user/v1/ui/admin/users/stats"
+      responses:
+        '200':
+          description: The UI `UserStats`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserStats' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /admin/users/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/userId'
+    get:
+      tags: [admin]
+      operationId: getUser
+      summary: One account (the popup from `?user=<id>`)
+      x-replaces: "GET /api/user/v1/ui/admin/users/{userId}"
+      responses:
+        '200':
+          description: The UI `UserAccount`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserAccount' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    patch:
+      tags: [admin]
+      operationId: updateUserStatus
+      summary: Suspend or reactivate an account
+      description: |
+        `{"status":"SUSPENDED"}` suspends, `{"status":"ACTIVE"}` reactivates. Either way every Keycloak session of the
+        user ends, the change goes into the audit log (`SUSPEND_USER`, `REACTIVATE_USER`) and
+        `account.user_status_changed.v1` is published on `account.events` after the commit (Provisioning takes the
+        owner's sites offline or back, Project and Payment follow). `reasonCode` defaults to `OTHER` because the UI
+        sends only the status; `note` is private and never leaves user-service.
+      x-replaces: "POST /api/user/v1/ui/admin/users/{userId}/suspend; POST /api/user/v1/ui/admin/users/{userId}/reactivate"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserStatusUpdate' }
+      responses:
+        '200':
+          description: The updated `UserAccount`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserAccount' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The account already has this status (`user-status-unchanged`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: An admin tried to change their own account (`user-status-own-account`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # Admin: audit
+  # ---------------------------------------------------------------------------------------------------------------
+  /admin/audit-entries:
+    get:
+      tags: [admin]
+      operationId: listAuditEntries
+      summary: User's part of the audit log (suspend and reactivate), newest first
+      description: |
+        The single admin activity feed (entries from User, Payment and Provisioning) waits for the owner; until then
+        each service answers its own part, as in v1.
+      x-replaces: "GET /api/user/v1/ui/admin/audit"
+      parameters:
+        - name: action
+          in: query
+          schema: { type: string, enum: [SUSPEND_USER, REACTIVATE_USER] }
+        - name: actorUserId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: since
+          in: query
+          schema: { type: string, format: date-time }
+        - $ref: '#/components/parameters/page'
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+      responses:
+        '200':
+          description: One page of entries.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuditEntryPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Keycloak access token (realm `webblock`).
+
+  parameters:
+    page:
+      name: page
+      in: query
+      description: Zero-based page number.
+      schema: { type: integer, minimum: 0, default: 0 }
+    size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    userId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    BadRequest:
+      description: Invalid input (`validation-failed`). `fieldErrors` names each invalid field.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: No token, or a bad one (`unauthenticated`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: The caller is not an admin (`access-denied`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: No user with this id (`user-not-found`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    TooManyRequests:
+      description: Rate limit reached. `Retry-After` gives the seconds to wait.
+      headers:
+        Retry-After: { schema: { type: integer, minimum: 1 } }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    PhotoTooLarge:
+      description: The photo is larger than 5 MB (`photo-too-large`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    PhotoTypeNotAllowed:
+      description: The file is not a PNG or JPEG (`photo-type-not-allowed`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unavailable:
+      description: |
+        A dependency user-service cannot answer without (Keycloak, the database, Redis, the photo store) is down
+        (`dependency-unavailable`). Data owned by another service never causes it: those fields are null instead.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          description: '`urn:webblock:problem:<code>`, code in kebab-case (for example `user-not-found`).'
+          examples: ['urn:webblock:problem:user-not-found']
+        title: { type: string, description: Short, for people. The UI shows it. }
+        status: { type: integer }
+        detail: { type: string, description: What went wrong in this case. The UI shows it. }
+        instance: { type: string, description: The request path. }
+        fieldErrors:
+          type: object
+          description: Field name to its messages (the UI's `FieldErrors`).
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+    PlanCode:
+      type: string
+      enum: [FREE_TRIAL, PLUS, PRO, ULTRA]
+    AccountStatus:
+      type: string
+      enum: [ACTIVE, SUSPENDED]
+    SignInMethod:
+      type: string
+      enum: [EMAIL, GOOGLE]
+
+    Email:
+      type: string
+      format: email
+      maxLength: 320
+    NewPassword:
+      type: string
+      minLength: 8
+      maxLength: 128
+      description: At least one upper case letter, one lower case letter and one digit (the Keycloak password policy; Keycloak checks it again).
+      pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$'
+
+    SignInRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { $ref: '#/components/schemas/Email' }
+        password: { type: string, minLength: 1, maxLength: 128 }
+    RefreshTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string, minLength: 1, maxLength: 8192 }
+    TokenSet:
+      type: object
+      required: [accessToken, refreshToken, expiresIn, refreshExpiresIn, tokenType, userId, email, roles]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, description: Seconds until the access token expires. }
+        refreshExpiresIn: { type: integer, description: Seconds until the refresh token expires. }
+        tokenType: { type: string, const: Bearer }
+        userId: { type: string, format: uuid }
+        email: { $ref: '#/components/schemas/Email' }
+        roles:
+          type: array
+          items: { type: string, enum: [USER, ADMIN] }
+
+    StartRegistrationRequest:
+      type: object
+      additionalProperties: false
+      required: [fullName, email]
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 255 }
+        email: { $ref: '#/components/schemas/Email' }
+    EmailRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email: { $ref: '#/components/schemas/Email' }
+    VerifyCodeRequest:
+      type: object
+      additionalProperties: false
+      required: [email, code]
+      properties:
+        email: { $ref: '#/components/schemas/Email' }
+        code: { type: string, pattern: '^\d{6}$' }
+    CodeSent:
+      type: object
+      required: [expiresInSeconds, resendAfterSeconds]
+      properties:
+        expiresInSeconds: { type: integer, description: The code works this long. }
+        resendAfterSeconds: { type: integer, description: Resend is allowed after this long. }
+    Verification:
+      type: object
+      required: [verificationToken, expiresInSeconds]
+      properties:
+        verificationToken: { type: string, description: Send it with the password in the next step. Single use. }
+        expiresInSeconds: { type: integer }
+    NewPasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [verificationToken, password, confirmPassword]
+      properties:
+        verificationToken: { type: string, minLength: 1, maxLength: 512 }
+        password: { $ref: '#/components/schemas/NewPassword' }
+        confirmPassword: { type: string, maxLength: 128 }
+    Registered:
+      type: object
+      required: [userId, email]
+      properties:
+        userId: { type: string, format: uuid }
+        email: { $ref: '#/components/schemas/Email' }
+
+    FullNameUpdate:
+      type: object
+      additionalProperties: false
+      required: [fullName]
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 255 }
+    SetPasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [newPassword]
+      properties:
+        currentPassword: { type: string, maxLength: 128, description: Required when the account already has a password. }
+        newPassword: { $ref: '#/components/schemas/NewPassword' }
+    AvatarUpload:
+      type: object
+      required: [file]
+      properties:
+        file: { type: string, format: binary, description: 'PNG or JPEG, 5 MB at most.' }
+      x-encoding: { file: { contentType: 'image/png, image/jpeg' } }
+    SignInMethods:
+      type: object
+      required: [hasPassword, googleEmail]
+      properties:
+        hasPassword: { type: boolean }
+        googleEmail: { type: [string, 'null'], description: The connected Google account, or null. }
+
+    Profile:
+      description: '`Profile` in `src/features/account/types.ts`.'
+      type: object
+      required: [id, fullName, initials, email, avatarUrl, plan, memberSince, lastSignInAt, hasPassword, googleEmail]
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string, description: The email's local part when Keycloak has no name. }
+        initials: { type: string, minLength: 1, maxLength: 2, description: 'Two letters shown when there is no photo, for example "SV".' }
+        email: { $ref: '#/components/schemas/Email' }
+        avatarUrl: { type: [string, 'null'] }
+        plan:
+          description: From Payment. Null while Payment is down.
+          oneOf:
+            - $ref: '#/components/schemas/PlanCode'
+            - type: 'null'
+        memberSince: { type: string, format: date-time }
+        lastSignInAt: { type: string, format: date-time }
+        hasPassword: { type: boolean }
+        googleEmail: { type: [string, 'null'] }
+
+    AdminProfile:
+      description: '`AdminProfile` in `src/features/admin/types.ts`.'
+      type: object
+      required: [id, accountCode, fullName, email, avatarUrl, title, joinedAt]
+      properties:
+        id: { type: string, format: uuid }
+        accountCode: { type: string, examples: ['ADM-000001'] }
+        fullName: { type: string }
+        email: { $ref: '#/components/schemas/Email' }
+        avatarUrl: { type: [string, 'null'] }
+        title: { type: string, examples: ['Administrator'] }
+        joinedAt: { type: string, format: date-time }
+
+    UserAccount:
+      description: |
+        `UserAccount` in `src/features/admin/types.ts`, plus `deletedInKeycloak` (the UI ignores fields it does not
+        know). `plan` comes from Payment and `websiteCount` from Project; each is null while its service is down.
+      type: object
+      required: [id, accountCode, fullName, email, avatarUrl, plan, status, signInMethod, websiteCount, joinedAt, deletedInKeycloak]
+      properties:
+        id: { type: string, format: uuid }
+        accountCode: { type: string, examples: ['usr_0b7f21'] }
+        fullName: { type: string }
+        email: { $ref: '#/components/schemas/Email' }
+        avatarUrl: { type: [string, 'null'] }
+        plan:
+          oneOf:
+            - $ref: '#/components/schemas/PlanCode'
+            - type: 'null'
+        status: { $ref: '#/components/schemas/AccountStatus' }
+        signInMethod: { $ref: '#/components/schemas/SignInMethod' }
+        websiteCount: { type: [integer, 'null'], minimum: 0 }
+        joinedAt: { type: string, format: date-time }
+        deletedInKeycloak:
+          type: boolean
+          description: The Keycloak user no longer exists (issue 4). The row stays until the DBA or the owner removes it.
+    UserAccountPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/UserAccount' }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer, format: int64 }
+    UserStatusUpdate:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { $ref: '#/components/schemas/AccountStatus' }
+        reasonCode:
+          type: string
+          enum: [ABUSE, FRAUD, OWNER_REQUEST, OTHER]
+          description: Only for SUSPENDED; defaults to OTHER. Ignored for ACTIVE.
+        note: { type: string, maxLength: 500, description: Private admin note. Never published or shown to the user. }
+
+    UserStats:
+      description: '`UserStats` in `src/features/admin/types.ts`.'
+      type: object
+      required: [totalAccounts, onFreeTrial, paying, liveWebsites]
+      properties:
+        totalAccounts: { type: integer, format: int64 }
+        onFreeTrial: { type: [integer, 'null'], format: int64, description: From Payment. }
+        paying: { type: [integer, 'null'], format: int64, description: From Payment. }
+        liveWebsites: { type: [integer, 'null'], format: int64, description: From Provisioning. }
+
+    AuditEntry:
+      description: The shared audit entry, the same shape in every service.
+      type: object
+      required: [id, occurredAt, service, action, actorUserId, targetType, targetId, result]
+      properties:
+        id: { type: string }
+        occurredAt: { type: string, format: date-time }
+        service: { type: string, const: user }
+        action: { type: string, enum: [SUSPEND_USER, REACTIVATE_USER] }
+        actorUserId: { type: [string, 'null'], format: uuid, description: Null for a system change. }
+        actorEmail: { type: string, description: Left out when unknown. }
+        targetType: { type: string, const: USER }
+        targetId: { type: string, format: uuid }
+        targetName: { type: string, description: Left out when unknown. }
+        result: { type: string, enum: [SUCCEEDED, FAILED] }
+    AuditEntryPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AuditEntry' }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer, format: int64 }
