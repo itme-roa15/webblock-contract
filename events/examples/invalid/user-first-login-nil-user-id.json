@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "message_id": "0192f9a1-3c4d-7e5f-8a6b-7c8d9e0f1a2b",
+  "message_type": "account.user_first_login.v1",
+  "occurred_at": "2026-11-10T08:15:00Z",
+  "correlation_id": "6f1d2c3b-4a59-4e8f-9a7b-1c2d3e4f5a6b",
+  "user_id": "00000000-0000-0000-0000-000000000000"
+}

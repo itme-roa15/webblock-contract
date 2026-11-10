@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webblock.invalid/contracts/events/account/user_first_login.v1.schema.json",
+  "title": "Account: user first login v1",
+  "description": "OWNED BY account. Serves Payment (the 14-day free trial starts from occurred_at; queue payment.user_first_login.v1). An account with the role user (never an admin) signed in for the first time: by password (POST /api/user/v2/sessions) or by Google (its first GET /api/user/v2/me). Sent once, after the database commit, persistent, application/json, AMQP type = message_type; a repeat is harmless, so consumers record message_id or user_id once. correlation_id is the request's x-request-id, or a new UUID. No name and no email. Like account.user_status_changed.v1, a user event is about no project, so the body has no project_id while envelope.v1 requires it (open point in the README). Sent on exchange account.events with routing key account.user_first_login.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "message_id", "message_type", "occurred_at", "correlation_id", "user_id"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "message_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "not": {"enum": ["00000000-0000-0000-0000-000000000000"]} },
+    "message_type": { "const": "account.user_first_login.v1" },
+    "occurred_at": { "type": "string", "format": "date-time", "maxLength": 40 },
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+    "user_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "not": {"enum": ["00000000-0000-0000-0000-000000000000"]} }
+  }
+}
