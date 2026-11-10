@@ -10,9 +10,12 @@ info:
     token. Each route answers only the fields named here: no password state, no Keycloak ids other than `userId`
     (which is the Keycloak `sub`), no private admin notes.
 
-    Callers that need these (from the other services' v2 drafts):
-    - project-service: `AdminWebsite.ownerName`, `ownerEmail`, `ownerAvatarUrl` (admin website list and popup).
-    - notification-service: the owner's contact (name, email) for messages to an owner.
+    Callers (user-service also checks the last X-Forwarded-Client-Cert element as a second line of defence):
+    - project-service (`cluster.local/ns/webblock/sa/project`): `AdminWebsite.ownerName`, `ownerEmail`,
+      `ownerAvatarUrl` (admin website list and popup), through `/users` and `/users/{userId}`.
+    - notification-service (`cluster.local/ns/webblock/sa/notification`): the owner's contact (name, email).
+    - payment-service (`cluster.local/ns/webblock/sa/payment`): user display data on admin subscriptions and receipts
+      (`/users`), the subscription search (`/users/ids`) and the overview's new accounts (`/users/stats`).
 
     The second half of this file, "Needs", lists the internal routes user-service needs from other services to
     answer its v2 types. Those routes belong to their services; their agents write and build them, and may change
@@ -37,6 +40,63 @@ paths:
               schema: { $ref: '#/components/schemas/UserSummary' }
         '404':
           description: No such user (`user-not-found`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /users/ids:
+    get:
+      operationId: searchUserIds
+      summary: "Ids of open accounts whose full name or email contains q (Payment's admin subscription search)"
+      description: |
+        Case-insensitive, newest first, at most 1,000 ids; `truncated` is true when more matched. Open accounts only (an
+        account closed because its Keycloak user was deleted is left out). user-service keeps no roles, so admins are
+        included; they hold no subscriptions. `%` and `_` in q are plain characters. Caller: payment.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 320 }
+      responses:
+        '200':
+          description: The matching ids.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [userIds, truncated]
+                properties:
+                  userIds:
+                    type: array
+                    maxItems: 1000
+                    items: { type: string, format: uuid }
+                  truncated: { type: boolean }
+        '400':
+          description: q missing, blank or longer than 320 (`validation-failed`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /users/stats:
+    get:
+      operationId: getUserStats
+      summary: "Open accounts created at or after createdSince (Payment's admin overview newAccounts)"
+      description: Admins are included (user-service keeps no roles). Caller payment.
+      parameters:
+        - name: createdSince
+          in: query
+          required: true
+          schema: { type: string, format: date-time, examples: ['2026-11-01T00:00:00Z'] }
+      responses:
+        '200':
+          description: The count.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [newAccounts]
+                properties:
+                  newAccounts: { type: integer, format: int64, minimum: 0 }
+        '400':
+          description: createdSince missing or not an ISO-8601 instant (`validation-failed`).
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
