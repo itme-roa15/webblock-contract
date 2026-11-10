@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webblock.invalid/contracts/events/provisioning/publish_failed.v1.schema.json",
+  "title": "Provisioning: publish failed v1",
+  "description": "OWNED BY provisioning. A release of the project that never went live ended failed or rolled_back. The AI service ends the client's deploy run with it. event_key is publish-failed-<release_id>, the same for every repeat of this event. correlation_id is the release_id. failure_code is the release's failure code.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "message_id", "message_type", "occurred_at", "correlation_id", "project_id", "event_key", "release_id", "failure_code"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "message_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "not": {"enum": ["00000000-0000-0000-0000-000000000000"]} },
+    "message_type": { "const": "provisioning.publish_failed.v1" },
+    "occurred_at": { "type": "string", "format": "date-time", "maxLength": 40 },
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+    "project_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "not": {"enum": ["00000000-0000-0000-0000-000000000000"]} },
+    "event_key": { "type": "string", "minLength": 51, "maxLength": 51, "pattern": "^publish-failed-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "release_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "not": {"enum": ["00000000-0000-0000-0000-000000000000"]} },
+    "failure_code": { "type": "string", "minLength": 1, "maxLength": 100, "pattern": "^[a-z][a-z0-9_]{0,99}$" }
+  }
+}

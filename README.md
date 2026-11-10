@@ -112,6 +112,7 @@ These consumers have no spec of their own here, so the IDs are the provider's (P
 | ai_codegen | project | gRPC | none: codegen input (REST built) | gap G4 | FR-29, PR-16, PR-22 |
 | ai_codegen | project | gRPC | none: scaffold | gap G5 | PR-22 |
 | ai_codegen | project | gRPC | none: thread owner check | gap G6 | PR-22 |
+| ai_codegen | provisioning | event | `provisioning/publish_failed.v1` | OWNED BY provisioning | FR-56, PR-30 |
 | notification | project | gRPC | `project/v1/project_owner.proto` | DRAFT | PR-22 |
 | notification | project | event | `project/source_published.v1` | DRAFT | PR-19 |
 | notification | provisioning | event | `provisioning/publish_completed.v1` | OWNED BY provisioning | FR-42, PR-19 |
