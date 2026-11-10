@@ -25,7 +25,7 @@ Each file belongs to one service. Only that service changes it.
 | File | Owner |
 | --- | --- |
 | `events/envelope.v1.schema.json` | all services (Notion 4.1) |
-| `proto/webblock/project/v1/*.proto`, `events/project/*`, `access/*` | project |
+| `proto/webblock/project/v1/*.proto`, `events/project/*`, `access/*`, `openapi/project-v2.yaml` | project |
 | `proto/webblock/payment/v1/*.proto`, `events/payment/*` | payment |
 | `events/provisioning/*` | provisioning |
 | `events/ai_codegen/*` | ai_codegen |
