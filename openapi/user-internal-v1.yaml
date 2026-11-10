@@ -76,19 +76,20 @@ x-needs:
     error the field is null and the answer still goes out (owner decision 3a). Proposed shapes only; the owning
     service decides.
   payment-service:
+    # Built: Payment dev c49d633, contract openapi/payment-internal-v1.yaml (that file is the source of truth)
     - route: "GET /internal/v1/clients/{clientUserId}/entitlement"
       exists: true
-      use: "`Profile.plan` (planCode) for the signed-in user."
+      use: "Not used by v2 any more (planCode there is v1's \"trial\" or lower case); kept for reference."
     - route: "GET /internal/v1/clients/plans?clientUserId={id}&clientUserId={id}..."
-      exists: false
-      use: "`UserAccount.plan` for one page of the admin list (up to 100 ids) without 100 single calls."
-      answer: '[{"clientUserId": "<uuid>", "plan": "FREE_TRIAL|PLUS|PRO|ULTRA"}]'
+      exists: true
+      use: "`Profile.plan` (one id) and `UserAccount.plan` for a page of the admin list (1 to 100 ids)."
+      answer: '[{"clientUserId": "<uuid>", "plan": "FREE_TRIAL|PLUS|PRO|ULTRA|null"}]'
     - route: "GET /internal/v1/clients?plan={PlanCode}"
-      exists: false
-      use: "The admin list's `plan` filter: the user ids on that plan."
-      answer: '{"clientUserIds": ["<uuid>", "..."]}'
+      exists: true
+      use: "The admin list's `plan` filter. At most 10,000 ids; total is the full count (User answers 422 above it)."
+      answer: '{"clientUserIds": ["<uuid>", "..."], "total": 0}'
     - route: "GET /internal/v1/clients/stats"
-      exists: false
+      exists: true
       use: "`UserStats.onFreeTrial` and `UserStats.paying`."
       answer: '{"onFreeTrial": 0, "paying": 0}'
   project-service:
