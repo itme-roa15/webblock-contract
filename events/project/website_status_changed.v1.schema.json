@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webblock.invalid/contracts/events/project/website_status_changed.v1.schema.json",
+  "title": "Project: website status changed v1",
+  "description": "DRAFT, proposed by project, waits for provisioning. Owner: project. The owner took one of their websites offline, or switched it back on (API v2 PATCH /api/project/v2/projects/{projectId} {\"status\"}; v1 POST .../suspend and .../reactivate). Kept apart from owner_status_changed.v1 (the account) so Provisioning can record an owner-chosen offline reason that never clashes with billing or admin. status is suspended or active; status_version grows by one with each change of this website, so a consumer ignores an older or equal version. subdomain is the site's DNS label; a website without one (never deployed) is not sent. Exchange project.events, routing key website_status_changed.v1, persistent, application/json, AMQP type = message_type, sent after the database commit.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "message_id",
+    "message_type",
+    "occurred_at",
+    "correlation_id",
+    "project_id",
+    "status",
+    "status_version",
+    "subdomain"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "message_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "message_type": {
+      "const": "project.website_status_changed.v1"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "suspended"
+      ]
+    },
+    "status_version": {
+      "type": "integer",
+      "format": "int64",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "subdomain": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 63,
+      "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$"
+    }
+  }
+}
