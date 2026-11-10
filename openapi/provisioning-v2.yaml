@@ -38,9 +38,14 @@ info:
 
     Deploy flow (owner's decision 3a, 10 November 2026). A publish runs from Project's `source_published` event
     straight through to LIVE: Provisioning builds the release, starts it privately (candidate) and, once the
-    candidate is ready, promotes it without a second call (`x-phase: 3`, see `x-open` "auto-promote"). Until that
-    lands, a release stops at `READY` and the owner promotes it with a `PROMOTE` command; `allowedCommands` on the
-    release says which commands it takes right now, so the UI shows "Go live" exactly when `PROMOTE` is in it. A
+    candidate is ready, promotes it without a second call. This is built: Project sends `auto_promote: true` in the
+    event for a v2 publish, and Provisioning's worker accepts the `DEPLOY` once the release is `BUILT` and the
+    `PROMOTE` once it is `READY`, each under the same rules as a client's command (entitlement, a command in
+    flight, a route that is not stable), retrying a step that failed on a transient cause (the site's tenant not
+    ready yet, the cluster unreachable) with a growing pause. Only the website's newest release goes live this way.
+    Such a release does not offer `PROMOTE` in `allowedCommands`; a release published without the flag (v1) stops
+    at `READY` and the owner promotes it with a `PROMOTE` command. `allowedCommands` on the release says which
+    commands it takes right now, so the UI shows "Go live" exactly when `PROMOTE` is in it. A
     command the release does not take in its state is `409 release-state-invalid` (v1 answers 422 for it); its
     `detail` tells the client to read the release's `state` and `allowedCommands`.
 
@@ -317,8 +322,9 @@ paths:
         Creates an asynchronous command (issue 7: every command answers the same `Command` resource, with no
         envelope). `kind`:
         - `DEPLOY`: start a `BUILT` release privately as the candidate. Public traffic does not move.
-        - `PROMOTE`: make a `READY` candidate live ("Go live"; under auto-promote it is only needed again for a
-          release that was promoted before, which is a rollback to it).
+        - `PROMOTE`: make a `READY` candidate live ("Go live"). A v2 publish is promoted by Provisioning itself, so
+          the client needs it only for a release published without auto-promote, or for one that was promoted
+          before, which is a rollback to it.
         - `ROLLBACK`: roll an uncertain route back (admin only, as v1; anyone else `403 access-denied`).
         The release must belong to the website. A command the release does not take now is
         `409 release-state-invalid`; a second command while one is in flight is `409 command-in-progress`. In the production profile every command is
@@ -563,11 +569,30 @@ paths:
       operationId: adminListPipelineRuns
       summary: Each website's latest publish, steps 1 to 7 (Pipeline & Generation)
       description: |
-        The `PipelineRun` type. Steps 1 to 3 (request received, generate code, save to Git) and the website's name,
-        domain, logo and template come from Project (internal route, see `provisioning-internal-v1.yaml` x-needs);
-        `ownerName` from User; steps 4 to 7 and `live` are Provisioning's. While Project does not answer, steps 1 to 3
-        are `WAITING` and `requestStatus` is `PUBLISHED` when a release exists. Default sort `currentStep,asc`.
-      x-phase: 3
+        The `PipelineRun` type, one item per website that has a release. Steps 1 to 3 (request received, generate
+        code, save to Git) come from Project's latest generation request
+        (`GET /internal/v1/generation-requests/latest`, see `provisioning-internal-v1.yaml` x-needs); the website's
+        name, domain, logo and template from Project's `GET /internal/v1/projects`; `ownerName` from User; steps 4
+        to 7 from the website's newest release; `live` from Loki. Each internal call has a 2-second timeout; what it
+        should fill stays `null` when it does not answer, and `live` is `null` while Loki is not configured.
+
+        Which run a website shows: when Project's latest request is the newest release's own, steps 1 to 3 are
+        `DONE` and steps 4 to 7 follow the release; when it is newer than the newest release (a new publish), steps 1
+        to 3 follow the request and steps 4 to 7 are `NOT_STARTED` (step 4 `WAITING` once the request is
+        `PUBLISHED`), `releaseState` is `NONE_YET` and `id` is the request's id. While Project does not answer, steps
+        1 to 3 are `WAITING` and `requestStatus` is `PUBLISHED` (a release exists). `requestStatus` is `STUCK` when a
+        `QUEUED`, `GENERATING` or `PUBLISHING` request has not moved for `PIPELINE_STUCK_MINUTES` (15 by default);
+        `requestStuckMinutes` then holds the minutes since it last moved.
+
+        `stage` and the sort are exact over the 1000 websites whose newest release is newest: the service reads
+        those, asks Project for their requests, filters, sorts and pages them; a website beyond them is left out of
+        the page and of `totalItems`. A website whose first request has no release yet is not listed (the list starts
+        from Provisioning's releases); `adminGetPipelineRun` answers it. Ties sort by `updatedAt`, newest first, then
+        by `websiteId`.
+
+        Approximate: Project's `FAILED` is placed at step 3 when the request has a commit, else at step 2; the build
+        step's tag is `attempt N` without the bound (the build worker's setting); `live.previousRelease` is `null`.
+      x-phase: 2
       x-replaces: "GET /api/provisioning/v1/ui/admin/releases/latest"
       parameters:
         - name: stage
@@ -598,8 +623,12 @@ paths:
       tags: [admin]
       operationId: adminGetPipelineRun
       summary: One website's latest publish
-      description: As `adminListPipelineRuns`, plus `diagnostics`. `404 release-not-found` when nothing was published.
-      x-phase: 3
+      description: |
+        As `adminListPipelineRuns`, plus `diagnostics`: the v1 `Diagnostics` of the newest release, `null` while the
+        run is a request without a release of its own. A website with no release yet is answered from Project's
+        latest request alone. `404 release-not-found` when the website has neither a release nor a request Project
+        knows (an unknown website included).
+      x-phase: 2
       x-replaces: "GET /api/provisioning/v1/ui/admin/projects/{projectId}/releases/latest"
       parameters:
         - $ref: '#/components/parameters/ProjectId'
@@ -994,11 +1023,11 @@ components:
 
     PipelineRun:
       type: object
-      description: admin monitoring `PipelineRun` (x-phase 3).
+      description: admin monitoring `PipelineRun`.
       required: [id, websiteId, websiteName, domain, logoUrl, ownerName, stage, requestStatus, requestStuckMinutes,
                  releaseState, currentStep, steps, current, live, updatedAt]
       properties:
-        id: { type: string, format: uuid, description: The latest release id, or the generation request id before a release exists. }
+        id: { type: string, format: uuid, description: The newest release id, or the generation request id while the run is a request without a release of its own. }
         websiteId: { type: string, format: uuid }
         websiteName: { type: [string, 'null'] }
         domain: { type: [string, 'null'] }
@@ -1145,8 +1174,8 @@ x-v1-replacements:
     - { v1: "GET /v1/ui/projects/{projectId}/deployments/{deploymentId}", v2: "GET /v2/projects/{projectId}/releases?generationRequestId={deploymentId}&state=ALL" }
     - { v1: "GET /v1/ui/admin/stats", v2: "GET /v2/admin/releases/stats" }
     - { v1: "GET /v1/ui/admin/deploys", v2: "GET /v2/admin/releases" }
-    - { v1: "GET /v1/ui/admin/releases/latest", v2: "GET /v2/admin/pipeline-runs (x-phase 3); GET /v2/admin/releases?latestOnly=true meanwhile" }
-    - { v1: "GET /v1/ui/admin/projects/{projectId}/releases/latest", v2: "GET /v2/admin/pipeline-runs/{projectId} (x-phase 3)" }
+    - { v1: "GET /v1/ui/admin/releases/latest", v2: "GET /v2/admin/pipeline-runs; GET /v2/admin/releases?latestOnly=true for the releases alone" }
+    - { v1: "GET /v1/ui/admin/projects/{projectId}/releases/latest", v2: "GET /v2/admin/pipeline-runs/{projectId}" }
     - { v1: "POST /v1/ui/admin/projects/{projectId}/redeploy", v2: "POST /v2/admin/projects/{projectId}/redeployments" }
     - { v1: "POST /v1/ui/admin/projects/{projectId}/suspend", v2: "PATCH /api/project/v2/admin/projects/{projectId} {siteStatus: SUSPENDED} (Project), which calls PUT /internal/v1/projects/{projectId}/hosting" }
     - { v1: "POST /v1/ui/admin/projects/{projectId}/resume", v2: "PATCH /api/project/v2/admin/projects/{projectId} {siteStatus: ONLINE} (Project), which calls PUT /internal/v1/projects/{projectId}/hosting" }
@@ -1180,10 +1209,10 @@ x-gateway:
 x-open:
   - id: auto-promote
     question: |
-      How does Provisioning know that a publish should run straight to LIVE? Proposed: Project adds the optional field
+      Decided and built (owner, 10 November 2026; Provisioning decision 0031). Project adds the optional field
       `auto_promote: true` to `project.source_published.v1` for v2 publishes (a field a reader may ignore keeps the
-      version). A v1 publish (field absent) keeps the two calls deploy and promote, so the deployed v1 web app is not
-      broken. Needs Project's agreement.
+      version; web-block-contracts e3afec9). A v1 publish (field absent) keeps the two calls deploy and promote, so
+      the deployed v1 web app is not broken.
   - id: OD-04
     question: Decided REST (owner, 10 November 2026). Provisioning-api calls Payment's GET /internal/v1/projects/{projectId}/entitlement with a short timeout and fails closed with a retryable 503. The response fields are agreed with Payment in payment's internal contract.
   - id: issue-2
