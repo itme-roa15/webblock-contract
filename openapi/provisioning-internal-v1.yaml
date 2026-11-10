@@ -3,8 +3,9 @@ info:
   title: WebBlock Provisioning internal API v1
   version: 1.0.0
   description: |
-    DRAFT, proposed by provisioning. Agreed: `websites/stats` by payment (agent 76e8d818) and account (agent
-    4ec40ad7). The project routes wait for project's agreement (proposed to agent cd76ff0c on 11 November 2026).
+    ACCEPTED, 11 November 2026: `websites/stats` by payment (agent 76e8d818) and account (agent 4ec40ad7); the
+    project routes (`websites`, `releases`, `hosting`, `rollbacks`) by project (agent cd76ff0c). `x-phase: 3` routes
+    and fields are agreed but not built yet.
 
     Service-to-service routes of provisioning-api, reachable only through the mesh (never through the public
     gateway). The caller is the workload identity from `X-Forwarded-Client-Cert` (Istio mTLS), checked per route
