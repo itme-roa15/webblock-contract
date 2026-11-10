@@ -204,12 +204,53 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /clients/entitlements:
+    get:
+      operationId: listClientEntitlements
+      summary: What each owner's plan allows and has left (Project's admin website table)
+      description: |
+        One item per distinct id, in the order first asked. The same coverage the admission checks use. A limit
+        that is `null` is unlimited; the free trial allows one deploy and no redeploy (`redeployLimit` 0); a client
+        with no plan has every field but the id `null`.
+      x-callers: [project]
+      parameters:
+        - name: clientUserId
+          in: query
+          required: true
+          style: form
+          explode: true
+          schema: { type: array, minItems: 1, maxItems: 100, items: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The entitlements.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [clientUserId, plan, planEndsAt, productLimit, redeploysLeft, redeployLimit]
+                  properties:
+                    clientUserId: { type: string, format: uuid }
+                    plan:
+                      oneOf: [{ $ref: '#/components/schemas/PlanCode' }, { type: 'null' }]
+                    planEndsAt: { type: [string, 'null'], format: date-time, description: End of the trial or of the paid period. }
+                    productLimit: { type: [integer, 'null'], description: Per website. }
+                    redeploysLeft: { type: [integer, 'null'], description: This period. }
+                    redeployLimit: { type: [integer, 'null'] }
+        '400':
+          description: No id, more than 100 distinct ones, or one that is not a UUID.
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+        '401': { $ref: '#/components/responses/CallerUnknown' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   /clients:
     get:
       operationId: listClientsOnPlan
-      summary: The clients on one plan now (User's admin list `plan` filter)
+      summary: The clients on one plan now (the admin lists' `plan` filter in User and Project)
       description: Sorted by id, at most 10,000; `total` is how many there are (User answers 422 above 10,000).
-      x-callers: [user]
+      x-callers: [user, project]
       parameters:
         - { name: plan, in: query, required: true, schema: { $ref: '#/components/schemas/PlanCode' } }
       responses:
@@ -343,11 +384,11 @@ x-needs:
       exists: "user-internal-v1.yaml"
       reads: "userId, fullName, email, avatarUrl"
     - route: "GET /internal/v1/users/ids?q={text}"
-      exists: false
+      exists: "user-service dev 2e11003"
       reads: '{"userIds": [...]} for the admin subscription search'
     - route: "GET /internal/v1/users/stats?createdSince={iso}"
-      exists: false
-      reads: '{"newAccounts": 0} for AdminOverview.newAccounts'
+      exists: "user-service dev 2e11003"
+      reads: '{"newAccounts": 0} for AdminOverview.newAccounts (User keeps no roles, so a new admin counts too)'
   provisioning-service:
     - route: "GET /internal/v1/websites/stats"
       exists: "provisioning-internal-v1.yaml"
