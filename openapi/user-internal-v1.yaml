@@ -16,6 +16,8 @@ info:
     - notification-service (`cluster.local/ns/webblock/sa/notification`): the owner's contact (name, email).
     - payment-service (`cluster.local/ns/webblock/sa/payment`): user display data on admin subscriptions and receipts
       (`/users`), the subscription search (`/users/ids`) and the overview's new accounts (`/users/stats`).
+    - provisioning-api (`cluster.local/ns/webblock/sa/provisioning-api`, never the k3s build worker): the owner's
+      fullName for v2 `Release.startedBy` and `AdminRelease.ownerName`, through `/users`.
 
     The second half of this file, "Needs", lists the internal routes user-service needs from other services to
     answer its v2 types. Those routes belong to their services; their agents write and build them, and may change
