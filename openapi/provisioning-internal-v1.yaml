@@ -240,10 +240,10 @@ x-needs:
       exists: "proposed by payment-service"
       use: "AdminRelease.websiteName, websiteThumbnailUrl, websiteLogoUrl, websiteTemplateSlug; PipelineRun.websiteName, domain, logoUrl, templateSlug; the owner id for ownerName."
       answer: '[{"projectId": "<uuid>", "ownerId": "<uuid>", "name": "", "domain": "shop.example.com or null", "imageUrl": "<url or null>", "logoUrl": "<url or null>", "templateSlug": "<code or null>"}]'
-    - route: "GET /internal/v1/projects/{projectId}/generation-requests/latest"
-      exists: false
-      use: "PipelineRun steps 1 to 3 and requestStatus (QUEUED, PUBLISHING, PUBLISHED, STUCK, FAILED), requestStuckMinutes."
-      answer: '{"generationRequestId": "<uuid>", "status": "PUBLISHED", "createdAt": "<iso>", "updatedAt": "<iso>", "gitCommitSha": "<sha or null>", "failureReason": null}'
+    - route: "GET /internal/v1/generation-requests/latest?projectId={id}&projectId={id}..."
+      exists: "agreed with project-service, not built yet (provisioning-api reads a 404 as no answer)"
+      use: "PipelineRun steps 1 to 3 and requestStatus (QUEUED, PUBLISHING, PUBLISHED, STUCK, FAILED), requestStuckMinutes. 1 to 100 distinct projectId; a project with no request is left out."
+      answer: '[{"projectId": "<uuid>", "generationRequestId": "<uuid>", "status": "QUEUED | GENERATING | PUBLISHING | PUBLISHED | FAILED", "createdAt": "<iso>", "updatedAt": "<iso>", "gitCommitSha": "<sha or null>", "failureReason": "<code or null>"}]'
   account (user-service):
     - route: "GET /internal/v1/users?id={id}&id={id}..."
       exists: "drafted in user-internal-v1.yaml"
