@@ -128,7 +128,10 @@ paths:
       summary: Create a plan order with a KHQR code to pay (valid 10 minutes)
       description: |
         The server prices the plan; the body never carries an amount. `websiteId` is the website the owner was
-        deploying, or `null` when they came from Settings; the caller must own it (404 otherwise). The website's name,
+        deploying, or `null` when they came from Settings or the dashboard; when sent, the caller must own it (404
+        otherwise). While subscriptions are still bought per website, a `null` `websiteId` means the caller's own
+        website: for `CHANGE` the one their current subscription is for, else (and for `SUBSCRIBE`) their newest
+        website. `RENEW` needs none. The website's name,
         domain and image are looked up, not taken from the body: v1's `websiteName`, `websiteDomain` and
         `websiteImageUrl` fields are accepted and ignored.
 
@@ -505,7 +508,7 @@ components:
       description: |
         A business rule (`plan-not-payable`, `plan-change-not-supported`, `plan-mismatch`,
         `idempotency-key-reused`, `subscription-not-found` for a RENEW without a plan to renew, `project-required`
-        for a SUBSCRIBE or CHANGE without `websiteId` while subscriptions are still bought per website).
+        for a SUBSCRIBE or CHANGE by an owner who has no website yet).
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
