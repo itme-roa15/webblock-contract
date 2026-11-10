@@ -140,7 +140,8 @@ paths:
         what the Monitor screen shows. `state=RUNNING` lists the releases still on their way (`QUEUED` to
         `GOING_LIVE`); `state=ALL` lists every release. `generationRequestId` keeps the release of one Project
         generation request (at most one). `number` counts all the website's releases, whatever the filter.
-        `startedBy` comes from User (`x-phase: 3`); it is `null` until then and whenever User does not answer.
+        `startedBy` is the website's owner (who publishes every release of it), named by Project's and User's internal
+        batch routes; it is `null` whenever either does not answer.
       x-phase: 2
       x-replaces:
         - "GET /api/provisioning/v1/ui/projects/{projectId}/deploys"
@@ -384,7 +385,9 @@ paths:
       operationId: adminListReleases
       summary: Releases across websites (admin deploy table), newest first
       description: |
-        Items are the admin `Deploy` type. `projectId` keeps one website; `latestOnly=true` keeps each website's
+        Items are the admin `Deploy` type; the website's name, images and template come from Project and `ownerName`
+        from User (internal batch routes, 2 s each; `null` when they do not answer). `projectId` keeps one website;
+        `latestOnly=true` keeps each website's
         newest release (then `stepLabel` and `requestedBySubject` are null; it does not combine with `projectId`:
         `400 validation-failed` naming `latestOnly`). `websiteName`, `websiteThumbnailUrl`, `websiteLogoUrl` and `websiteTemplateSlug` come from
         Project, `ownerName` from User (`x-phase: 3`); they are `null` until those internal routes exist and while
@@ -830,7 +833,7 @@ components:
         websiteId: { type: string, format: uuid }
         number: { type: integer, minimum: 1, description: '1, 2, 3, ... per website. The label is `R-<number>`.' }
         startedBy:
-          description: Who asked for it (User's name; x-phase 3). Null when unknown or User does not answer.
+          description: The website's owner, from Project and User. Null when unknown or they do not answer.
           oneOf:
             - type: object
               required: [fullName, initials]
@@ -907,11 +910,11 @@ components:
       properties:
         id: { type: string, format: uuid }
         websiteId: { type: string, format: uuid }
-        websiteName: { type: [string, 'null'], description: From Project (x-phase 3). }
-        websiteThumbnailUrl: { type: [string, 'null'], description: From Project (x-phase 3). }
-        websiteLogoUrl: { type: [string, 'null'], description: From Project (x-phase 3). }
-        websiteTemplateSlug: { type: [string, 'null'], description: From Project (x-phase 3). }
-        ownerName: { type: [string, 'null'], description: From User (x-phase 3). }
+        websiteName: { type: [string, 'null'], description: From Project; null when it does not answer. }
+        websiteThumbnailUrl: { type: [string, 'null'], description: From Project; null when it does not answer. }
+        websiteLogoUrl: { type: [string, 'null'], description: From Project; null when it does not answer. }
+        websiteTemplateSlug: { type: [string, 'null'], description: From Project; null when it does not answer. }
+        ownerName: { type: [string, 'null'], description: From User; null when it does not answer. }
         number: { type: integer, minimum: 1 }
         status:
           type: string
