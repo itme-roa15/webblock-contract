@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webblock.invalid/contracts/events/payment/bill_paid.v1.schema.json",
+  "title": "Payment: bill paid v1",
+  "description": "OWNED BY payment. Owner: payment. Sent on payment.events with routing key bill_paid.v1 (message_type without the 'payment.' prefix), persistent, application/json, AMQP type = message_type, through Payment's outbox after the database commit (at least once: event_key is stable, so a consumer drops a repeat). A bill (a month of a plan, or an upgrade's price difference) was paid. amount is a decimal string in currency_code. No project_id in the envelope: a bill belongs to a subscription.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "message_id",
+    "message_type",
+    "occurred_at",
+    "correlation_id",
+    "event_key",
+    "bill_id",
+    "subscription_id",
+    "client_user_id",
+    "amount",
+    "currency_code",
+    "paid_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "message_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "message_type": {
+      "const": "payment.bill_paid.v1"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "event_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "bill_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "subscription_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "client_user_id": {
+      "type": "string",
+      "format": "uuid",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "not": {
+        "enum": [
+          "00000000-0000-0000-0000-000000000000"
+        ]
+      }
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d{2}$"
+    },
+    "currency_code": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "paid_at": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    }
+  }
+}
