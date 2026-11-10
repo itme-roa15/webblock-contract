@@ -135,6 +135,16 @@ paths:
         domain and image are looked up, not taken from the body: v1's `websiteName`, `websiteDomain` and
         `websiteImageUrl` fields are accepted and ignored.
 
+        `CHANGE` of a paid plan (owner decision Payment 3, 10 November 2026):
+        - to a more expensive plan: the new plan starts at once. The order charges the price difference for what is
+          left of the paid period (half up to the cent); once it is paid the plan moves, the period stays, and the
+          next renewal charges the new plan's full price.
+        - to a cheaper plan: it starts with the next period, no refund. Nothing is billed: the answer is the recorded
+          change as an order of `0.00`, already `PAID`, with `nextPaymentAt` = when the cheaper plan starts. It can be
+          read again with GET `/me/orders/{orderId}`, but it is no bill, so it is not in the order history.
+        - to the plan it already is: 422 `plan-unchanged` (use `RENEW`). A past-due or canceled plan: 422
+          `plan-change-not-supported` (renew it first).
+
         `Idempotency-Key` (1 to 128 characters) is optional but recommended, mainly for `RENEW`: the same key with the
         same body answers the same order again (201, same `id`), with another body 422, and 409 while the first
         request still runs. Without a key, a repeated `SUBSCRIBE` or `CHANGE` still returns the open order.
@@ -506,7 +516,8 @@ components:
           schema: { $ref: '#/components/schemas/Problem' }
     Unprocessable:
       description: |
-        A business rule (`plan-not-payable`, `plan-change-not-supported`, `plan-mismatch`,
+        A business rule (`plan-not-payable`, `plan-unchanged`, `plan-change-not-supported` for a plan that must be
+        renewed first, `plan-mismatch`,
         `idempotency-key-reused`, `subscription-not-found` for a RENEW without a plan to renew, `project-required`
         for a SUBSCRIBE or CHANGE by an owner who has no website yet).
       content:
@@ -643,7 +654,7 @@ components:
         plan: { $ref: '#/components/schemas/PlanCode' }
         planName: { type: string }
         websiteName: { type: [string, 'null'], description: From Project; `null` while Project is down. }
-        period: { type: [string, 'null'], example: Monthly, description: '"Monthly" or "Monthly · renewal".' }
+        period: { type: [string, 'null'], example: Monthly, description: '"Monthly", "Monthly · renewal" or "Upgrade · rest of the month".' }
         createdAt: { type: string, format: date-time }
         amount: { $ref: '#/components/schemas/Money' }
         currency: { type: string, enum: [USD, KHR] }
