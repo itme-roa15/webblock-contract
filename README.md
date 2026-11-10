@@ -130,14 +130,14 @@ Account `GetUserContact`, get their rows when those teams write their files.
 
 Owner's decision of 10 November 2026: Notification stores the admin-visible actions of every service and serves the
 UI's activity log (`GET /api/notification/v2/admin/activity`). Each producer sends `events/audit/audit_recorded.v1`
-on its own exchange, routing key = `message_type`, and fills in the names the UI shows.
+on its own exchange, with the routing key that exchange already uses, and fills in the names the UI shows.
 
 | Producer | Exchange and routing key | Actions | Status |
 | --- | --- | --- | --- |
-| account | `account.events`, `account.audit_recorded.v1` | SUSPEND_USER, REACTIVATE_USER | DRAFT |
-| payment | `payment.events`, `payment.audit_recorded.v1` | CHANGE_PLAN | DRAFT |
-| provisioning | `provisioning.events`, `provisioning.audit_recorded.v1` | SUSPEND_HOSTING, RESUME_HOSTING, ROLLBACK | DRAFT |
-| project | `project.events`, `project.audit_recorded.v1` | hosting actions it starts itself (see the schema) | DRAFT |
+| account | `account.events`, `account.audit_recorded.v1` | SUSPEND_USER, REACTIVATE_USER | agreed (User Service Agent) |
+| payment | `payment.events`, `audit_recorded.v1` | CHANGE_PLAN (an admin's or the system's change of a user's plan) | agreed (Payment agent) |
+| provisioning | `provisioning.events`, `audit_recorded.v1` | SUSPEND_HOSTING, RESUME_HOSTING, ROLLBACK (only producer) | DRAFT, waits for provisioning |
+| project | `project.events`, `audit_recorded.v1` | none today (reserved) | agreed (Project agent) |
 
 Notification's queue is `notification.audit_recorded.v1`, bound to all four.
 
