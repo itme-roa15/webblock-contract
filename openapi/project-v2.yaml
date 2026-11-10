@@ -1279,19 +1279,17 @@ components:
         height: {type: integer}
     Template:
       type: object
-      required: [id, name, description, thumbnailUrl, categories]
+      required: [id, name, description, category, thumbnailUrl, categories]
       properties:
         id: {type: string, description: The template code.}
         name: {type: string}
         description: {type: string}
         category:
           description: |
-            The UI's TemplateCategory, from the template's first business type (clothing_shop -> CLOTHES,
-            food_shop -> FOOD_BEVERAGES, tech_shop -> TECHNOLOGY, beauty_shop and furniture_shop -> HANDMADE); null
-            for a template that fits any business type (`*`). Open question to the owner (see report).
-          oneOf:
-            - $ref: '#/components/schemas/TemplateCategory'
-            - type: 'null'
+            Always one of the UI's four categories (its CategoryBadge has no case for anything else): from the template's
+            first business type (clothing_shop -> CLOTHES, food_shop -> FOOD_BEVERAGES, tech_shop -> TECHNOLOGY,
+            beauty_shop and furniture_shop -> HANDMADE); HANDMADE for a template that fits any business type (`*`).
+          $ref: '#/components/schemas/TemplateCategory'
         categories:
           type: array
           description: Business type codes the template fits; `*` = any.
@@ -1329,12 +1327,16 @@ components:
     Website:
       type: object
       description: The UI's Website, plus `editRevision` and `hasUndeployedChanges` for the editor.
-      required: [id, name, status, templateId, updatedAt, editRevision, hasUndeployedChanges]
+      required: [id, name, category, status, templateId, updatedAt, editRevision, hasUndeployedChanges]
       properties:
         id: {type: string, format: uuid}
         name: {type: string}
         businessType: {type: [string, 'null'], description: The business type's display name.}
-        category: {type: [string, 'null'], description: The business type code.}
+        category:
+          description: |
+            One of the UI's four categories: the business type's (as for templates), else the template's, else
+            HANDMADE. Never null (v1 answers the business type code here; v2 does not).
+          $ref: '#/components/schemas/TemplateCategory'
         status: {$ref: '#/components/schemas/WebsiteStatus'}
         domain: {type: [string, 'null'], description: Public host; null until the first deploy.}
         templateId: {type: string}
