@@ -717,8 +717,9 @@ paths:
       operationId: restoreVersion
       summary: Puts an old deployed version back live; the draft is reset to it.
       description: |
-        Phase 3: the draft is reset to the version (as v1's restore), and Provisioning rolls back to that release, so
-        visitors see it again. `If-Match` as on PUT.
+        The draft is reset to the version (as v1's restore), `If-Match` as on PUT, and the answer is 200 with the page.
+        Provisioning cannot put a replaced release live again (a superseded release is final), so the restored version
+        goes live with the owner's next deploy (a new publish). Raised to the owner as a product point by Provisioning.
       x-phase: 3
       x-replaces: ["POST /api/v1/ui/projects/{projectId}/page/versions/{versionId}/restore"]
       parameters:
@@ -918,9 +919,10 @@ paths:
       operationId: getDeployment
       summary: A deploy's progress (the UI polls it).
       description: |
-        Phase 2 answers the steps Project knows (code generation, then the release as one step while it runs).
-        Phase 3 reads the release steps from Provisioning (internal route, with a timeout; when Provisioning does not
-        answer, the steps Project knows are answered and the rest are `WAITING`).
+        BUILD and PRODUCTS are Project's code generation. Once the source is published, the release half comes from
+        Provisioning's GET /internal/v1/projects/{projectId}/releases?generationRequestId= (2 s): PACKAGE = BUILD,
+        LAUNCH = ACCESS_SETUP and CANDIDATE, SSL done when PROMOTION succeeded, LIVE = PROMOTION; stage and status
+        follow the release. When Provisioning does not answer, the deploy reads as Project knows it.
       x-phase: 2
       x-replaces: ["GET /api/v1/projects/{projectId}/generation-requests/{generationRequestId}", "GET /api/provisioning/v1/ui/projects/{projectId}/deployments/{deploymentId} (Provisioning)"]
       responses:
@@ -962,9 +964,10 @@ paths:
         The owning service answers the full UI type (owner decision): owner name, email and avatar come from User;
         siteStatus, releaseStatus, routingStatus, liveRelease, lastDeployAt and sslValidUntil from Provisioning;
         plan, planEndsAt, productLimit, redeploysLeft and redeployLimit from Payment, each through an internal route
-        with a timeout. A part another service does not answer is `null`; the page never fails for it. Until those
-        internal routes exist (phase 3), those fields are `null`. The `site`, `release` and `plan` filters need the
-        same data at query time (phase 3).
+        with a timeout (User's GET /internal/v1/users?id=, Provisioning's GET /internal/v1/websites?id=, Payment's GET
+        /internal/v1/clients/entitlements?clientUserId=). A part another service does not answer is `null` (siteStatus
+        then derived from Project's status); the page never fails for it. The `site`, `release` and `plan` filters are
+        not served yet (Provisioning's and Payment's filter routes come later).
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/admin/projects"]
       parameters:
@@ -1050,6 +1053,7 @@ paths:
         suspended). Project records it and tells Provisioning (hosting) through an internal command; audit
         SUSPEND_HOSTING / RESUME_HOSTING.
       x-phase: 3
+      x-built: Provisioning's PUT /internal/v1/projects/{projectId}/hosting, the admin's user id as x-user-id
       x-replaces: ["POST /api/provisioning/v1/ui/admin/projects/{projectId}/suspend (Provisioning)", "POST /api/provisioning/v1/ui/admin/projects/{projectId}/resume (Provisioning)"]
       security:
         - bearer: [ADMIN]
