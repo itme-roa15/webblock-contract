@@ -1,0 +1,1516 @@
+openapi: 3.1.0
+info:
+  title: WebBlock Project API v2
+  version: 2.0.0-draft.1
+  description: |
+    OWNED BY project. DRAFT, proposed by project, waits for the UI agent and the gateway (infra agent).
+
+    The public API of the Project service: websites, their page, products, business details, media, deployments,
+    the template gallery and the admin website reads. Replaces the `/api/v1/ui/...` routes and the older
+    `/api/v1/...` routes of Project with one route per resource (owner decision of 10 November 2026). v1 stays as it
+    is and is marked deprecated.
+
+    Rules (COMMON.md section 3):
+    - Base path `/api/project/v2`. The gateway routes it to Project unchanged (Project's controllers carry the full path).
+    - No envelope. A list whose UI type is `Page<T>` answers `{items, page, size, totalItems}` (page zero-based) and
+      takes `?page=&size=&sort=field,asc|desc`. A small fixed list whose UI type is an array answers a bare array.
+    - Errors are RFC 9457 problem details (`application/problem+json`): `type` = `urn:webblock:problem:<code>`,
+      `title`, `status`, `instance`, plus `code`, `requestId` and `errors` (field errors). `detail` is a fixed,
+      server-written sentence when there is one; a body never echoes what the caller sent.
+    - Ids are UUID strings, except template ids, which are template codes. Times are ISO 8601 in UTC. Field names
+      are camelCase, spelled as in the UI's types (`webblock-web-ui/src/features/*/types.ts`). `websiteId` in a body
+      is the project id.
+    - Auth: a Keycloak bearer JWT (audience `project`, user id from the `user_id` claim). `owner` = the caller must own
+      `{projectId}`, else 404 (ids never leak; a body id never proves ownership). `admin` = top-level `roles` claim
+      holds `ADMIN`, else 403. `public` = no token needed (a token, if sent, is ignored).
+    - `x-replaces` names the v1 route(s) an operation replaces. `x-phase` says when it is built: `2` = v2 of an
+      existing v1 behaviour, `3` = new behaviour or needs another service. `x-status: waits-for-owner` = drafted only.
+servers:
+  - url: /api/project/v2
+security:
+  - bearer: []
+tags:
+  - name: templates
+  - name: websites
+  - name: subdomains
+  - name: business-info
+  - name: products
+  - name: page
+  - name: media
+  - name: activity
+  - name: deployments
+  - name: sites
+  - name: admin
+
+paths:
+  /templates:
+    get:
+      tags: [templates]
+      operationId: listTemplates
+      summary: The template gallery.
+      security: []
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/templates", "GET /api/v1/templates"]
+      parameters:
+        - name: category
+          in: query
+          description: A business type code (`clothing_shop`, ...). Templates for any business type (`*`) always match.
+          schema: {type: string, maxLength: 50}
+        - $ref: '#/components/parameters/q'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - name: sort
+          in: query
+          schema: {type: string, examples: ["name,asc"]}
+      responses:
+        '200':
+          description: One page of templates.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TemplatePage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /templates/{templateId}:
+    get:
+      tags: [templates]
+      operationId: getTemplate
+      summary: One template with its starter page.
+      security: []
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/templates/{templateId}", "GET /api/v1/templates/{templateCode}"]
+      parameters:
+        - $ref: '#/components/parameters/templateId'
+      responses:
+        '200':
+          description: The template.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TemplateDetail'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /templates/{templateId}/site:
+    get:
+      tags: [templates]
+      operationId: getTemplateSite
+      summary: The full content of a template's demo site.
+      description: |
+        Waits for the owner (COMMON 3a): served by Project, or static files in the UI with no route. Not built.
+        If Project serves it, the body is the UI's `TemplateSite` (`src/features/template-sites/types/index.ts`).
+      security: []
+      x-phase: 3
+      x-status: waits-for-owner
+      parameters:
+        - $ref: '#/components/parameters/templateId'
+      responses:
+        '200':
+          description: The demo site.
+          content:
+            application/json:
+              schema: {type: object, description: "The UI's TemplateSite."}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /business-types:
+    get:
+      tags: [websites]
+      operationId: listBusinessTypes
+      summary: The active business type names, for the "Use template" form.
+      security: []
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/business-types", "GET /api/v1/business-types"]
+      responses:
+        '200':
+          description: Names, in catalog order (a small fixed list, so a bare array).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {type: string}
+  /business-types/{code}:
+    get:
+      tags: [websites]
+      operationId: getBusinessType
+      summary: One business type with its product types and fields.
+      security: []
+      x-phase: 2
+      x-replaces: ["GET /api/v1/business-types/{code}"]
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: {type: string, maxLength: 50}
+      responses:
+        '200':
+          description: The business type, as v1 answers it inside `data`.
+          content:
+            application/json:
+              schema: {type: object}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /subdomains/{name}/availability:
+    get:
+      tags: [subdomains]
+      operationId: checkSubdomain
+      summary: Is this sub-domain valid and free.
+      description: |
+        Always 200 for a name that is invalid, reserved or taken: `available` is false and `problem` says why.
+        With `projectId` (owned by the caller), that website's own address counts as available.
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/domains/check?name={name}", "GET /api/v1/subdomains/{subdomain}"]
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: {type: string, maxLength: 63}
+        - name: projectId
+          in: query
+          description: The caller's website the check is for. Another owner's id is treated as absent.
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The check.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DomainCheck'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /projects:
+    get:
+      tags: [websites]
+      operationId: listWebsites
+      summary: The caller's websites.
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects", "GET /api/v1/projects"]
+      parameters:
+        - name: status
+          in: query
+          schema: {$ref: '#/components/schemas/WebsiteStatus'}
+        - $ref: '#/components/parameters/q'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - name: sort
+          in: query
+          description: "`updatedAt` (default, desc), `name`, `createdAt`."
+          schema: {type: string}
+      responses:
+        '200':
+          description: One page of websites.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PageOfWebsite'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    post:
+      tags: [websites]
+      operationId: createWebsite
+      summary: '"Use template": creates a website with its page and business details.'
+      description: |
+        The plan's website limit is checked with Payment (admission). Sending the same body again for a website that
+        already exists answers 200 with it (no second website). `details.logoUrl` is kept as the business logo
+        when it is one of the platform's media URLs (phase 3); `category` and `thumbnailUrl` are ignored (the server
+        owns them).
+      x-phase: 2
+      x-replaces: ["POST /api/v1/ui/projects", "PUT /api/v1/projects/{projectId}"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateWebsiteBody'}
+      responses:
+        '201':
+          description: Created.
+          headers:
+            Location: {$ref: '#/components/headers/Location'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Website'}
+        '200':
+          description: The same website, created earlier by the same request.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Website'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '402': {$ref: '#/components/responses/PlanRequired'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /projects/counts:
+    get:
+      tags: [websites]
+      operationId: countWebsites
+      summary: The caller's websites per status, for the tabs.
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects/counts"]
+      responses:
+        '200':
+          description: Counts.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WebsiteStatusCounts'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [websites]
+      operationId: getWebsite
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects/{projectId}", "GET /api/v1/projects/{projectId}"]
+      responses:
+        '200':
+          description: The website.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Website'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    patch:
+      tags: [websites]
+      operationId: updateWebsiteStatus
+      summary: The owner suspends or switches back on their website.
+      description: |
+        `SUSPENDED` takes the website offline (content kept). `LIVE` switches a suspended website back on: it becomes
+        LIVE when it was ever published, else DRAFT. Setting the status it already has answers 200 unchanged.
+      x-phase: 2
+      x-replaces: ["POST /api/v1/ui/projects/{projectId}/suspend", "POST /api/v1/ui/projects/{projectId}/reactivate"]
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: {$ref: '#/components/schemas/WebsitePatch'}
+          application/json:
+            schema: {$ref: '#/components/schemas/WebsitePatch'}
+      responses:
+        '200':
+          description: The website after the change.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Website'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+    delete:
+      tags: [websites]
+      operationId: deleteWebsite
+      summary: Deletes a website that was never deployed.
+      x-phase: 2
+      x-replaces: ["DELETE /api/v1/projects/{projectId}"]
+      responses:
+        '204': {description: Deleted.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /projects/{projectId}/business-info:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [business-info]
+      operationId: getBusinessInfo
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects/{projectId}/business-info"]
+      responses:
+        '200':
+          description: The business details.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BusinessInfo'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [business-info]
+      operationId: updateBusinessInfo
+      summary: Saves the business details (creates them when missing).
+      x-phase: 2
+      x-replaces: ["PUT /api/v1/ui/projects/{projectId}/business-info"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BusinessInfoBody'}
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BusinessInfo'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /projects/{projectId}/product-categories:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [products]
+      operationId: listProductCategories
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects/{projectId}/product-categories"]
+      responses:
+        '200':
+          description: Category names in the owner's order (a bare array).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {type: string}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    post:
+      tags: [products]
+      operationId: createProductCategory
+      summary: Adds a category at the end.
+      x-phase: 2
+      x-replaces: ["POST /api/v1/ui/projects/{projectId}/product-categories"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name: {type: string, minLength: 1, maxLength: 50}
+      responses:
+        '201':
+          description: The stored name, as a JSON string.
+          headers:
+            Location: {$ref: '#/components/headers/Location'}
+          content:
+            application/json:
+              schema: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /projects/{projectId}/product-categories/{name}:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+      - name: name
+        in: path
+        required: true
+        description: The category name (case-insensitive), URL-encoded.
+        schema: {type: string, maxLength: 50}
+    delete:
+      tags: [products]
+      operationId: deleteProductCategory
+      summary: Deletes a category no product uses.
+      x-phase: 3
+      responses:
+        '204': {description: Deleted.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /projects/{projectId}/products:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [products]
+      operationId: listProducts
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects/{projectId}/products"]
+      parameters:
+        - $ref: '#/components/parameters/q'
+        - name: category
+          in: query
+          schema: {type: string, maxLength: 100}
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - name: sort
+          in: query
+          description: "`createdAt` (default, desc), `price`, `name`."
+          schema: {type: string}
+      responses:
+        '200':
+          description: One page of products.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProductPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    post:
+      tags: [products]
+      operationId: createProduct
+      x-phase: 2
+      x-replaces: ["POST /api/v1/ui/projects/{projectId}/products"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProductBody'}
+      responses:
+        '201':
+          description: Created.
+          headers:
+            Location: {$ref: '#/components/headers/Location'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Product'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/BusinessRule'}
+  /projects/{projectId}/products/counts:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [products]
+      operationId: countProducts
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects/{projectId}/products/counts"]
+      responses:
+        '200':
+          description: Products per category.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProductCounts'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /projects/{projectId}/products/{productId}:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+      - name: productId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      tags: [products]
+      operationId: getProduct
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects/{projectId}/products/{productId}"]
+      responses:
+        '200':
+          description: The product.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Product'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [products]
+      operationId: updateProduct
+      x-phase: 2
+      x-replaces: ["PUT /api/v1/ui/projects/{projectId}/products/{productId}"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProductBody'}
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Product'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/BusinessRule'}
+    delete:
+      tags: [products]
+      operationId: deleteProduct
+      summary: Deletes a product and answers it (the UI's undo toast uses the body), so 200 and not 204.
+      x-phase: 2
+      x-replaces: ["DELETE /api/v1/ui/projects/{projectId}/products/{productId}"]
+      responses:
+        '200':
+          description: The deleted product.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Product'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /projects/{projectId}/page:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [page]
+      operationId: getPageData
+      summary: The saved draft and the published page (editor).
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects/{projectId}/page", "GET /api/v1/projects/{projectId}/page"]
+      responses:
+        '200':
+          description: The page. `ETag` carries the edit revision the next save sends in `If-Match`.
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WebsitePage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [page]
+      operationId: savePageData
+      summary: Saves the draft (visitors still see the published page).
+      description: |
+        Optimistic locking through `If-Match` with the `ETag` of the last read (or of the last save). Without
+        `If-Match` the save is taken as is (last write wins): the UI's `savePageData` sends no revision, and AI
+        Codegen's chat edits arrive through Project's internal route with their own revision. A stale `If-Match`
+        answers 412. `expectedEditRevision` in the body is accepted as an alternative to `If-Match`.
+      x-phase: 2
+      x-replaces: ["PUT /api/v1/ui/projects/{projectId}/page", "PUT /api/v1/projects/{projectId}/page"]
+      parameters:
+        - name: If-Match
+          in: header
+          schema: {type: string, examples: ['"7"']}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: {$ref: '#/components/schemas/PageData'}
+                expectedEditRevision: {type: integer, minimum: 0}
+      responses:
+        '200':
+          description: Saved. `ETag` is the new edit revision.
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WebsitePage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '412': {$ref: '#/components/responses/PreconditionFailed'}
+    patch:
+      tags: [page]
+      operationId: restoreVersion
+      summary: Puts an old deployed version back live; the draft is reset to it.
+      description: |
+        Phase 3: the draft is reset to the version (as v1's restore), and Provisioning rolls back to that release, so
+        visitors see it again. `If-Match` as on PUT.
+      x-phase: 3
+      x-replaces: ["POST /api/v1/ui/projects/{projectId}/page/versions/{versionId}/restore"]
+      parameters:
+        - name: If-Match
+          in: header
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              type: object
+              required: [currentVersionId]
+              additionalProperties: false
+              properties:
+                currentVersionId: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The page after the restore.
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WebsitePage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '412': {$ref: '#/components/responses/PreconditionFailed'}
+  /projects/{projectId}/page/versions:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [page]
+      operationId: listVersions
+      summary: Deployed versions of the page, newest first (a bare array, the UI's PageVersion[]).
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects/{projectId}/page/versions", "GET /api/v1/projects/{projectId}/versions"]
+      responses:
+        '200':
+          description: Versions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PageVersion'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /projects/{projectId}/media:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [media]
+      operationId: listMedia
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects/{projectId}/media"]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: One page of images.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MediaPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    post:
+      tags: [media]
+      operationId: uploadMedia
+      summary: Uploads an image (PNG or JPEG, at most 2 MiB) to the website's library.
+      description: The type is read from the file's bytes, never from the client's content type or file name.
+      x-phase: 2
+      x-replaces: ["POST /api/v1/ui/projects/{projectId}/media"]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: string, format: binary}
+      responses:
+        '201':
+          description: Stored.
+          headers:
+            Location: {$ref: '#/components/headers/Location'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MediaAsset'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {$ref: '#/components/responses/BadRequest'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+
+  /projects/{projectId}/activity:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [activity]
+      operationId: listActivity
+      summary: The website's activity log, newest first (Pro and Ultra plans).
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/projects/{projectId}/activity"]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: One page of events.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ActivityPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /projects/{projectId}/deployments:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    post:
+      tags: [deployments]
+      operationId: startDeployment
+      summary: Starts a deploy of the saved draft; it runs straight through to LIVE.
+      description: |
+        Creates the deployment (Project's generation request; its id is the deployment id). Code generation (AI
+        Codegen), build and release (Provisioning) follow, and the release is promoted without a second call (owner
+        decision of 10 November 2026). The same `Idempotency-Key` again answers 200 with the same deployment.
+      x-phase: 2
+      x-replaces: ["POST /api/v1/ui/projects/{projectId}/deployments", "POST /api/v1/ui/projects/{projectId}/page/publish", "POST /api/v1/projects/{projectId}/generation-requests"]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 200}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                subdomain:
+                  type: [string, 'null']
+                  description: The chosen address for a first deploy; null or absent for a redeploy.
+      responses:
+        '202':
+          description: Accepted.
+          headers:
+            Location: {$ref: '#/components/headers/Location'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Deployment'}
+        '200':
+          description: The same deployment, started earlier with this Idempotency-Key.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Deployment'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '402': {$ref: '#/components/responses/PlanRequired'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    get:
+      tags: [deployments]
+      operationId: listDeployments
+      summary: The website's deployments, newest first; `?status=RUNNING&size=1` gives the one in progress.
+      x-phase: 2
+      parameters:
+        - name: status
+          in: query
+          schema: {$ref: '#/components/schemas/DeploymentStatus'}
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: One page of deployments.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DeploymentPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /projects/{projectId}/deployments/{deploymentId}:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+      - name: deploymentId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      tags: [deployments]
+      operationId: getDeployment
+      summary: A deploy's progress (the UI polls it).
+      description: |
+        Phase 2 answers the steps Project knows (code generation, then the release as one step while it runs).
+        Phase 3 reads the release steps from Provisioning (internal route, with a timeout; when Provisioning does not
+        answer, the steps Project knows are answered and the rest are `WAITING`).
+      x-phase: 2
+      x-replaces: ["GET /api/v1/projects/{projectId}/generation-requests/{generationRequestId}", "GET /api/provisioning/v1/ui/projects/{projectId}/deployments/{deploymentId} (Provisioning)"]
+      responses:
+        '200':
+          description: The deployment.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Deployment'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /sites/{projectId}/page:
+    get:
+      tags: [sites]
+      operationId: getPublishedPage
+      summary: Public read of a website's deployed page.
+      security: []
+      x-phase: 3
+      parameters:
+        - $ref: '#/components/parameters/projectId'
+      responses:
+        '200':
+          description: The published page document.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PageData'}
+        '404':
+          description: Unknown, never deployed, suspended or deleted (one answer for all, so nothing leaks).
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+
+  /admin/projects:
+    get:
+      tags: [admin]
+      operationId: adminListWebsites
+      summary: Every owner's websites (admin table).
+      description: |
+        The owning service answers the full UI type (owner decision): owner name, email and avatar come from User;
+        siteStatus, releaseStatus, routingStatus, liveRelease, lastDeployAt and sslValidUntil from Provisioning;
+        plan, planEndsAt, productLimit, redeploysLeft and redeployLimit from Payment, each through an internal route
+        with a timeout. A part another service does not answer is `null`; the page never fails for it. Until those
+        internal routes exist (phase 3), those fields are `null`. The `site`, `release` and `plan` filters need the
+        same data at query time (phase 3).
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/admin/projects"]
+      parameters:
+        - $ref: '#/components/parameters/q'
+        - name: ownerId
+          in: query
+          schema: {type: string, format: uuid}
+        - name: ids
+          in: query
+          description: Comma-separated project ids.
+          schema: {type: string}
+        - name: site
+          in: query
+          x-phase: 3
+          schema: {$ref: '#/components/schemas/SiteStatus'}
+        - name: release
+          in: query
+          x-phase: 3
+          schema: {$ref: '#/components/schemas/ReleaseStatus'}
+        - name: plan
+          in: query
+          x-phase: 3
+          schema: {$ref: '#/components/schemas/PlanCode'}
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - name: sort
+          in: query
+          schema: {type: string}
+      security:
+        - bearer: [ADMIN]
+      responses:
+        '200':
+          description: One page of websites.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminWebsitePage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /admin/projects/counts:
+    get:
+      tags: [admin]
+      operationId: adminCountWebsites
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/admin/projects/counts"]
+      security:
+        - bearer: [ADMIN]
+      responses:
+        '200':
+          description: Counts, as v1 answers them.
+          content:
+            application/json:
+              schema: {type: object}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /admin/projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [admin]
+      operationId: adminGetWebsite
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/admin/projects/{projectId}"]
+      security:
+        - bearer: [ADMIN]
+      responses:
+        '200':
+          description: The website.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminWebsite'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    patch:
+      tags: [admin]
+      operationId: adminUpdateWebsiteStatus
+      summary: The admin takes a website offline or brings it back.
+      description: |
+        `SUSPENDED` suspends the website and its hosting; `ONLINE` brings it back (409 while the owner's account is
+        suspended). Project records it and tells Provisioning (hosting) through an internal command; audit
+        SUSPEND_HOSTING / RESUME_HOSTING.
+      x-phase: 3
+      x-replaces: ["POST /api/provisioning/v1/ui/admin/projects/{projectId}/suspend (Provisioning)", "POST /api/provisioning/v1/ui/admin/projects/{projectId}/resume (Provisioning)"]
+      security:
+        - bearer: [ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              type: object
+              required: [siteStatus]
+              additionalProperties: false
+              properties:
+                siteStatus: {type: string, enum: [SUSPENDED, ONLINE]}
+      responses:
+        '200':
+          description: The website after the change.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminWebsite'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /admin/projects/{projectId}/generation-requests:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      tags: [admin]
+      operationId: adminListProjectGenerationRequests
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/admin/projects/{projectId}/generation-requests"]
+      security:
+        - bearer: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - name: sort
+          in: query
+          schema: {type: string}
+      responses:
+        '200':
+          description: One page, items as v1 answers them.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /admin/generation-requests:
+    get:
+      tags: [admin]
+      operationId: adminListGenerationRequests
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/admin/generation-requests"]
+      security:
+        - bearer: [ADMIN]
+      parameters:
+        - name: latestPerProject
+          in: query
+          schema: {type: boolean}
+        - name: status
+          in: query
+          schema: {type: string}
+        - name: updatedBefore
+          in: query
+          schema: {type: string, format: date-time}
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - name: sort
+          in: query
+          schema: {type: string}
+      responses:
+        '200':
+          description: One page, items as v1 answers them.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /admin/audit-events:
+    get:
+      tags: [admin]
+      operationId: adminListAuditEvents
+      summary: Project's own audit events.
+      description: |
+        Project's part of the audit log, as v1. The single admin activity feed (entries from User, Payment and
+        Provisioning) waits for the owner (COMMON 3a) and is not this route.
+      x-phase: 2
+      x-replaces: ["GET /api/v1/ui/admin/audit"]
+      security:
+        - bearer: [ADMIN]
+      parameters:
+        - name: action
+          in: query
+          schema: {type: string}
+        - name: actorUserId
+          in: query
+          schema: {type: string, format: uuid}
+        - name: since
+          in: query
+          schema: {type: string, format: date-time}
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ObjectPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Keycloak access token, audience `project`. `ADMIN` = the top-level `roles` claim holds ADMIN.
+
+  parameters:
+    projectId:
+      name: projectId
+      in: path
+      required: true
+      description: The website (project) id.
+      schema: {type: string, format: uuid}
+    templateId:
+      name: templateId
+      in: path
+      required: true
+      description: The template code, e.g. `everyday_store`.
+      schema: {type: string, maxLength: 50}
+    q:
+      name: q
+      in: query
+      description: Search text.
+      schema: {type: string, maxLength: 100}
+    page:
+      name: page
+      in: query
+      description: Zero-based page number.
+      schema: {type: integer, minimum: 0, default: 0}
+    size:
+      name: size
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 200, default: 20}
+
+  headers:
+    Location:
+      description: The created resource's path under `/api/project/v2`.
+      schema: {type: string}
+    ETag:
+      description: The page's edit revision as a strong entity tag, e.g. `"7"`.
+      schema: {type: string}
+
+  responses:
+    BadRequest:
+      description: Invalid input (field errors in `errors`).
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Unauthorized:
+      description: No token, or a bad one.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Forbidden:
+      description: Not allowed (admin role missing, or not in the plan).
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    NotFound:
+      description: Unknown, or not the caller's.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Conflict:
+      description: Conflicts with the current state (duplicate name, already deploying, not deletable, ...).
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    PreconditionFailed:
+      description: "`If-Match` names an older revision: the page changed meanwhile."
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    PlanRequired:
+      description: The plan does not allow it.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    BusinessRule:
+      description: A business rule refuses it (unknown category, plan's product limit).
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Unavailable:
+      description: A dependency (Payment, storage, the database) is down; `Retry-After` when known.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: {type: string, format: uri, examples: ['urn:webblock:problem:project-not-found']}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+        instance: {type: string}
+        code: {type: string, examples: [PROJECT_NOT_FOUND]}
+        requestId: {type: string}
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: {type: string}
+              code: {type: string}
+
+    TemplateCategory:
+      type: string
+      enum: [CLOTHES, FOOD_BEVERAGES, TECHNOLOGY, HANDMADE]
+    TemplatePreviewImage:
+      type: object
+      required: [url, width, height]
+      properties:
+        url: {type: string}
+        width: {type: integer}
+        height: {type: integer}
+    Template:
+      type: object
+      required: [id, name, description, thumbnailUrl, categories]
+      properties:
+        id: {type: string, description: The template code.}
+        name: {type: string}
+        description: {type: string}
+        category:
+          description: |
+            The UI's TemplateCategory, from the template's first business type (clothing_shop -> CLOTHES,
+            food_shop -> FOOD_BEVERAGES, tech_shop -> TECHNOLOGY, beauty_shop and furniture_shop -> HANDMADE); null
+            for a template that fits any business type (`*`). Open question to the owner (see report).
+          oneOf:
+            - $ref: '#/components/schemas/TemplateCategory'
+            - type: 'null'
+        categories:
+          type: array
+          description: Business type codes the template fits; `*` = any.
+          items: {type: string}
+        thumbnailUrl: {type: string}
+        badge: {type: [string, 'null']}
+        previews:
+          type: [object, 'null']
+          properties:
+            desktop: {$ref: '#/components/schemas/TemplatePreviewImage'}
+    TemplateDetail:
+      allOf:
+        - $ref: '#/components/schemas/Template'
+        - type: object
+          properties:
+            styleKey: {type: string}
+            version: {type: string}
+            page:
+              type: object
+              description: The starter page (`puckTree`).
+    TemplatePage:
+      $ref: '#/components/schemas/PageOfTemplate'
+    PageOfTemplate:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Template'}}
+        page: {type: integer}
+        size: {type: integer}
+        totalItems: {type: integer}
+
+    WebsiteStatus:
+      type: string
+      enum: [LIVE, DRAFT, SUSPENDED]
+    Website:
+      type: object
+      description: The UI's Website, plus `editRevision` and `hasUndeployedChanges` for the editor.
+      required: [id, name, status, templateId, updatedAt, editRevision, hasUndeployedChanges]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        businessType: {type: [string, 'null'], description: The business type's display name.}
+        category: {type: [string, 'null'], description: The business type code.}
+        status: {$ref: '#/components/schemas/WebsiteStatus'}
+        domain: {type: [string, 'null'], description: Public host; null until the first deploy.}
+        templateId: {type: string}
+        thumbnailUrl: {type: [string, 'null']}
+        updatedAt: {type: string, format: date-time}
+        suspendedAt: {type: [string, 'null'], format: date-time}
+        reactivatedAt: {type: [string, 'null'], format: date-time}
+        editRevision: {type: integer}
+        hasUndeployedChanges: {type: boolean}
+    PageOfWebsite:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Website'}}
+        page: {type: integer}
+        size: {type: integer}
+        totalItems: {type: integer}
+    WebsiteStatusCounts:
+      type: object
+      required: [ALL, LIVE, DRAFT, SUSPENDED]
+      properties:
+        ALL: {type: integer}
+        LIVE: {type: integer}
+        DRAFT: {type: integer}
+        SUSPENDED: {type: integer}
+    WebsitePatch:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status: {type: string, enum: [LIVE, SUSPENDED]}
+    OpeningHour:
+      type: object
+      required: [day, open, opensAt, closesAt]
+      properties:
+        day: {type: string, enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]}
+        open: {type: boolean}
+        opensAt: {type: string, pattern: '^\d{2}:\d{2}$'}
+        closesAt: {type: string, pattern: '^\d{2}:\d{2}$'}
+    CreateWebsiteBody:
+      type: object
+      description: The UI's CreateWebsiteBody, as v1 takes it.
+      required: [name, templateId, details]
+      properties:
+        name: {type: string}
+        templateId: {type: string}
+        category: {type: string, description: Ignored.}
+        thumbnailUrl: {type: string, description: Ignored.}
+        details:
+          type: object
+          properties:
+            businessName: {type: string}
+            businessType: {type: string}
+            description: {type: string}
+            logoUrl: {type: [string, 'null']}
+            phone: {type: string}
+            email: {type: string}
+            address: {type: string}
+            hours: {type: array, items: {$ref: '#/components/schemas/OpeningHour'}}
+
+    DomainCheck:
+      type: object
+      required: [name, host, available, problem]
+      properties:
+        name: {type: string}
+        host: {type: string}
+        available: {type: boolean}
+        problem: {type: [string, 'null']}
+
+    BusinessInfo:
+      type: object
+      required: [websiteId, description, logoUrl, phone, email, address, mapsUrl, hours, updatedAt]
+      properties:
+        websiteId: {type: string, format: uuid}
+        description: {type: string}
+        logoUrl: {type: [string, 'null']}
+        phone: {type: string}
+        email: {type: string}
+        address: {type: string}
+        mapsUrl: {type: [string, 'null']}
+        hours: {type: array, minItems: 7, maxItems: 7, items: {$ref: '#/components/schemas/OpeningHour'}}
+        updatedAt: {type: string, format: date-time}
+    BusinessInfoBody:
+      type: object
+      description: As v1's PUT body. `logoUrl` absent keeps the logo; it must be one of the website's media URLs.
+      properties:
+        description: {type: string}
+        logoUrl: {type: [string, 'null']}
+        phone: {type: string}
+        email: {type: string}
+        address: {type: string}
+        mapsUrl: {type: [string, 'null']}
+        hours: {type: array, items: {$ref: '#/components/schemas/OpeningHour'}}
+
+    Product:
+      type: object
+      description: The UI's Product, plus `version` for optimistic locking.
+      required: [id, websiteId, name, description, category, price, imageUrl, createdAt, updatedAt]
+      properties:
+        id: {type: string, format: uuid}
+        websiteId: {type: string, format: uuid}
+        name: {type: string}
+        description: {type: string}
+        category: {type: string}
+        price: {type: [string, 'null'], description: Decimal string, e.g. "6.00"; null when hidden.}
+        imageUrl: {type: [string, 'null']}
+        version: {type: integer}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    ProductBody:
+      type: object
+      description: As v1. `imageUrl` absent keeps the photo; `version` optional.
+      required: [name, category, price]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        category: {type: string}
+        price: {type: string}
+        imageUrl: {type: [string, 'null']}
+        version: {type: integer}
+    ProductPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Product'}}
+        page: {type: integer}
+        size: {type: integer}
+        totalItems: {type: integer}
+    ProductCounts:
+      type: object
+      required: [total, categories]
+      properties:
+        total: {type: integer}
+        categories:
+          type: array
+          items:
+            type: object
+            required: [category, count]
+            properties:
+              category: {type: string}
+              count: {type: integer}
+
+    PageData:
+      type: object
+      description: The Puck document of one page (`Data<BlockProps, SiteRootProps>` in the UI).
+    WebsitePage:
+      type: object
+      required: [websiteId, draft, published, updatedAt, publishedAt, editRevision]
+      properties:
+        websiteId: {type: string, format: uuid}
+        draft: {$ref: '#/components/schemas/PageData'}
+        published:
+          oneOf:
+            - $ref: '#/components/schemas/PageData'
+            - type: 'null'
+        updatedAt: {type: string, format: date-time}
+        publishedAt: {type: [string, 'null'], format: date-time}
+        editRevision: {type: integer}
+    PageVersion:
+      type: object
+      required: [id, publishedAt, current]
+      properties:
+        id: {type: string, format: uuid}
+        publishedAt: {type: string, format: date-time}
+        current: {type: boolean}
+
+    MediaAsset:
+      type: object
+      required: [id, url, name]
+      properties:
+        id: {type: string, format: uuid}
+        url: {type: string}
+        name: {type: string}
+    MediaPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/MediaAsset'}}
+        page: {type: integer}
+        size: {type: integer}
+        totalItems: {type: integer}
+
+    ActivityEvent:
+      type: object
+      required: [id, websiteId, type, outcome, title, detail, occurredAt]
+      properties:
+        id: {type: string, format: uuid}
+        websiteId: {type: string, format: uuid}
+        type: {type: string, enum: [DEPLOY, PRODUCT, BUSINESS_INFO]}
+        outcome: {type: string, enum: [SUCCEEDED, FAILED, CHANGED]}
+        title: {type: string}
+        detail: {type: [string, 'null']}
+        occurredAt: {type: string, format: date-time}
+    ActivityPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/ActivityEvent'}}
+        page: {type: integer}
+        size: {type: integer}
+        totalItems: {type: integer}
+
+    DeploymentStatus:
+      type: string
+      enum: [RUNNING, SUCCEEDED, FAILED]
+    Deployment:
+      type: object
+      description: |
+        The UI's Deployment. `id` is Project's generation request id. Steps, in order: BUILD (code generation),
+        PRODUCTS, PACKAGE (build), LAUNCH (deploy), SSL, LIVE (promoted). `stage` adds the owner's one-word stage
+        (COMMON 3a): generating, building, deploying, live, failed.
+      required: [id, websiteId, kind, status, percent, secondsLeft, domain, steps, startedAt, finishedAt]
+      properties:
+        id: {type: string, format: uuid}
+        websiteId: {type: string, format: uuid}
+        kind: {type: string, enum: [FIRST, REDEPLOY]}
+        status: {$ref: '#/components/schemas/DeploymentStatus'}
+        stage: {type: string, enum: [generating, building, deploying, live, failed]}
+        percent: {type: integer, minimum: 0, maximum: 100}
+        secondsLeft: {type: [integer, 'null']}
+        domain: {type: [string, 'null'], description: Public host the site goes live on; null while not chosen.}
+        steps:
+          type: array
+          items:
+            type: object
+            required: [key, status, seconds]
+            properties:
+              key: {type: string, enum: [BUILD, PRODUCTS, PACKAGE, LAUNCH, SSL, LIVE]}
+              status: {type: string, enum: [DONE, IN_PROGRESS, UP_NEXT, WAITING, FAILED, NOT_STARTED]}
+              seconds: {type: [integer, 'null']}
+        startedAt: {type: string, format: date-time}
+        finishedAt: {type: [string, 'null'], format: date-time}
+    DeploymentPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Deployment'}}
+        page: {type: integer}
+        size: {type: integer}
+        totalItems: {type: integer}
+
+    PlanCode:
+      type: string
+      enum: [FREE_TRIAL, PLUS, PRO, ULTRA]
+    SiteStatus:
+      type: string
+      enum: [ONLINE, NOT_DEPLOYED, OFFLINE_BILLING, SUSPENDED]
+    ReleaseStatus:
+      type: string
+      enum: [LIVE, GOING_LIVE, FAILED]
+    AdminWebsite:
+      type: object
+      description: |
+        The UI's AdminWebsite. Project's own fields are always there; the fields of other services are null when that
+        service did not answer (or, in phase 2, is not asked yet). `hasUndeployedChanges` is added on the single read.
+      required: [id, name, ownerId]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        domain: {type: [string, 'null']}
+        thumbnailUrl: {type: [string, 'null']}
+        logoUrl: {type: [string, 'null']}
+        templateSlug: {type: string}
+        ownerId: {type: string, format: uuid}
+        ownerName: {type: [string, 'null'], description: From User.}
+        ownerEmail: {type: [string, 'null'], description: From User.}
+        ownerAvatarUrl: {type: [string, 'null'], description: From User.}
+        siteStatus:
+          description: From Provisioning (and Payment for OFFLINE_BILLING); phase 2 derives it from Project's status.
+          oneOf:
+            - $ref: '#/components/schemas/SiteStatus'
+            - type: 'null'
+        releaseStatus:
+          description: From Provisioning; null when never deployed.
+          oneOf:
+            - $ref: '#/components/schemas/ReleaseStatus'
+            - type: 'null'
+        routingStatus: {type: [string, 'null'], enum: [STABLE, UPDATING, null]}
+        lastDeployAt: {type: [string, 'null'], format: date-time}
+        liveRelease: {type: [string, 'null']}
+        plan:
+          description: From Payment.
+          oneOf:
+            - $ref: '#/components/schemas/PlanCode'
+            - type: 'null'
+        planEndsAt: {type: [string, 'null'], format: date-time}
+        productCount: {type: [integer, 'null']}
+        productLimit: {type: [integer, 'null']}
+        redeploysLeft: {type: [integer, 'null']}
+        redeployLimit: {type: [integer, 'null']}
+        sslValidUntil: {type: [string, 'null'], format: date-time}
+        hasUndeployedChanges: {type: boolean}
+    AdminWebsitePage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/AdminWebsite'}}
+        page: {type: integer}
+        size: {type: integer}
+        totalItems: {type: integer}
+    ObjectPage:
+      type: object
+      required: [items, page, size, totalItems]
+      properties:
+        items: {type: array, items: {type: object}}
+        page: {type: integer}
+        size: {type: integer}
+        totalItems: {type: integer}
