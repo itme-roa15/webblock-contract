@@ -133,8 +133,8 @@ paths:
         `websiteImageUrl` fields are accepted and ignored.
 
         `Idempotency-Key` (1 to 128 characters) is optional but recommended, mainly for `RENEW`: the same key with the
-        same body answers the same order again (200), with another body 422, and 409 while the first request still
-        runs. Without a key, a repeated `SUBSCRIBE` or `CHANGE` still returns the open order.
+        same body answers the same order again (201, same `id`), with another body 422, and 409 while the first
+        request still runs. Without a key, a repeated `SUBSCRIBE` or `CHANGE` still returns the open order.
       x-replaces: "POST /api/payment/v1/ui/payments"
       parameters:
         - name: Idempotency-Key
@@ -152,11 +152,6 @@ paths:
             Location:
               description: '`/api/payment/v2/me/orders/{orderId}`'
               schema: { type: string }
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/PaymentOrder' }
-        '200':
-          description: A replay with the same `Idempotency-Key`, or the order that is still open for this plan.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PaymentOrder' }
@@ -245,7 +240,11 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/PlanUsage' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
+        '404':
+          description: A website the caller doesn't own (`project-not-found`), or an account with neither a trial nor a plan (`no-subscription`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
   /admin/overview:
@@ -275,8 +274,8 @@ paths:
       operationId: listAdminSubscriptions
       summary: Subscription table
       description: |
-        `q` matches part of the owner's name or email (asked from User at query time; while User is down a `q`
-        search answers 503). The owner and website fields come from User and Project and are `null` while those are
+        `q` matches part of the owner's name or email (asked from User at query time; while User is down, or until
+        its search route exists, a `q` search answers 503 `user-search-unavailable`). The owner and website fields come from User and Project and are `null` while those are
         down. `status` is `SUSPENDED` when the owner's account is suspended, whatever the subscription's own state.
       x-replaces: "GET /api/payment/v1/ui/admin/subscriptions"
       parameters:
@@ -505,7 +504,8 @@ components:
     Unprocessable:
       description: |
         A business rule (`plan-not-payable`, `plan-change-not-supported`, `plan-mismatch`,
-        `idempotency-key-reused`, `subscription-not-found` for a RENEW without a plan to renew).
+        `idempotency-key-reused`, `subscription-not-found` for a RENEW without a plan to renew, `project-required`
+        for a SUBSCRIBE or CHANGE without `websiteId` while subscriptions are still bought per website).
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
