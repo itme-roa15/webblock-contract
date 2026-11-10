@@ -25,6 +25,41 @@ info:
       holds `ADMIN`, else 403. `public` = no token needed (a token, if sent, is ignored).
     - `x-replaces` names the v1 route(s) an operation replaces. `x-phase` says when it is built: `2` = v2 of an
       existing v1 behaviour, `3` = new behaviour or needs another service. `x-status: waits-for-owner` = drafted only.
+x-internal-routes:
+  description: |
+    Project's service-to-service routes (mesh only, never through the gateway; the mesh's workload identity is the
+    gate, no token). They live outside `/api/project/v2`, so they are listed here and not under `paths`. Bodies are
+    bare (no envelope), errors are problem details as in v2.
+  routes:
+    - route: GET /internal/v1/owners/website-counts
+      x-phase: 2
+      callers: [user-service]
+      purpose: UserAccount.websiteCount and the Websites column of the admin user CSV (one admin-list page).
+      query:
+        ownerId:
+          description: An owner (user) id. Repeat it, 1 to 100 distinct values (a repeated value counts once).
+          type: string
+          format: uuid
+          required: true
+          repeated: true
+      answer:
+        status: 200
+        description: |
+          One row per distinct asked owner, in the order first asked, `websiteCount` 0 for an owner without websites.
+          Counts the owner's websites that are not deleted, in any status (DRAFT, LIVE, SUSPENDED).
+        example: '[{"ownerId": "0199e0a2-0000-7000-8000-0000000000aa", "websiteCount": 2}]'
+        schema:
+          type: array
+          items:
+            type: object
+            required: [ownerId, websiteCount]
+            properties:
+              ownerId: {type: string, format: uuid}
+              websiteCount: {type: integer, minimum: 0}
+      errors:
+        - '400 VALIDATION_FAILED: no ownerId, more than 100 distinct ids, or an id that is not a UUID (field `ownerId`).'
+      timeout: "The caller's (User: 2 s, a failure is shown as null). Project answers from one indexed query."
+
 servers:
   - url: /api/project/v2
 security:
