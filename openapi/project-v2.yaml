@@ -170,7 +170,10 @@ paths:
       parameters:
         - name: category
           in: query
-          description: A business type code (`clothing_shop`, ...). Templates for any business type (`*`) always match.
+          description: |
+            One of the UI's categories (CLOTHES, FOOD_BEVERAGES, TECHNOLOGY, HANDMADE), as the UI's filter sends it, or a
+            business type code (`clothing_shop`, ...; templates for any business type `*` always match). The gallery is
+            the UI's eight templates (owner decision of 10 November 2026); the internal `blank` template is not listed.
           schema: {type: string, maxLength: 50}
         - $ref: '#/components/parameters/q'
         - $ref: '#/components/parameters/page'
@@ -208,11 +211,12 @@ paths:
       operationId: getTemplateSite
       summary: The full content of a template's demo site.
       description: |
-        Waits for the owner (COMMON 3a): served by Project, or static files in the UI with no route. Not built.
-        If Project serves it, the body is the UI's `TemplateSite` (`src/features/template-sites/types/index.ts`).
+        Owner decision of 10 November 2026 (DECISIONS.md Project 1): Project serves it. The body is the UI's
+        `TemplateSite` (`src/features/template-sites/types/index.ts`): `slug` is the template's style key, `content`
+        the bespoke design's sample content (everyday-store, sweet-pastel, warm-bold, clean-mono) or, for a page
+        template (jackets, keyboards, iced-coffee, plates), its starter page document.
       security: []
       x-phase: 3
-      x-status: waits-for-owner
       parameters:
         - $ref: '#/components/parameters/templateId'
       responses:
@@ -220,7 +224,12 @@ paths:
           description: The demo site.
           content:
             application/json:
-              schema: {type: object, description: "The UI's TemplateSite."}
+              schema:
+                type: object
+                required: [slug, content]
+                properties:
+                  slug: {type: string}
+                  content: {type: object}
         '404': {$ref: '#/components/responses/NotFound'}
 
   /business-types:
