@@ -3,7 +3,8 @@ info:
   title: WebBlock Provisioning internal API v1
   version: 1.0.0
   description: |
-    DRAFT, proposed by provisioning, waits for project, payment and account.
+    DRAFT, proposed by provisioning. Agreed: `websites/stats` by payment (agent 76e8d818) and account (agent
+    4ec40ad7). The project routes wait for project's agreement (proposed to agent cd76ff0c on 11 November 2026).
 
     Service-to-service routes of provisioning-api, reachable only through the mesh (never through the public
     gateway). The caller is the workload identity from `X-Forwarded-Client-Cert` (Istio mTLS), checked per route
@@ -136,6 +137,14 @@ paths:
               required: [status]
               properties:
                 status: { type: string, enum: [SUSPENDED, ONLINE] }
+                actorEmail:
+                  type: string
+                  format: email
+                  description: x-phase 3. The admin's email, for audit_recorded.v1's actor_email.
+                websiteName:
+                  type: string
+                  maxLength: 200
+                  description: x-phase 3. The website's name, for audit_recorded.v1's target_name.
       responses:
         '202':
           description: Durably accepted; `Location` names the command (`/api/provisioning/v2/projects/{projectId}/commands/{commandId}`).
@@ -158,10 +167,10 @@ paths:
       summary: Serve an earlier release again (Project's restore of a page version)
       description: |
         DRAFT (x-phase 3). Project's `PATCH /projects/{projectId}/page` `{"currentVersionId": ...}` restores a page
-        version; Provisioning then promotes the release built from that version's commit, if it is still kept
-        (`REPLACED` and its image in the registry). Body `{"gitCommitSha": "..."}`; answers the `PROMOTE` command, or
-        `422 release-not-kept` when no kept release has that commit (Project then publishes the version anew). Audit
-        ROLLBACK names `x-user-id`.
+        version (its id is the published generation request id); Provisioning then promotes the release of that
+        generation request, if it is still kept (`REPLACED` and its image in the registry). Body
+        `{"generationRequestId": "..."}`; answers the `PROMOTE` command, or `422 release-not-kept` when that release
+        is not kept (Project then publishes the version anew). Audit ROLLBACK names `x-user-id`.
       x-callers: [project-service]
       x-phase: 3
       x-status: draft
@@ -182,9 +191,9 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [gitCommitSha]
+              required: [generationRequestId]
               properties:
-                gitCommitSha: { type: string, pattern: '^[0-9a-f]{40}([0-9a-f]{24})?$' }
+                generationRequestId: { type: string, format: uuid }
       responses:
         '202':
           description: The promote command.
