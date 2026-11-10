@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webblock.invalid/contracts/events/account/user_deleted.v1.schema.json",
+  "title": "Account: user deleted v1",
+  "description": "DRAFT, proposed by account, waits for payment, project and provisioning. Owner: account (owner's decision, DECISIONS.md User 4, 10 November 2026). A user's Keycloak account was deleted: user-service closed the account (the row stays, marked deleted, and its email is free for a new sign-up, which gets a NEW user_id; no data moves to it). Consumers close what they hold for this user_id (Payment ends the subscription, Project and Provisioning take the websites offline). Sent once per account, after the database commit, when user-service's scheduled Keycloak check first finds Keycloak's own \"User not found\" for it, or when a new sign-up with the same email finds the old Keycloak user gone. deleted_at is when user-service found it gone (Keycloak does not say when it was deleted). A repeat is harmless: consumers record message_id or user_id once. No name and no email. Like the other account events, no project_id (open point in the README). Exchange account.events, routing key account.user_deleted.v1 (= message_type), persistent, application/json, AMQP type = message_type.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "message_id", "message_type", "occurred_at", "correlation_id", "user_id", "deleted_at"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "message_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "not": {"enum": ["00000000-0000-0000-0000-000000000000"]} },
+    "message_type": { "const": "account.user_deleted.v1" },
+    "occurred_at": { "type": "string", "format": "date-time", "maxLength": 40 },
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+    "user_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "not": {"enum": ["00000000-0000-0000-0000-000000000000"]} },
+    "deleted_at": { "type": "string", "format": "date-time", "maxLength": 40 }
+  }
+}
