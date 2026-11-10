@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webblock.invalid/contracts/events/audit/audit_recorded.v1.schema.json",
+  "title": "Audit recorded v1",
+  "description": "ACCEPTED by account, payment, provisioning and project (10 November 2026). Owner: notification (owner's decision of 10 November 2026: Notification owns the admin activity feed). Serves the admin activity log of the UI (ActivityEntry in webblock-web-ui src/features/admin/monitoring/types.ts). One shape for every producer: each service sends message_type <service>.audit_recorded.v1 on its own exchange, persistent, application/json, AMQP type = message_type, after the database commit, with the routing key its exchange already uses for its other events: account.audit_recorded.v1 on account.events (as account.user_status_changed.v1), and audit_recorded.v1 on payment.events, provisioning.events and project.events (as publish_completed.v1 and hosting_entitlement_ended.v1). Which actions each producer sends: account SUSPEND_USER and REACTIVATE_USER (an admin suspends or reactivates a user); payment CHANGE_PLAN (an admin moves a user's subscription to another plan, or the system applies a scheduled change; an edit of a plan's own price or limits is not sent); provisioning SUSPEND_HOSTING, RESUME_HOSTING and ROLLBACK, as their only producer (Project's admin and owner routes go through Provisioning's commands and pass the admin's id and email along). project sends nothing today; the name is reserved for a hosting change Provisioning would never hear about. An owner's own changes (suspending their own website, changing their own plan) are not admin activity and are not sent. Delivery is at least once (an outbox with publisher confirms is fine): a redelivery repeats message_id and activity_version. An action that moves through several results (QUEUED, RUNNING, then SUCCEEDED or FAILED) sends one event per result, all with the same activity_id and requested_at and a growing activity_version; an action that is done at once sends one event with activity_version 1. Notification keeps one entry per activity_id and drops an event whose activity_version is at or below the one it holds, so repeats and late messages are harmless. The producer fills in the names the UI shows (actor_email, target_name, target_detail) at the time of the action, so Notification never looks them up; when a name cannot be fetched in time, target_name falls back to the website's public host (PROJECT) or the target_id, and target_detail may be empty. project_id is sent when the target is a website and left out otherwise (open point of envelope.v1 in the README). No passwords, tokens, notes or reasons typed by an admin.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "message_id", "message_type", "occurred_at", "correlation_id", "activity_id", "activity_version", "action", "result", "requested_at", "actor_type", "actor_user_id", "actor_email", "target_type", "target_id", "target_name", "target_detail"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "message_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "not": { "enum": ["00000000-0000-0000-0000-000000000000"] } },
+    "message_type": { "enum": ["account.audit_recorded.v1", "payment.audit_recorded.v1", "provisioning.audit_recorded.v1", "project.audit_recorded.v1"] },
+    "occurred_at": { "type": "string", "format": "date-time", "maxLength": 40, "description": "When the action reached this result." },
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+    "project_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "not": { "enum": ["00000000-0000-0000-0000-000000000000"] }, "description": "The website, when target_type is PROJECT (then it equals target_id). Left out otherwise." },
+    "activity_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "not": { "enum": ["00000000-0000-0000-0000-000000000000"] }, "description": "The action, stable across its results (for example the producer's audit row id or command id). It is the entry id the UI shows." },
+    "activity_version": { "type": "integer", "minimum": 1, "maximum": 1000, "description": "Grows by one with each result of the same activity_id." },
+    "action": { "enum": ["SUSPEND_HOSTING", "RESUME_HOSTING", "ROLLBACK", "SUSPEND_USER", "REACTIVATE_USER", "CHANGE_PLAN"], "description": "The UI's ActivityAction. A new action needs the UI type first, then a new schema version." },
+    "result": { "enum": ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED"], "description": "The UI's ActivityResult." },
+    "requested_at": { "type": "string", "format": "date-time", "maxLength": 40, "description": "When the action was asked for; the same in every event of one activity_id. The UI shows it as createdAt." },
+    "actor_type": { "enum": ["ADMIN", "SYSTEM"] },
+    "actor_user_id": { "type": ["string", "null"], "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "description": "The admin's Keycloak subject; null exactly when actor_type is SYSTEM." },
+    "actor_email": { "type": ["string", "null"], "format": "email", "minLength": 3, "maxLength": 254, "description": "The admin's email at the time of the action. Null when actor_type is SYSTEM; for ADMIN it should always be set (from the request's token or User's GET /internal/v1/users/{id}) and is null only when it cannot be found, in which case the UI shows the entry without an admin email." },
+    "target_type": { "enum": ["USER", "PROJECT"], "description": "USER for SUSPEND_USER, REACTIVATE_USER and CHANGE_PLAN (the plan's owner); PROJECT for the hosting actions." },
+    "target_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "target_name": { "type": "string", "minLength": 1, "maxLength": 200, "description": "What the UI shows as the target: the user's full name, or the website's name." },
+    "target_detail": { "type": "string", "minLength": 0, "maxLength": 254, "description": "The UI's targetDetail: the user's email for a USER target, the website's domain for a PROJECT target (empty when the website has none yet)." }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "actor_type": { "const": "SYSTEM" } } },
+      "then": { "properties": { "actor_user_id": { "const": null }, "actor_email": { "const": null } } },
+      "else": { "properties": { "actor_user_id": { "type": "string" } } }
+    },
+    {
+      "if": { "properties": { "action": { "enum": ["SUSPEND_HOSTING", "RESUME_HOSTING", "ROLLBACK"] } } },
+      "then": { "required": ["project_id"], "properties": { "target_type": { "const": "PROJECT" } } },
+      "else": { "properties": { "target_type": { "const": "USER" } }, "not": { "required": ["project_id"] } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "account.audit_recorded.v1" } } },
+      "then": { "properties": { "action": { "enum": ["SUSPEND_USER", "REACTIVATE_USER"] } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "const": "payment.audit_recorded.v1" } } },
+      "then": { "properties": { "action": { "const": "CHANGE_PLAN" } } }
+    },
+    {
+      "if": { "properties": { "message_type": { "enum": ["provisioning.audit_recorded.v1", "project.audit_recorded.v1"] } } },
+      "then": { "properties": { "action": { "enum": ["SUSPEND_HOSTING", "RESUME_HOSTING", "ROLLBACK"] } } }
+    }
+  ]
+}
