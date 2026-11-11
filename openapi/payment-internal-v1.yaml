@@ -64,18 +64,17 @@ paths:
       operationId: releaseWebsiteAdmission
       summary: The website was deleted; free its plan slot
       description: |
-        Usage rows stay for billing. Issue 5: with Endy's branch merged the slot is always freed (204). Until then a
-        website that was ever deployed answers `422 PROJECT_IN_USE` (422, not 409).
+        Issue 5: the slot is always freed, also after generations or a deploy. The admission is kept, marked
+        released; generation and publish usage stays counted. A repeat answers 204 and keeps the first release time.
+        Afterwards the website counts as never admitted (entitlement `ENDED` / `NOT_ADMITTED`, generation refused
+        `PROJECT_NOT_ADMITTED`).
       x-callers: [project]
       responses:
-        '204': { description: Released. }
+        '204': { description: Released, or already released. }
         '401': { $ref: '#/components/responses/CallerUnknown' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404':
-          description: No admission for this website, or already released (`NOT_ADMITTED`). Callers treat it as done.
-          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
-        '422':
-          description: '`PROJECT_IN_USE`, until the issue-5 change is merged.'
+          description: This website was never admitted (`NOT_ADMITTED`). Callers treat it as done.
           content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
         '503': { $ref: '#/components/responses/Unavailable' }
 
@@ -140,8 +139,8 @@ paths:
       description: |
         Provisioning's deploy gate (provisioning-api, deploy and admin redeploy): go ahead only when
         `hosting == ENTITLED` and `publish == ALLOWED`. Any other answer, a non-200, a timeout or an unknown value
-        fails closed (Provisioning answers a retryable 503). A website Payment never admitted answers 200 with
-        `ENDED` / `NOT_ADMITTED`, never 404, so the answer does not show what exists.
+        fails closed (Provisioning answers a retryable 503). A website Payment never admitted, or released, answers 200
+        with `ENDED` / `NOT_ADMITTED`, never 404, so the answer does not show what exists.
       x-callers: [provisioning, project]
       responses:
         '200':
