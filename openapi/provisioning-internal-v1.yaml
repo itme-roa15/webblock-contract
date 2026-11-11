@@ -119,6 +119,10 @@ paths:
         command as v1's admin suspend and resume, so the audit entry SUSPEND_HOSTING or RESUME_HOSTING names the
         admin from `x-user-id`. Idempotent by `Idempotency-Key`; setting the state it already has answers the earlier
         command.
+        Each step of the command (QUEUED, RUNNING, then SUCCEEDED or FAILED) is published as
+        `provisioning.audit_recorded.v1` on `provisioning.events` for the admin activity feed, naming the admin from
+        `x-user-id` with `actorEmail`, and the website by `websiteName`, as the accepted request gave them (a replay
+        keeps the first request's).
       x-callers: [project-service]
       x-phase: 2
       parameters:
@@ -145,11 +149,20 @@ paths:
                 actorEmail:
                   type: string
                   format: email
-                  description: x-phase 3. The admin's email, for audit_recorded.v1's actor_email.
+                  minLength: 3
+                  maxLength: 254
+                  description: >-
+                    The admin's email, for audit_recorded.v1's actor_email (an ASCII local-part@domain).
+                    Stored with the command; when absent the event's actor_email is null. A value that is no
+                    email is 400 VALIDATION_FAILED naming actorEmail.
                 websiteName:
                   type: string
+                  minLength: 1
                   maxLength: 200
-                  description: x-phase 3. The website's name, for audit_recorded.v1's target_name.
+                  description: >-
+                    The website's name, for audit_recorded.v1's target_name. Stored with the command;
+                    when absent the event names the public host instead. Blank, longer than 200 characters or
+                    holding a control character is 400 VALIDATION_FAILED naming websiteName.
       responses:
         '202':
           description: Durably accepted; `Location` names the command (`/api/provisioning/v2/projects/{projectId}/commands/{commandId}`).
