@@ -81,18 +81,27 @@ paths:
   /projects/{projectId}/releases:
     get:
       operationId: findRelease
-      summary: The release of one generation request, with its steps
+      summary: The release of one generation request, or one release by id, with its steps
       description: |
-        For Project's `getDeployment` (the UI polls it): `generationRequestId` is Project's deployment id. Answers
-        the v2 `Release` (see `provisioning-v2.yaml`) as a one-item array, or an empty array when the release does
-        not exist yet (the source event has not arrived).
+        Exactly one of `generationRequestId` and `releaseId`; neither, both, or a value that is not a UUID is
+        `400 validation-failed` naming the input (`generationRequestId` REQUIRED when neither is given, `releaseId`
+        INVALID_FORMAT when both are).
+        - `generationRequestId`, for Project's `getDeployment` (the UI polls it): Project's deployment id.
+        - `releaseId` (ACCEPTED by project, agent cd76ff0c, 11 November 2026, owner decision Q6): the release a
+          `provisioning.publish_completed.v1` or `provisioning.publish_failed.v1` names, so Project learns the
+          generation request (`Release.generationRequestId`) behind it.
+        Answers the v2 `Release` (see `provisioning-v2.yaml`) as a one-item array, or an empty array when there is no
+        such release of this project (the source event has not arrived, the id is unknown, or the release belongs to
+        another project).
       x-callers: [project-service]
       x-phase: 2
       parameters:
         - $ref: '#/components/parameters/ProjectId'
         - name: generationRequestId
           in: query
-          required: true
+          schema: { type: string, format: uuid }
+        - name: releaseId
+          in: query
           schema: { type: string, format: uuid }
       responses:
         '200':
