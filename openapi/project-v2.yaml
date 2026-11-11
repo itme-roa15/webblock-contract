@@ -92,6 +92,44 @@ x-internal-routes:
               status: {type: string, enum: [DRAFT, LIVE, SUSPENDED]}
       errors:
         - '400 VALIDATION_FAILED: no id, more than 100 distinct ids, or an id that is not a UUID (field `id`).'
+    - route: GET /internal/v1/generation-requests/latest
+      x-phase: 3
+      status: ACCEPTED by provisioning (agent 2efb67d2, 11 November 2026; the status set and the fields)
+      callers: [provisioning-service]
+      purpose: Provisioning's admin pipeline view, each website's newest generation request (the step before a release).
+      query:
+        projectId:
+          description: A project id. Repeat it, 1 to 100 distinct values (a repeated value counts once).
+          type: string
+          format: uuid
+          required: true
+          repeated: true
+      answer:
+        status: 200
+        description: |
+          A bare array in the order first asked: each project's newest generation request (by createdAt, then id).
+          A project without one, or an unknown id, is left out. `status` is QUEUED (captured, waiting for admission),
+          GENERATING, PUBLISHING (pushing the source), PUBLISHED or FAILED. `gitCommitSha` is set once the source is
+          pushed; `failureReason` is the stored failure code of a FAILED request (null otherwise). Deleted websites
+          keep their requests and are answered too.
+        example: '[{"projectId": "0199e0a2-0000-7000-8000-0000000000aa", "generationRequestId": "0199e0a2-0000-7000-8000-0000000000bb", "status": "PUBLISHED", "createdAt": "2026-11-11T09:00:00Z", "updatedAt": "2026-11-11T09:04:00Z", "gitCommitSha": "abababababababababababababababababababab", "failureReason": null}]'
+        schema:
+          type: array
+          items:
+            type: object
+            required: [projectId, generationRequestId, status, createdAt, updatedAt]
+            properties:
+              projectId: {type: string, format: uuid}
+              generationRequestId: {type: string, format: uuid}
+              status: {type: string, enum: [QUEUED, GENERATING, PUBLISHING, PUBLISHED, FAILED]}
+              createdAt: {type: string, format: date-time}
+              updatedAt: {type: string, format: date-time}
+              gitCommitSha: {type: string, nullable: true}
+              failureReason: {type: string, nullable: true}
+      errors:
+        - '400 VALIDATION_FAILED: no projectId, more than 100 distinct ids, or an id that is not a UUID (field `projectId`).'
+      timeout: "The caller's. Project answers from one query, per project through the (project_id, idempotency_key) index."
+
     - route: GET /internal/v1/projects/{projectId}/page
       x-phase: 3
       status: ACCEPTED by ai_codegen (agent 4c7a416d, its openapi/ai-codegen-v2.yaml x-needs-from-project, 10 November 2026)
