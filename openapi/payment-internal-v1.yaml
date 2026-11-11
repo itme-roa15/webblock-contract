@@ -35,6 +35,8 @@ paths:
         Idempotent on `projectId`: a repeat of an ADMITTED answers ADMITTED. A refusal records nothing, and a released
         admission (the website was deleted) counts as none, so either is decided again against the current limits;
         ADMITTED then counts the website again.
+        Free trial (owner, 11 Nov): creating is free up to the trial's draft cap, 20 websites (`websitesLimit`, the
+        FREE_TRIAL plan row's `projects_created`); what the trial limits is deploying, see getProjectEntitlement.
       x-callers: [project]
       requestBody:
         required: true
@@ -119,11 +121,9 @@ paths:
       operationId: giveBackGenerationAttempt
       summary: A generation failed for a platform reason; it doesn't count (issue 1)
       description: |
-        Built by Endy on his branch, which is not merged yet: until it is, this route answers 404 for every id.
         Contract agreed with Project: 204 given back; 404 `NOT_ADMITTED` for an id never admitted or already given
         back (Project treats both as done). Project calls it after commit, retried through its outbox.
       x-callers: [project]
-      x-status: "waits for Endy's branch"
       responses:
         '204': { description: Given back. }
         '401': { $ref: '#/components/responses/CallerUnknown' }
@@ -144,6 +144,11 @@ paths:
         `hosting == ENTITLED` and `publish == ALLOWED`. Any other answer, a non-200, a timeout or an unknown value
         fails closed (Provisioning answers a retryable 503). A website Payment never admitted, or released, answers 200
         with `ENDED` / `NOT_ADMITTED`, never 404, so the answer does not show what exists.
+        Free trial (owner, 11 Nov): ONE deploy in total for the whole trial (the FREE_TRIAL plan row's `projects`).
+        Every completed deploy counts (provisioning.publish_completed.v1): of any website, a redeploy too, and of a
+        website deleted since. After it every website answers `publish: LIMIT_REACHED` while hosting stays ENTITLED.
+        A paid plan: a new website while its live (not deleted) deployed websites are under the plan's limit, and any
+        deploy while the period's publishes are under the redeploy limit.
       x-callers: [provisioning, project]
       responses:
         '200':
@@ -212,7 +217,7 @@ paths:
       summary: What each owner's plan allows and has left (Project's admin website table)
       description: |
         One item per distinct id, in the order first asked. The same coverage the admission checks use. A limit
-        that is `null` is unlimited; the free trial allows one deploy and no redeploy (`redeployLimit` 0); a client
+        that is `null` is unlimited; the free trial allows one deploy in total and no redeploy (`redeployLimit` 0); a client
         with no plan has every field but the id `null`.
       x-callers: [project]
       parameters:
@@ -342,8 +347,14 @@ components:
         decision: { type: string, enum: [ADMITTED, REFUSED] }
         reason:
           type: string
-          enum: [TRIAL_GENERATION_LIMIT_REACHED, TRIAL_ENDED, NO_ACTIVE_PLAN, CLIENT_SUSPENDED, PROJECT_NOT_ADMITTED]
-          description: Absent when ADMITTED.
+          enum: [TRIAL_GENERATION_LIMIT_REACHED, TRIAL_ENDED, NO_ACTIVE_PLAN, CLIENT_SUSPENDED, PROJECT_NOT_ADMITTED,
+                 DEPLOY_LIMIT_REACHED]
+          description: |
+            Absent when ADMITTED. DEPLOY_LIMIT_REACHED (11 Nov): every generation is a deploy, so a generation is refused
+            when that deploy is no longer allowed (getProjectEntitlement would answer `publish: LIMIT_REACHED`: the
+            trial's one deploy used, or a paid plan's website or redeploy limit); nothing is counted. A backstop to
+            Project's own check before it captures the request (402 DEPLOY_LIMIT_REACHED): a deploy that slips past it
+            fails with the request's failure code `deploy_limit_reached`.
         attemptsUsed: { type: integer, description: Absent when the plan has no generation limit. }
         attemptsLimit: { type: integer, description: Absent when the plan has no generation limit. }
     Entitlement:
