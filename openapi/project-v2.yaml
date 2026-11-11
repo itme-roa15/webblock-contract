@@ -502,7 +502,16 @@ paths:
               required: [name]
               additionalProperties: false
               properties:
-                name: {type: string, minLength: 1, maxLength: 50}
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 40
+                  pattern: "^[\\p{L}\\p{M}]+(?:(?: ?[&'’-] ?| )[\\p{L}\\p{M}]+)*$"
+                  description: |
+                    Outer spaces are stripped first. 2 to 40 characters: letters and marks, with words joined by a single
+                    space or by one of & ' ’ - (with optional single spaces around it). No digits or other symbols, so
+                    "E2E-Temp" is 400 VALUE_INVALID. A name whose slug the website already has (ignoring case) is 409
+                    CATEGORY_NAME_TAKEN.
       responses:
         '201':
           description: The stored name, as a JSON string.
@@ -1396,18 +1405,25 @@ components:
         closesAt: {type: string, pattern: '^\d{2}:\d{2}$'}
     CreateWebsiteBody:
       type: object
-      description: The UI's CreateWebsiteBody, as v1 takes it.
-      required: [name, templateId, details]
+      description: The UI's CreateWebsiteBody (webblock-web-ui src/features/websites/api.ts), as v1 takes it.
+      required: [name, templateId, businessType, details]
       properties:
-        name: {type: string}
-        templateId: {type: string}
-        category: {type: string, description: Ignored.}
-        thumbnailUrl: {type: string, description: Ignored.}
+        name: {type: string, minLength: 1, maxLength: 255}
+        templateId: {type: string, minLength: 1, maxLength: 100, description: A template code from GET /templates.}
+        businessType:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: |
+            The business type's name, exactly as GET /business-types lists it (for example "Food & Beverage"). Missing
+            or blank is 400 VALIDATION_FAILED (businessType FIELD_REQUIRED); an unknown or retired name is refused too.
+        category: {type: string, maxLength: 100, description: Ignored (the server derives it).}
+        thumbnailUrl: {type: string, maxLength: 2000, description: Ignored (the template's thumbnail is used).}
         details:
           type: object
           properties:
-            businessName: {type: string}
-            businessType: {type: string}
+            businessName: {type: string, maxLength: 255}
+            businessType: {type: string, maxLength: 255, description: Accepted and ignored; the top-level businessType counts.}
             description: {type: string}
             logoUrl: {type: [string, 'null'], description: 'A data:image/...;base64 URL of the logo, or null.'}
             phone: {type: string}
