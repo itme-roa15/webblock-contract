@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://webblock.invalid/contracts/events/provisioning/publish_failed.v1.schema.json",
   "title": "Provisioning: publish failed v1",
-  "description": "OWNED BY provisioning. A release of the project that never went live ended failed or rolled_back. The AI service ends the client's deploy run with it. event_key is publish-failed-<release_id>, the same for every repeat of this event. correlation_id is the release_id. failure_code is the release's failure code.",
+  "description": "OWNED BY provisioning. A release of the project that never went live ended failed or rolled_back; a rollback after the release was live never sends it. The AI service ends the client's deploy run with it, Notification tells the owner and the admins, and Project gives the generation back to Payment (owner decision Q6; Project finds the generation request with findRelease ?releaseId=). A release whose build failed can be rebuilt on the same release_id (Provisioning decision 0030): it may still go live afterwards, with a provisioning.publish_completed.v1 for the same release_id, and a second failure sends no second event. event_key is publish-failed-<release_id>, the same for every repeat of this event. correlation_id is the release_id. failure_code is the release's failure code.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "message_id", "message_type", "occurred_at", "correlation_id", "project_id", "event_key", "release_id", "failure_code"],

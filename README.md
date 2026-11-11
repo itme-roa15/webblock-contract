@@ -116,7 +116,7 @@ These consumers have no spec of their own here, so the IDs are the provider's (P
 | notification | project | gRPC | `project/v1/project_owner.proto` | DRAFT | PR-22 |
 | notification | project | event | `project/source_published.v1` | DRAFT | PR-19 |
 | notification | provisioning | event | `provisioning/publish_completed.v1` | OWNED BY provisioning | FR-42, PR-19 |
-| notification | provisioning | event | none: release failed | gap G7 | none |
+| notification | provisioning | event | `provisioning/publish_failed.v1` | OWNED BY provisioning | FR-56 |
 | payment | project | event | `project/source_published.v1` | DRAFT | PR-19 |
 | payment | project | event | `project/project_deleted.v1` | DRAFT | PR-20 |
 | payment | provisioning | event | `provisioning/publish_completed.v1` | OWNED BY provisioning | FR-42, PR-19 |
@@ -159,8 +159,8 @@ Notification's queue is `notification.audit_recorded.v1`, bound to all four.
 - G5, AI Codegen reads the scaffold: Notion names a streamed `GetScaffold`; the chunk shape, digest and errors are not
   written, and it is not built (J4).
 - G6, AI Codegen checks who owns a chat thread: `CheckThreadOwner` has no fields, no errors and no Project FR.
-- G7, Notification hears that a release failed: Notion "platform-db-v6" says the events are not defined yet; no fields
-  and no Provisioning ID.
+- G7, Notification hears that a release failed: closed 11 November 2026. Notification consumes
+  `provisioning/publish_failed.v1` (Provisioning FR-56), found in the end-to-end test.
 - G8, a site portal checks `manage_site`: sites run on another cluster, so Notion 9 point 3 proposes a small public
   REST endpoint instead of the mesh. The action is in `access/actions.v1.json` (DRAFT); the REST form has no file.
 
