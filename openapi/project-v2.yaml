@@ -62,9 +62,9 @@ x-internal-routes:
 
     - route: GET /internal/v1/projects
       x-phase: 3
-      status: ACCEPTED by payment (agent 76e8d818, 10 November 2026); also for provisioning
-      callers: [payment-service, provisioning-service]
-      purpose: Website name, domain and image on orders, receipts and admin subscriptions; productCount for usage meters.
+      status: ACCEPTED by payment (agent 76e8d818, 10 November 2026); also for provisioning; also for notification (agent d74127bc, 11 November 2026)
+      callers: [payment-service, provisioning-service, notification-service]
+      purpose: Website name, domain and image on orders, receipts and admin subscriptions; productCount for usage meters; the website's owner (ownerId, name) for Notification's owner notifications.
       query:
         id:
           description: A project id. Repeat it, 1 to 100 distinct values (a repeated value counts once).
