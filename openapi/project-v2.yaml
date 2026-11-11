@@ -907,6 +907,16 @@ paths:
         Creates the deployment (Project's generation request; its id is the deployment id). Code generation (AI
         Codegen), build and release (Provisioning) follow, and the release is promoted without a second call (owner
         decision of 10 November 2026). The same `Idempotency-Key` again answers 200 with the same deployment.
+
+        Before anything is created, Project asks Payment whether this website may be deployed now
+        (`GET /internal/v1/projects/{projectId}/entitlement`, payment-internal-v1.yaml getProjectEntitlement; owner
+        decision of 11 November 2026: the trial allows one deploy in total). When Payment says no, nothing is created
+        and no generation is spent: `402` with code `DEPLOY_LIMIT_REACHED` (publish `LIMIT_REACHED`), or, when the
+        website's hosting `ENDED`, `TRIAL_ENDED`, `WEBSITE_NOT_ADMITTED` (reason `NOT_ADMITTED`) or `PLAN_REQUIRED`
+        (any other reason). When Payment does not answer clearly: `503 PAYMENT_UNAVAILABLE` with `Retry-After`, never a
+        deploy without the check. A replay of a known `Idempotency-Key` answers its deployment without asking again.
+        The v1 deploy routes make the same check and answer these codes with `422`. Agreed with payment (agent
+        76e8d818); Payment's generation admission refuses with `DEPLOY_LIMIT_REACHED` too, as a backstop.
       x-phase: 2
       x-replaces: ["POST /api/v1/ui/projects/{projectId}/deployments", "POST /api/v1/ui/projects/{projectId}/page/publish", "POST /api/v1/projects/{projectId}/generation-requests"]
       parameters:
