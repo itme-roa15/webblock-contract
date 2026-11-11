@@ -31,7 +31,10 @@ paths:
     post:
       operationId: admitWebsite
       summary: May this client add this website to its plan (Project, when a website is created)
-      description: Idempotent on `projectId`; a repeat answers the first decision.
+      description: |
+        Idempotent on `projectId`: a repeat of an ADMITTED answers ADMITTED. A refusal records nothing, and a released
+        admission (the website was deleted) counts as none, so either is decided again against the current limits;
+        ADMITTED then counts the website again.
       x-callers: [project]
       requestBody:
         required: true
