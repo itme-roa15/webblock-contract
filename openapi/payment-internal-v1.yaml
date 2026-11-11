@@ -347,8 +347,13 @@ components:
         decision: { type: string, enum: [ADMITTED, REFUSED] }
         reason:
           type: string
-          enum: [TRIAL_GENERATION_LIMIT_REACHED, TRIAL_ENDED, NO_ACTIVE_PLAN, CLIENT_SUSPENDED, PROJECT_NOT_ADMITTED]
-          description: Absent when ADMITTED.
+          enum: [TRIAL_GENERATION_LIMIT_REACHED, TRIAL_ENDED, NO_ACTIVE_PLAN, CLIENT_SUSPENDED, PROJECT_NOT_ADMITTED,
+                 DEPLOY_LIMIT_REACHED]
+          description: |
+            Absent when ADMITTED. DEPLOY_LIMIT_REACHED (11 Nov): every generation is a deploy, so a generation is refused
+            when that deploy is no longer allowed (getProjectEntitlement would answer `publish: LIMIT_REACHED`: the
+            trial's one deploy used, or a paid plan's website or redeploy limit); nothing is counted. A backstop to
+            Project's own 402 DEPLOY_LIMIT_REACHED before it captures the request; Project maps it to the same 402.
         attemptsUsed: { type: integer, description: Absent when the plan has no generation limit. }
         attemptsLimit: { type: integer, description: Absent when the plan has no generation limit. }
     Entitlement:

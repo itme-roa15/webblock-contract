@@ -598,7 +598,13 @@ components:
       type: object
       required: [key, label, cardLabel, used, limit]
       properties:
-        key: { type: string, enum: [websites, redeploys, generations, products] }
+        key:
+          type: string
+          enum: [websites, deploys, redeploys, generations, products]
+          description: |
+            In the order sent. The free trial (owner, 11 Nov): `websites` labelled "Draft websites" (used / the draft
+            cap, 20), `deploys` "Deploys" (deploys in total / 1, a redeploy counts), `generations`, `products`; it has
+            no `redeploys`. A paid plan: `websites`, `redeploys` (this period / redeploysPerMonth), `products`.
         label: { type: string, example: Websites }
         cardLabel: { type: string, example: Website }
         used: { type: [integer, 'null'], description: '`null` when the owning service could not be asked.' }
