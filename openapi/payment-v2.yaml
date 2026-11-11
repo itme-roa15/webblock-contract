@@ -49,8 +49,11 @@ paths:
       description: |
         One representation for the landing page (`landing/types.ts` `Plan`) and the billing page
         (`billing/types.ts` `BillingPlan`): each item carries both field sets, so `priceMonthly` and `monthlyPrice`
-        hold the same value. The billing page reads `items`. The free trial's `features` are its own lines
-        (`clock` "Free for 14 days", ...); a paid plan's lines start with `check` "Everything in <cheaper plan>" where
+        hold the same value. The billing page reads `items`. The free trial's `features` are its own lines, from the
+        FREE_TRIAL plan row (owner, 11 Nov: 20 draft websites, one deploy in total): `clock` "Free for 14 days",
+        `globe` "20 draft websites", `rocket` "1 deploy", `check` "3 AI generations", `box` "30 products per
+        website", `pulse` "Basic status monitoring", `check` "No payment needed". Its `websiteLimit` is 1 (deploys in
+        total) and `redeploysPerMonth` 0. A paid plan's lines start with `check` "Everything in <cheaper plan>" where
         that applies. A token is accepted but not needed.
       security: [{}, {bearerAuth: []}]
       x-replaces:
@@ -222,7 +225,10 @@ paths:
       tags: [projects]
       operationId: getDeployAccess
       summary: May the owner deploy this website now, and why not
-      description: The same rule as the admission check Project and Provisioning use before a real deploy.
+      description: |
+        The same rule as the admission check Project and Provisioning use before a real deploy. The free trial has ONE
+        deploy in total (any website; a redeploy counts): before it `allowed: true` with `FIRST_FREE_DEPLOY`, after it
+        `allowed: false` with `SUBSCRIPTION_REQUIRED` for every website, the live one included.
       x-replaces: "GET /api/payment/v1/ui/me/deploy-access?projectId={projectId}"
       responses:
         '200':
