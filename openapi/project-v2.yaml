@@ -327,7 +327,10 @@ paths:
       operationId: createWebsite
       summary: '"Use template": creates a website with its page and business details.'
       description: |
-        The plan's website limit is checked with Payment (admission). Sending the same body again for a website that
+        The plan's website limit is checked with Payment (admission). A refusal the user lifts with a plan answers 402
+        with its code (WEBSITE_LIMIT_REACHED, TRIAL_ENDED, NO_ACTIVE_PLAN, or WEBSITE_NOT_ADMITTED for a reason
+        Payment adds later); an account an admin blocked answers 403 CLIENT_SUSPENDED, which no plan lifts (agreed
+        with Payment, E2E phase A). v1 answers 422 for all five. Sending the same body again for a website that
         already exists answers 200 with it (no second website). `details.logoUrl` is the wizard's logo as a
         `data:image/...;base64,...` URL (the UI reads the chosen file into one) or null. It is checked before anything
         is created, as a media upload: PNG or JPEG read from the bytes (never the declared type), at most 5 MiB
@@ -357,6 +360,7 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '402': {$ref: '#/components/responses/PlanRequired'}
+        '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
         '413': {$ref: '#/components/responses/BadRequest'}
         '415': {$ref: '#/components/responses/BadRequest'}
@@ -1239,7 +1243,7 @@ components:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
     Forbidden:
-      description: Not allowed (admin role missing, or not in the plan).
+      description: Not allowed (admin role missing, not in the plan, or the account an admin blocked).
       content:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
