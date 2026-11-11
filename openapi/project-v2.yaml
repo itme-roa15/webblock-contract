@@ -25,6 +25,25 @@ info:
       holds `ADMIN`, else 403. `public` = no token needed (a token, if sent, is ignored).
     - `x-replaces` names the v1 route(s) an operation replaces. `x-phase` says when it is built: `2` = v2 of an
       existing v1 behaviour, `3` = new behaviour or needs another service. `x-status: waits-for-owner` = drafted only.
+x-consumes:
+  description: |
+    Events of other services Project consumes on its own queues (Project declares only `project.*` names and binds
+    them to the producer's exchange; each queue is a quorum queue with a delivery limit and its own `.dlq`).
+  events:
+    - event: provisioning.publish_failed.v1
+      schema: events/provisioning/publish_failed.v1.schema.json (OWNED BY provisioning)
+      status: ACCEPTED by provisioning (agent 2efb67d2, 11 November 2026); owner decision Q6
+      queue: project.publish_failed.v1 (+ project.publish_failed.v1.dlq) on provisioning.events, routing key publish_failed.v1
+      effect: |
+        One deploy activity that failed ("Deploy failed", detail "Reason code: <failure_code>"), and the release's
+        generation given back to the owner's plan through Project's outbox: findRelease
+        (`GET /internal/v1/projects/{projectId}/releases?releaseId=`, provisioning-internal-v1.yaml) names the
+        generation request, then Payment's `DELETE /internal/v1/generation-admissions/{generationRequestId}`
+        (204 and 404 end it; anything else retries with a WARN, and spent retries end with an ERROR). A repeat of the
+        message (message_id) or of the fact (event_key `publish-failed-<release_id>`) records and gives back nothing
+        more. An unknown project is recorded as unknown_project with no effect; a body that breaks the schema goes to
+        the dead-letter queue. The website's status does not change; the deployment reads FAILED from the release.
+
 x-internal-routes:
   description: |
     Project's service-to-service routes (mesh only, never through the gateway; the mesh's workload identity is the
