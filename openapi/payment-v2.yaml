@@ -676,6 +676,7 @@ components:
         amount: { $ref: '#/components/schemas/Money' }
         currency: { type: string, enum: [USD, KHR] }
         status: { $ref: '#/components/schemas/OrderStatus' }
+        provider: { type: string, enum: [WEBILL, BAKONG], description: The provider the bill was made with. }
     PlanOrderPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
@@ -733,6 +734,12 @@ components:
         expiresAt: { type: string, format: date-time }
         paidAt: { type: [string, 'null'], format: date-time }
         nextPaymentAt: { type: string, format: date-time, description: First day of the next billing period. }
+        provider:
+          type: string
+          enum: [WEBILL, BAKONG]
+          description: |
+            The provider the order's bill was made with (the order's `provider`, else the server's default). Absent for
+            a plan change that needed no payment (no bill). The web UI doesn't read it.
 
     SubscriptionStatus:
       type: string
