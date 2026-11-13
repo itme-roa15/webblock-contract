@@ -42,8 +42,11 @@ info:
     event for a v2 publish, and Provisioning's worker accepts the `DEPLOY` once the release is `BUILT` and the
     `PROMOTE` once it is `READY`, each under the same rules as a client's command (entitlement, a command in
     flight, a route that is not stable), retrying a step that failed on a transient cause (the site's tenant not
-    ready yet, the cluster unreachable) with a growing pause. Only the website's newest release goes live this way.
-    Such a release does not offer `PROMOTE` in `allowedCommands`; a release published without the flag (v1) stops
+    ready yet, the cluster unreachable) or on any code whose `failureRetryable` is true (`progress_deadline_exceeded`,
+    for one) with a growing pause (1, 2, 4, 8, then 15 minutes; at most 8 commands per step by default). Only the
+    website's newest release goes live this way.
+    Such a release does not offer `PROMOTE` in `allowedCommands` (until the platform gave up promoting it, see
+    "waits for its owner" below); a release published without the flag (v1) stops
     at `READY` and the owner promotes it with a `PROMOTE` command. `allowedCommands` on the release says which
     commands it takes right now, so the UI shows "Go live" exactly when `PROMOTE` is in it. A
     command the release does not take in its state is `409 release-state-invalid` (v1 answers 422 for it); its
@@ -63,6 +66,14 @@ info:
     | `REPLACED` | `superseded` | `LIVE` (it was live; a newer release replaced it) |
     | `FAILED` | `failed` | `FAILED` |
     | `ROLLED_BACK` | `rolled_back` | `FAILED` |
+
+    A `BUILT` or `READY` release **waits for its owner** when its newest command (`lastCommand`) is the step it
+    takes next (`DEPLOY` when `BUILT`, `PROMOTE` when `READY`), ended `FAILED`, and the platform will not accept that
+    step again by itself (a release without `auto_promote`, a code that is not `failureRetryable`, a newer release of
+    the website, or the platform's attempts spent). It then reads `stage` `FAILED` and `status` `FAILED`, with
+    `finishedAt`, `failureCode`, `failureRetryable` and `errorMessage` of that command, while `state` and
+    `allowedCommands` keep what it takes, so the owner deploys or promotes it again (AWS finding f.05, Project's J1,
+    agreed with project, agent cd76ff0c, 13 November 2026). While the platform will retry, `stage` stays `DEPLOYING`.
 
     `x-phase` on an operation: `2` is served on the data Provisioning holds today; `3` needs new behaviour or another
     service's internal route, and is described here so the other services can build against it. Fields that come
@@ -887,6 +898,21 @@ components:
         failureRetryable: { type: [boolean, 'null'] }
         promotedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        lastCommand:
+          description: |
+            The release's newest command, of any kind; null when it has none. Present on every release answer since
+            13 November 2026 (additive). See "waits for its owner" above for how it shapes `stage`.
+          oneOf:
+            - type: object
+              required: [id, kind, status, failureCode, failureRetryable, updatedAt]
+              properties:
+                id: { type: string, format: uuid }
+                kind: { type: string, enum: [DEPLOY, PROMOTE, ROLLBACK, REDEPLOY] }
+                status: { type: string, enum: [ACCEPTED, RUNNING, SUCCEEDED, FAILED, SKIPPED] }
+                failureCode: { type: [string, 'null'] }
+                failureRetryable: { type: [boolean, 'null'] }
+                updatedAt: { $ref: '#/components/schemas/Timestamp' }
+            - type: 'null'
         steps:
           type: array
           description: Only on a single release (getRelease, buildRelease and the internal findRelease); lists leave it out.
@@ -943,6 +969,7 @@ components:
         websiteThumbnailUrl: { type: [string, 'null'], description: From Project; null when it does not answer. }
         websiteLogoUrl: { type: [string, 'null'], description: From Project; null when it does not answer. }
         websiteTemplateSlug: { type: [string, 'null'], description: From Project; null when it does not answer. }
+        websiteDomain: { type: [string, 'null'], description: From Project (as the pipeline run's `domain`); null when it does not answer. }
         ownerName: { type: [string, 'null'], description: From User; null when it does not answer. }
         number: { type: integer, minimum: 1 }
         status:
