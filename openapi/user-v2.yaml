@@ -837,6 +837,12 @@ components:
           additionalProperties:
             type: array
             items: { type: string }
+        requestId:
+          type: string
+          description: |
+            The request's id, also in the `X-Request-Id` response header (sent on every response, v1 and v2) and in
+            User's log lines and in the correlation_id of the account events the request causes: the caller's (or the
+            gateway's) `X-Request-Id` when it is 1 to 128 of `[A-Za-z0-9._:-]`, else a new one. Same rule as Payment.
 
     PlanCode:
       type: string
