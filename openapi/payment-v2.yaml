@@ -545,6 +545,11 @@ components:
         status: { type: integer, example: 404 }
         detail: { type: string, example: Plan not found }
         instance: { type: string }
+        requestId:
+          type: string
+          description: |
+            The request's id, also in the `X-Request-Id` response header and in Payment's log lines: the caller's
+            (or the gateway's) `X-Request-Id` when it is 1 to 128 of `[A-Za-z0-9._:-]`, else a new one.
         traceId: { type: string, description: Only on 500, to quote to support. }
 
     PlanCode:
@@ -690,6 +695,14 @@ components:
         plan: { $ref: '#/components/schemas/PaidPlanCode' }
         kind: { $ref: '#/components/schemas/PaymentKind' }
         websiteId: { type: [string, 'null'], format: uuid }
+        provider:
+          type: string
+          enum: [WEBILL, BAKONG]
+          description: |
+            Optional (owner, 13 Nov: Bakong is the main method). Absent = the server's default provider (setting
+            PAYMENT_DEFAULT_PROVIDER, WEBILL unless set; AWS sets BAKONG). The web UI never sends it. Plan upgrades
+            (kind CHANGE to a dearer plan) use it too. Either way the order's `qrImageUrl` is the KHQR as a PNG data
+            URL while it is PENDING; an expired order is replaced by ordering again.
         websiteName: { type: string, description: Ignored (looked up). }
         websiteDomain: { type: string, description: Ignored (looked up). }
         websiteImageUrl: { type: string, description: Ignored (looked up). }
