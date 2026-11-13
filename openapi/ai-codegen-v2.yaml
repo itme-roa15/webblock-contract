@@ -78,7 +78,7 @@ x-needs-from-project:
             updatedAt: {type: string, format: date-time}
       errors:
         - "404 PROJECT_NOT_FOUND: no such project, or it is deleted."
-        - "409 STALE_EDIT_REVISION: the draft is no longer at expectedEditRevision. AI Codegen then rejects its change set, and the reply still stands."
+        - "409 STALE_EDIT_REVISION: the draft is no longer at expectedEditRevision. AI Codegen then rejects its change set, and the chat reply says nothing was changed and why."
         - "409 IDEMPOTENCY_KEY_REUSED: a different body under a changeSetId already used."
         - "400 VALIDATION_FAILED: the body is malformed. 400 PUCK_TREE_INVALID: the draft breaks the component catalog's rules (field errors in errors)."
         - "422 PROJECT_READ_ONLY: the website is suspended or deleted, as for the owner's own save."
@@ -142,8 +142,14 @@ paths:
         conversation is created on the first message.
 
         The edit the assistant proposes is applied to the project's draft page as one change set, against the page's
-        current edit revision. The reply says what changed. If the page changed while the model was answering, nothing
-        is applied, and the reply still stands.
+        current edit revision. The reply says what changed. When no change reaches the page, the reply never
+        claims one: it is "Nothing on your page was changed: <why>. You can ask again, or describe the change
+        another way." The reasons:
+        - the edit is one the page doesn't allow;
+        - no edit was proposed;
+        - the page changed while the model was answering;
+        - the website is suspended;
+        - the change couldn't be saved.
 
         The answer is the assistant's reply, a new message: `201` with `Location` pointing at it. The owner's own
         prompt is the message just before it in the list.
