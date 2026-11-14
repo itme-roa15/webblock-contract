@@ -98,7 +98,7 @@ x-internal-routes:
           type: array
           items:
             type: object
-            required: [projectId, ownerId, name, domain, imageUrl, logoUrl, templateSlug, productCount, status]
+            required: [projectId, ownerId, name, domain, imageUrl, logoUrl, templateSlug, productCount, status, photoCount]
             properties:
               projectId: {type: string, format: uuid}
               ownerId: {type: string, format: uuid}
@@ -109,6 +109,13 @@ x-internal-routes:
               templateSlug: {type: string}
               productCount: {type: [integer, 'null'], description: The website's catalog products; null when the catalog cannot be read.}
               status: {type: string, enum: [DRAFT, LIVE, SUSPENDED]}
+              photoCount:
+                type: integer
+                minimum: 0
+                description: |
+                  The website's photos: the rows of its media library (every PNG or JPEG uploaded, used or not); a
+                  file deleted through deleteMedia leaves the count at once. Payment's "Photos" meter (payment agent
+                  76e8d818 agreed, 14 November 2026).
       errors:
         - '400 VALIDATION_FAILED: no id, more than 100 distinct ids, or an id that is not a UUID (field `id`).'
     - route: GET /internal/v1/generation-requests/latest
@@ -867,7 +874,13 @@ paths:
       tags: [media]
       operationId: uploadMedia
       summary: Uploads an image (PNG or JPEG, at most 2 MiB) to the website's library.
-      description: The type is read from the file's bytes, never from the client's content type or file name.
+      description: |
+        The type is read from the file's bytes, never from the client's content type or file name. The website owner's
+        plan limits its photos (library images): Project reads `photosLimit` from Payment's per-website entitlement
+        before storing (never a number of its own), and a library already at the limit is 422 `PHOTO_LIMIT_REACHED`
+        (owner decision of 14 November 2026; payment agent 76e8d818 agreed). When Payment does not answer clearly:
+        503 `PAYMENT_UNAVAILABLE` with `Retry-After`. The library's bytes are limited too (422
+        `STORAGE_LIMIT_REACHED`).
       x-phase: 2
       x-replaces: ["POST /api/v1/ui/projects/{projectId}/media"]
       requestBody:
@@ -891,6 +904,37 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
         '413': {$ref: '#/components/responses/BadRequest'}
+        '422': {$ref: '#/components/responses/BusinessRule'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /projects/{projectId}/media/{mediaId}:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+      - name: mediaId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    delete:
+      tags: [media]
+      operationId: deleteMedia
+      summary: Deletes a library image that nothing uses.
+      description: |
+        Owner only (owner decision of 14 November 2026). The image may be deleted only when nothing uses it: no
+        product's photo, not the business logo, no live page, and no deployment that is live, restorable or still
+        running. Otherwise 409 `MEDIA_IN_USE`, with one `errors[]` entry per place (`field` one of `products`,
+        `businessLogo`, `pages`, `deployments`). A deleted image frees its photo and its bytes for new uploads at once;
+        its file is deleted from storage after the row. The apps call it after replacing or removing a photo. A
+        suspended website is 422 `PROJECT_READ_ONLY`; the catalog not answering is 503 `CATALOG_UNAVAILABLE`.
+      x-phase: 3
+      responses:
+        '204': {description: Deleted.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404':
+          description: Not the owner's website (PROJECT_NOT_FOUND), or no such image in it (MEDIA_NOT_FOUND).
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/BusinessRule'}
         '503': {$ref: '#/components/responses/Unavailable'}
 
   /projects/{projectId}/activity:
