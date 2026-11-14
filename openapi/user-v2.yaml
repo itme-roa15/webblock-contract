@@ -104,9 +104,9 @@ paths:
         the web's Google sign-in still creates them. An existing account (made with a password or with Google) signs
         in here with the same rules as on the web; the first sign-in of an account with the role `user` publishes
         `account.user_first_login.v1` once. A Google identity without a WebBlock account gets 404
-        `account-not-found`: no account, no event, the new session is ended, and the Keycloak user that this very
-        attempt created for that Google identity is deleted (a user that existed before the attempt is never
-        touched). Signing up on the website and then signing in here works.
+        `account-not-found`: no account, no event, and the new session is ended. user-service never deletes Keycloak
+        users, so the Keycloak user Keycloak made for that Google identity stays (no account, no session). Signing up
+        on the website and then signing in here works.
 
         To stay signed in, the app asks for `scope=openid offline_access` in its
         authorization request (the scope is fixed there, not here). `refresh` and `revokeSession` take the app's
