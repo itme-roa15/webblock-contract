@@ -181,8 +181,9 @@ Notification's queue is `notification.audit_recorded.v1`, bound to all four.
 `puck/catalog-<version>.json` describes the blocks of a website page as the web editor saves them (Puck): each block's
 props with their JSON Schema (draft 2020-12), whether a prop is required or nullable, the page rules (block limit,
 blocks per type, the Footer last), and what WebBlock AI may do (`ai`: `edit` or `none`, with a `flag` saying why:
-`media`, `products` or `setting`; `aiOperations`; `addDefaults`). `version` is the `componentCatalogVersion` Project
-stores with each page.
+`media`, `products`, `setting`, or since 0.2.0 `owner`; `aiOperations`; `addDefaults`). Since 0.2.0 each prop also
+has a `note` (what it is and how the site shows it) and, on block props, the `default` a newly dropped block holds.
+`version` is the `componentCatalogVersion` Project stores with each page.
 
 - OWNED BY webui. It is generated from the editor's own save check by `pnpm puck:catalog --contracts <checkout>` in
   webblock-web-ui (src/features/editor/catalog.ts), never edited by hand. `--check` says whether a file still matches.
@@ -193,6 +194,44 @@ stores with each page.
 - The editor also serves it live for agents and tooling: `GET /api/puck/catalog`, and an MCP server at
   `POST /api/puck/mcp` (read-only tools `list_components`, `get_component_schema`, `get_root_schema`, `get_catalog`).
   Services read the pinned file, never the live routes.
+
+### Versions
+
+| Version | Blocks | Page rules |
+|---|---|---|
+| 0.1.0 | Hero, Text, ProductCards, AllProducts, About, VisitUs, Footer | 12 blocks a page, the Footer last |
+| 0.2.0 | 0.1.0's seven, unchanged, plus Testimonials, FAQ, Gallery, CallToAction, Services, Stats (content only: no products, no new data, images through the existing media upload) | 16 blocks a page, the Footer last |
+
+- **A newer 0.x only adds.** Every block, prop and value rule of the older version is the same in the newer one,
+  and its page rules are the same or looser. So every page valid under 0.1.0 is valid under 0.2.0. A version that
+  breaks this would be 1.x, and needs its own migration plan.
+- **0.2.0's AI policy:**
+  - WebBlock AI may add Text, FAQ, CallToAction and Services, which it can fill with words alone, starting from
+    `addDefaults`.
+  - It edits the wording of Testimonials, Gallery and Stats (heading, eyebrow) and may move or remove them, but
+    never adds them.
+  - `Testimonials.items` and `Stats.items` are `owner` facts: real customers' words and the business's own
+    numbers, which the assistant never writes or changes.
+  - `Gallery.images` is `media`.
+- **How a page moves from 0.1.0 to 0.2.0: on its next save from a 0.2.0 client.**
+  1. The page saves (`PUT /api/project/v2/projects/{projectId}/page` from the editor, and
+     `PUT /internal/v1/projects/{projectId}/page/draft` from AI Codegen) carry an optional `componentCatalogVersion`:
+     the catalog the client built the page with.
+  2. Without it, Project checks the page against the project's stored version, as today, so older clients are
+     unchanged.
+  3. With it, Project checks the page against that version. A version Project doesn't pin is
+     `400 VALIDATION_FAILED` (field `componentCatalogVersion`). So is one older than the stored version, because
+     a page never moves down.
+  4. On success, Project stores the sent version as the project's `componentCatalogVersion`.
+  5. The 0.2.0 editor always sends `"0.2.0"`, so an old page moves up the first time the owner saves it, unchanged
+     (a 0.1.0 page is a valid 0.2.0 page).
+  6. AI Codegen sends the version of the catalog it built its change set with.
+  7. A restore (PATCH) keeps the stored version: an older published tree is valid under the newer catalog.
+- **Pages never saved again stay 0.1.0** and keep working: they hold only 0.1.0 blocks, which every reader of
+  0.2.0 still knows.
+- **New projects:** Project creates them at the newest version it pins.
+- **The live site:** the site template renders every block of the newest version (unknown types are never on a
+  saved page, since Project refuses them). The template needs no per-version branch.
 
 ## How to ask for a change
 

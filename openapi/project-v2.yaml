@@ -190,6 +190,11 @@ x-internal-routes:
           expectedEditRevision: {type: integer, minimum: 0}
           changeSetId: {type: string, format: uuid, description: Idempotency key of the save.}
           userId: {type: string, format: uuid}
+          componentCatalogVersion:
+            type: string
+            description: |
+              Optional (additive, catalog 0.2.0). The editor catalog AI Codegen built the change set with; the same rules
+              as on the owner's PUT /projects/{projectId}/page (absent = the stored version; never older than it).
       answer:
         status: 200
         description: The same changeSetId again answers the first save's 200, even if the page moved on since.
@@ -782,6 +787,15 @@ paths:
               properties:
                 data: {$ref: '#/components/schemas/PageData'}
                 expectedEditRevision: {type: integer, minimum: 0}
+                componentCatalogVersion:
+                  type: string
+                  examples: ['0.2.0']
+                  description: |
+                    Optional (additive, catalog 0.2.0). The editor catalog (puck/catalog-<version>.json) the client
+                    built `data` with. Absent: the page is checked against the project's stored version, as before.
+                    Present: checked against this version, then stored as the project's version (README "Editor
+                    component catalog", Versions). A version Project doesn't pin, or one older than the stored, is
+                    400 VALIDATION_FAILED (field `componentCatalogVersion`).
       responses:
         '200':
           description: Saved. `ETag` is the new edit revision.

@@ -1,0 +1,1998 @@
+{
+  "version": "0.2.0",
+  "source": {
+    "repo": "webblock-web-ui",
+    "files": [
+      "src/features/editor/schemas.ts",
+      "src/features/editor/block-limits.ts",
+      "src/features/editor/block-labels.ts",
+      "src/features/editor/block-defaults.ts",
+      "src/features/editor/block-notes.ts",
+      "src/features/editor/catalog.ts"
+    ]
+  },
+  "page": {
+    "blockLimit": 16,
+    "lastBlock": "Footer",
+    "blockTypes": [
+      "Hero",
+      "Text",
+      "ProductCards",
+      "AllProducts",
+      "About",
+      "VisitUs",
+      "Footer",
+      "Testimonials",
+      "FAQ",
+      "Gallery",
+      "CallToAction",
+      "Services",
+      "Stats"
+    ],
+    "blockIdProp": "id"
+  },
+  "root": {
+    "props": {
+      "templateId": {
+        "required": true,
+        "nullable": false,
+        "ai": "none",
+        "flag": "setting",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "everyday-store",
+            "sweet-pastel",
+            "warm-bold",
+            "clean-mono",
+            "jackets",
+            "keyboards",
+            "iced-coffee",
+            "plates"
+          ]
+        },
+        "note": "The website's design. Chosen when the site is made; never changed by editing."
+      },
+      "businessName": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "note": "The business name in the header and footer (required)."
+      },
+      "statusText": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "note": "Badge in the header, e.g. Open now · until 18:00. Empty hides it."
+      },
+      "hours": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "note": "Short opening hours, e.g. 9:00 – 18:00. On the live site the Owner Portal's hours replace it."
+      },
+      "hoursDetail": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "note": "The full week's hours. On the live site the Owner Portal's hours replace it."
+      },
+      "address": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "note": "The shop's address, also used for directions. On the live site the Owner Portal's address replaces it."
+      },
+      "phones": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "maxItems": 3,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "string",
+                "pattern": "^[+()\\d\\s-]{6,20}$"
+              }
+            },
+            "required": [
+              "number"
+            ]
+          }
+        },
+        "note": "Up to 3 phone numbers. On the live site the Owner Portal's phone replaces them."
+      },
+      "email": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": ""
+            },
+            {
+              "type": "string",
+              "maxLength": 120,
+              "format": "email",
+              "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            }
+          ]
+        },
+        "note": "Contact email; empty hides it. On the live site the Owner Portal's email replaces it."
+      },
+      "telegram": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "pattern": "^@?[A-Za-z0-9_]{0,32}$"
+        },
+        "note": "Telegram username without @. Empty hides it."
+      },
+      "facebookUrl": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": ""
+            },
+            {
+              "type": "string",
+              "maxLength": 300,
+              "pattern": "^https:\\/\\/[^\\s/?#]+([/?#]\\S*)?$"
+            }
+          ]
+        },
+        "note": "Facebook page, https:// only. Empty hides it."
+      },
+      "instagramUrl": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": ""
+            },
+            {
+              "type": "string",
+              "maxLength": 300,
+              "pattern": "^https:\\/\\/[^\\s/?#]+([/?#]\\S*)?$"
+            }
+          ]
+        },
+        "note": "Instagram page, https:// only. Empty hides it."
+      },
+      "logoUrl": {
+        "required": false,
+        "nullable": true,
+        "ai": "none",
+        "flag": "media",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "note": "Round logo in the header, from the Owner Portal; null or missing shows the template's mark."
+      },
+      "currency": {
+        "required": true,
+        "nullable": false,
+        "ai": "none",
+        "flag": "setting",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "USD",
+            "KHR"
+          ]
+        },
+        "note": "Currency of the prices (USD or KHR). Set by the business, not by editing."
+      },
+      "palette": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "original",
+            "lavender",
+            "bakery",
+            "sage"
+          ]
+        },
+        "note": "Colour palette; original keeps the template's own colours."
+      },
+      "accentColor": {
+        "required": true,
+        "nullable": true,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": "Accent colour #rrggbb overriding the palette; null keeps it."
+      },
+      "backgroundColor": {
+        "required": true,
+        "nullable": true,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": "Background colour #rrggbb overriding the palette; null keeps it."
+      },
+      "textColor": {
+        "required": true,
+        "nullable": true,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": "Text colour #rrggbb overriding the palette; null keeps it."
+      },
+      "font": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "original",
+            "editorial",
+            "clean",
+            "rounded"
+          ]
+        },
+        "note": "Font pairing; original keeps the template's own."
+      },
+      "buttonStyle": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "square",
+            "rounded",
+            "pill"
+          ]
+        },
+        "note": "Button corners: square, rounded or pill."
+      }
+    }
+  },
+  "components": {
+    "Hero": {
+      "label": "Hero",
+      "maxPerPage": 1,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "default": "A short, clear headline.",
+          "note": "The page's main headline (required)."
+        },
+        "description": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "default": "One or two sentences about what you offer and why people love it.",
+          "note": "One or two sentences under the headline."
+        },
+        "primaryLabel": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "See products",
+          "note": "Text of the main button. Empty hides it."
+        },
+        "primaryAction": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "shop",
+              "visit",
+              "call",
+              "email",
+              "directions"
+            ]
+          },
+          "default": "shop",
+          "note": "Where the button goes: shop (the products), visit (the Visit us block), call, email or directions (Google Maps). There is no free-form link."
+        },
+        "secondaryLabel": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "Contact us",
+          "note": "Text of the second button. Empty hides it."
+        },
+        "secondaryAction": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "shop",
+              "visit",
+              "call",
+              "email",
+              "directions"
+            ]
+          },
+          "default": "visit",
+          "note": "Where the button goes: shop (the products), visit (the Visit us block), call, email or directions (Google Maps). There is no free-form link."
+        },
+        "imageUrl": {
+          "required": true,
+          "nullable": true,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": null,
+          "note": "The main picture: an uploaded file (/…) or an https:// link; null shows the template's placeholder."
+        },
+        "sideImages": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "imageUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500,
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 30
+                }
+              },
+              "required": [
+                "imageUrl"
+              ]
+            }
+          },
+          "default": [],
+          "note": "Up to 4 extra pictures some templates show beside the main one, each with an optional short label."
+        },
+        "highlights": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "maxLength": 60
+                }
+              },
+              "required": [
+                "text"
+              ]
+            }
+          },
+          "default": [],
+          "note": "Up to 3 short facts some templates show as chips or a strip under the headline."
+        },
+        "badge": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "",
+          "note": "Short text in a round badge or tag (some templates). Empty hides it."
+        }
+      }
+    },
+    "Text": {
+      "label": "Text",
+      "maxPerPage": 5,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "eyebrow": "",
+        "heading": "",
+        "body": "",
+        "imageUrl": null,
+        "align": "left",
+        "spacing": "normal"
+      },
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "Tell your story",
+          "note": "Heading of the text block. Empty hides it."
+        },
+        "body": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "default": "Write a few sentences for your visitors. Keep it short and friendly.",
+          "note": "The paragraph."
+        },
+        "imageUrl": {
+          "required": false,
+          "nullable": true,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": "Optional picture beside the text (some templates); older pages leave it out."
+        }
+      }
+    },
+    "ProductCards": {
+      "label": "Product Cards",
+      "maxPerPage": 3,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "columns": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "2",
+              "3",
+              "4"
+            ]
+          },
+          "default": "3",
+          "note": "Columns of the grid on a wide screen; phones always show fewer."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "Popular this week",
+          "note": "Heading over the product cards."
+        },
+        "viewAllLabel": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "View all products",
+          "note": "Text of the link to the All products block. Empty hides it."
+        },
+        "products": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "products",
+          "schema": {
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "price": {
+                  "type": "string",
+                  "pattern": "^\\d{1,9}(\\.\\d{1,2})?$"
+                },
+                "category": {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "imageUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500,
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "description",
+                "price",
+                "category",
+                "imageUrl"
+              ]
+            }
+          },
+          "default": [],
+          "note": "Up to 12 featured products. The owner's products, copied from the Owner Portal catalog. Never invented or edited here; the live site shows the catalog's."
+        }
+      }
+    },
+    "AllProducts": {
+      "label": "All products",
+      "maxPerPage": 1,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "columns": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "2",
+              "3",
+              "4"
+            ]
+          },
+          "default": "3",
+          "note": "Columns of the grid on a wide screen; phones always show fewer."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "All products",
+          "note": "Heading over the product list."
+        },
+        "searchPlaceholder": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "Search products…",
+          "note": "Hint text in the product search box."
+        },
+        "categories": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "products",
+          "schema": {
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          "default": [],
+          "note": "The category filter chips, from the Owner Portal catalog."
+        },
+        "products": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "products",
+          "schema": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "price": {
+                  "type": "string",
+                  "pattern": "^\\d{1,9}(\\.\\d{1,2})?$"
+                },
+                "category": {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "imageUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500,
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "description",
+                "price",
+                "category",
+                "imageUrl"
+              ]
+            }
+          },
+          "default": [],
+          "note": "The full product list (up to 200). The owner's products, copied from the Owner Portal catalog. Never invented or edited here; the live site shows the catalog's."
+        },
+        "pageSize": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "setting",
+          "schema": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 24
+          },
+          "default": 6,
+          "note": "Products per page of the grid (2–24); a setting, not wording."
+        }
+      }
+    },
+    "About": {
+      "label": "About",
+      "maxPerPage": 1,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "About us",
+          "note": "Heading of the About block."
+        },
+        "body": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "default": "Who you are, how you started and what makes you different.",
+          "note": "The business's story. On the live site the Owner Portal's business description replaces it when set."
+        },
+        "imageUrl": {
+          "required": true,
+          "nullable": true,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": null,
+          "note": "Main photo; null shows the template's placeholder."
+        },
+        "secondImageUrl": {
+          "required": false,
+          "nullable": true,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": "Second photo (some templates); older pages leave it out."
+        },
+        "caption": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "default": "",
+          "note": "Caption under the photo or a quote attribution (some templates). Empty hides it."
+        },
+        "stats": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "maxLength": 12
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "value",
+                "label"
+              ]
+            }
+          },
+          "default": [],
+          "note": "Up to 3 small facts (value and label), e.g. 10+ years open."
+        }
+      }
+    },
+    "VisitUs": {
+      "label": "Visit us",
+      "maxPerPage": 1,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "Come and see us",
+          "note": "Heading of the block with the address, hours, phone and map (those come from the page root)."
+        }
+      }
+    },
+    "Footer": {
+      "label": "Footer",
+      "maxPerPage": 1,
+      "aiOperations": [
+        "UPDATE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "tagline": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "default": "",
+          "note": "Short line under the business name in the footer. Empty hides it."
+        }
+      }
+    },
+    "Testimonials": {
+      "label": "Testimonials",
+      "maxPerPage": 1,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "What our customers say",
+          "note": "Heading over the quotes."
+        },
+        "items": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "owner",
+          "schema": {
+            "minItems": 1,
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "quote": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                },
+                "role": {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                "photoUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500,
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "quote",
+                "name",
+                "role",
+                "photoUrl"
+              ]
+            }
+          },
+          "default": [
+            {
+              "quote": "Add a few words a customer said about you.",
+              "name": "Customer name",
+              "role": "",
+              "photoUrl": null
+            }
+          ],
+          "note": "1–6 quotes from real customers: quote (required), name (required), role (e.g. Regular since 2020, empty hides it) and an optional photo. Only the owner writes them."
+        }
+      }
+    },
+    "FAQ": {
+      "label": "FAQ",
+      "maxPerPage": 1,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "eyebrow": "",
+        "heading": "Questions and answers",
+        "items": [
+          {
+            "question": "Do you deliver?",
+            "answer": "Write how and where you deliver, and how long it takes."
+          },
+          {
+            "question": "How can I pay?",
+            "answer": "List the ways customers can pay you."
+          }
+        ],
+        "align": "left",
+        "spacing": "normal"
+      },
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "Questions and answers",
+          "note": "Heading over the questions."
+        },
+        "items": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "minItems": 1,
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "answer": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 400
+                }
+              },
+              "required": [
+                "question",
+                "answer"
+              ]
+            }
+          },
+          "default": [
+            {
+              "question": "Do you deliver?",
+              "answer": "Write how and where you deliver, and how long it takes."
+            },
+            {
+              "question": "How can I pay?",
+              "answer": "List the ways customers can pay you."
+            }
+          ],
+          "note": "1–12 questions, each with its answer (both required). The site shows them as an accordion."
+        }
+      }
+    },
+    "Gallery": {
+      "label": "Gallery",
+      "maxPerPage": 2,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "columns": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "2",
+              "3",
+              "4"
+            ]
+          },
+          "default": "3",
+          "note": "Columns of the grid on a wide screen; phones always show fewer."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "A look inside",
+          "note": "Heading over the pictures. Empty hides it."
+        },
+        "images": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "minItems": 2,
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "imageUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500,
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "caption": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "required": [
+                "imageUrl",
+                "caption"
+              ]
+            }
+          },
+          "default": [
+            {
+              "imageUrl": null,
+              "caption": ""
+            },
+            {
+              "imageUrl": null,
+              "caption": ""
+            },
+            {
+              "imageUrl": null,
+              "caption": ""
+            }
+          ],
+          "note": "2–12 pictures, each an uploaded file or an https:// link (null shows a placeholder) with an optional short caption."
+        }
+      }
+    },
+    "CallToAction": {
+      "label": "Call to action",
+      "maxPerPage": 3,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "eyebrow": "",
+        "heading": "Come and visit us",
+        "body": "One short line that makes people want to act.",
+        "buttonLabel": "Get directions",
+        "buttonAction": "directions",
+        "align": "center",
+        "spacing": "normal"
+      },
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "default": "Come and visit us",
+          "note": "The banner's headline (required)."
+        },
+        "body": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "default": "One short line that makes people want to act.",
+          "note": "One line under the headline. Empty hides it."
+        },
+        "buttonLabel": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "Get directions",
+          "note": "Text of the button. Empty hides the button."
+        },
+        "buttonAction": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "shop",
+              "visit",
+              "call",
+              "email",
+              "directions"
+            ]
+          },
+          "default": "directions",
+          "note": "Where the button goes: shop (the products), visit (the Visit us block), call, email or directions (Google Maps). There is no free-form link."
+        }
+      }
+    },
+    "Services": {
+      "label": "Services",
+      "maxPerPage": 2,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "eyebrow": "",
+        "heading": "What we offer",
+        "columns": "3",
+        "items": [
+          {
+            "icon": "delivery",
+            "title": "Delivery",
+            "text": "Say where you deliver and how fast."
+          },
+          {
+            "icon": "gift",
+            "title": "Gift wrapping",
+            "text": "Describe something extra you do for customers."
+          },
+          {
+            "icon": "chat",
+            "title": "Friendly help",
+            "text": "Tell visitors how you can help them choose."
+          }
+        ],
+        "align": "left",
+        "spacing": "normal"
+      },
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "columns": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "2",
+              "3",
+              "4"
+            ]
+          },
+          "default": "3",
+          "note": "Columns of the grid on a wide screen; phones always show fewer."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "What we offer",
+          "note": "Heading over the cards."
+        },
+        "items": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "minItems": 2,
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "icon": {
+                  "type": "string",
+                  "enum": [
+                    "box",
+                    "delivery",
+                    "shop",
+                    "card",
+                    "clock",
+                    "call",
+                    "location",
+                    "star",
+                    "heart",
+                    "gift",
+                    "coffee",
+                    "cake",
+                    "brush",
+                    "scissors",
+                    "shield",
+                    "medal",
+                    "people",
+                    "tag",
+                    "sparkle",
+                    "chat"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 160
+                }
+              },
+              "required": [
+                "icon",
+                "title",
+                "text"
+              ]
+            }
+          },
+          "default": [
+            {
+              "icon": "delivery",
+              "title": "Delivery",
+              "text": "Say where you deliver and how fast."
+            },
+            {
+              "icon": "gift",
+              "title": "Gift wrapping",
+              "text": "Describe something extra you do for customers."
+            },
+            {
+              "icon": "chat",
+              "title": "Friendly help",
+              "text": "Tell visitors how you can help them choose."
+            }
+          ],
+          "note": "2–6 cards, each with an icon from the fixed set, a title (required) and a short text. The icon keys are fixed; the site draws its own icon for each key."
+        }
+      }
+    },
+    "Stats": {
+      "label": "Stats",
+      "maxPerPage": 2,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "",
+          "note": "Heading over the numbers. Empty hides it."
+        },
+        "items": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "owner",
+          "schema": {
+            "minItems": 2,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "value",
+                "label"
+              ]
+            }
+          },
+          "default": [
+            {
+              "value": "10+",
+              "label": "Years open"
+            },
+            {
+              "value": "500",
+              "label": "Happy customers"
+            },
+            {
+              "value": "4.9",
+              "label": "Average rating"
+            }
+          ],
+          "note": "2–4 big numbers with a label each (both required), e.g. 500 / Happy customers. Only the owner sets them."
+        }
+      }
+    }
+  }
+}
