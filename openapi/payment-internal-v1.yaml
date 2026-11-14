@@ -165,7 +165,10 @@ paths:
       - { name: clientUserId, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getClientEntitlement
-      summary: What the client's plan allows and uses (display only, never used to admit)
+      summary: What the client's plan allows and uses (display; never used to admit)
+      description: |
+        Display, except `photoLimit`: Project may read it to refuse a media upload over it (photos per website,
+        owner 14 Nov; Project reads the per-website Entitlement's `photosLimit` today, the same number).
       x-callers: [user, project]
       responses:
         '200':
@@ -245,6 +248,11 @@ paths:
                     productLimit: { type: [integer, 'null'], description: Per website. }
                     redeploysLeft: { type: [integer, 'null'], description: This period. }
                     redeployLimit: { type: [integer, 'null'] }
+                    photoLimit:
+                      type: [integer, 'null']
+                      description: |
+                        Photos per website (see Entitlement.photosLimit): the paid plan's, else the FREE_TRIAL row's
+                        (also for a client with no plan); `null` only for a plan an admin made unlimited.
         '400':
           description: No id, more than 100 distinct ones, or one that is not a UUID.
           content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
@@ -372,6 +380,15 @@ components:
         publishesUsed: { type: integer }
         publishesLimit: { type: integer, description: Absent = unlimited. }
         periodEnd: { type: string, format: date-time, description: Absent when there is none. }
+        photosLimit:
+          type: integer
+          minimum: 0
+          description: |
+            Photos per website (owner, 14 Nov): images in the website's media library (project.media_assets: every PNG/JPEG upload, used or not), which Project refuses to go over with 422 PHOTO_LIMIT_REACHED; Payment unreadable → Project 503 PAYMENT_UNAVAILABLE, fail closed. The plan's `photos_per_website`: PLUS 30, PRO 200, ULTRA 1000, FREE_TRIAL 30 (working value, not yet confirmed by the owner).
+            Agreed with project (agent cd76ff0c): ENTITLED → the plan's value (trial: the FREE_TRIAL row's); ENDED with
+            the owner known (TRIAL_ENDED, GRACE_EXPIRED, PLAN_CANCELED) → the FREE_TRIAL row's, so a library never
+            turns unlimited; NOT_ADMITTED → 0. Absent only for a plan an admin made unlimited (JSON null). The wizard's
+            logo at website creation is the first library file and is stored without asking.
     ClientEntitlement:
       type: object
       required: [planCode, websitesUsed]
@@ -383,6 +400,9 @@ components:
         attemptsUsed: { type: integer }
         attemptsLimit: { type: integer }
         periodEnd: { type: string, format: date-time }
+        photoLimit:
+          type: integer
+          description: Photos per website (see Entitlement.photosLimit); absent only for an admin-unlimited plan.
 
 x-needs:
   description: |
@@ -391,7 +411,7 @@ x-needs:
   project-service:
     - route: "GET /internal/v1/projects?id={id}&id={id}..."
       exists: "agreed with project (its project-v2.yaml x-internal-routes)"
-      reads: "projectId, ownerId, name, domain, imageUrl, productCount"
+      reads: "projectId, ownerId, name, domain, imageUrl, productCount, photoCount (the website's media-library images, for the photos meter; agreed with project 14 Nov)"
   user-service:
     - route: "GET /internal/v1/users?id={id}&id={id}..."
       exists: "user-internal-v1.yaml"
