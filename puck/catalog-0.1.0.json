@@ -152,7 +152,7 @@
             {
               "type": "string",
               "maxLength": 300,
-              "format": "uri"
+              "pattern": "^https:\\/\\/"
             }
           ]
         }
@@ -170,7 +170,7 @@
             {
               "type": "string",
               "maxLength": 300,
-              "format": "uri"
+              "pattern": "^https:\\/\\/"
             }
           ]
         }
@@ -412,7 +412,8 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 500
+                "maxLength": 500,
+                "pattern": "^(\\/|https:\\/\\/)"
               },
               {
                 "type": "null"
@@ -435,7 +436,8 @@
                   "anyOf": [
                     {
                       "type": "string",
-                      "maxLength": 500
+                      "maxLength": 500,
+                      "pattern": "^(\\/|https:\\/\\/)"
                     },
                     {
                       "type": "null"
@@ -565,7 +567,8 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 500
+                "maxLength": 500,
+                "pattern": "^(\\/|https:\\/\\/)"
               },
               {
                 "type": "null"
@@ -682,7 +685,8 @@
                   "anyOf": [
                     {
                       "type": "string",
-                      "maxLength": 500
+                      "maxLength": 500,
+                      "pattern": "^(\\/|https:\\/\\/)"
                     },
                     {
                       "type": "null"
@@ -832,7 +836,8 @@
                   "anyOf": [
                     {
                       "type": "string",
-                      "maxLength": 500
+                      "maxLength": 500,
+                      "pattern": "^(\\/|https:\\/\\/)"
                     },
                     {
                       "type": "null"
@@ -934,7 +939,8 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 500
+                "maxLength": 500,
+                "pattern": "^(\\/|https:\\/\\/)"
               },
               {
                 "type": "null"
@@ -951,7 +957,8 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 500
+                "maxLength": 500,
+                "pattern": "^(\\/|https:\\/\\/)"
               },
               {
                 "type": "null"
