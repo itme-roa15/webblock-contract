@@ -152,7 +152,7 @@
             {
               "type": "string",
               "maxLength": 300,
-              "pattern": "^https:\\/\\/"
+              "pattern": "^https:\\/\\/[^\\s/?#]+([/?#]\\S*)?$"
             }
           ]
         }
@@ -170,7 +170,7 @@
             {
               "type": "string",
               "maxLength": 300,
-              "pattern": "^https:\\/\\/"
+              "pattern": "^https:\\/\\/[^\\s/?#]+([/?#]\\S*)?$"
             }
           ]
         }
@@ -413,7 +413,7 @@
               {
                 "type": "string",
                 "maxLength": 500,
-                "pattern": "^(\\/|https:\\/\\/)"
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
               },
               {
                 "type": "null"
@@ -437,7 +437,7 @@
                     {
                       "type": "string",
                       "maxLength": 500,
-                      "pattern": "^(\\/|https:\\/\\/)"
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
                     },
                     {
                       "type": "null"
@@ -568,7 +568,7 @@
               {
                 "type": "string",
                 "maxLength": 500,
-                "pattern": "^(\\/|https:\\/\\/)"
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
               },
               {
                 "type": "null"
@@ -686,7 +686,7 @@
                     {
                       "type": "string",
                       "maxLength": 500,
-                      "pattern": "^(\\/|https:\\/\\/)"
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
                     },
                     {
                       "type": "null"
@@ -837,7 +837,7 @@
                     {
                       "type": "string",
                       "maxLength": 500,
-                      "pattern": "^(\\/|https:\\/\\/)"
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
                     },
                     {
                       "type": "null"
@@ -940,7 +940,7 @@
               {
                 "type": "string",
                 "maxLength": 500,
-                "pattern": "^(\\/|https:\\/\\/)"
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
               },
               {
                 "type": "null"
@@ -958,7 +958,7 @@
               {
                 "type": "string",
                 "maxLength": 500,
-                "pattern": "^(\\/|https:\\/\\/)"
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
               },
               {
                 "type": "null"
