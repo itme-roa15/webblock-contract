@@ -89,6 +89,56 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /sessions/google:
+    post:
+      tags: [public]
+      operationId: createSessionFromAppCode
+      summary: Google sign-in on the phone (authorization code with PKCE)
+      description: |
+        The mobile app runs Keycloak's authorization code flow with PKCE on its own PUBLIC client `webblock-ios`
+        (no secret; `kc_idp_hint=google`; redirect `com.webblock.app:/oauth2redirect`) and sends the code here.
+        user-service exchanges it at Keycloak's token endpoint with that client and answers the same token set as
+        `createSession`. Same account rules as the web's Google sign-in: the first time creates the account (one email
+        = one account), and the first sign-in of an account with the role `user` publishes
+        `account.user_first_login.v1` once. To stay signed in, the app asks for `scope=openid offline_access` in its
+        authorization request (the scope is fixed there, not here). `refresh` and `revokeSession` take the app's
+        refresh token as they are.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppSignInRequest' }
+      responses:
+        '201':
+          description: Signed in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenSet' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: |
+            The code is expired or already used, or the verifier or redirect URI does not match it
+            (`sign-in-code-invalid`). Start the sign-in again.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '403':
+          description: The account is suspended (`account-suspended`). The session Keycloak just made is ended.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          description: The email belongs to another WebBlock account (`account-email-in-use`). The new session is ended.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: The Google account gave no email (`account-email-missing`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /sessions/refresh:
     post:
       tags: [public]
@@ -886,6 +936,21 @@ components:
           type: boolean
           default: false
           description: true asks for an offline session (stay signed in on a phone). Absent or false = today's session.
+    AppSignInRequest:
+      type: object
+      additionalProperties: false
+      required: [code, codeVerifier, redirectUri]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 4096, description: The authorization code from the redirect. }
+        codeVerifier:
+          type: string
+          pattern: '^[A-Za-z0-9._~-]{43,128}$'
+          description: The PKCE code verifier the app made (RFC 7636).
+        redirectUri:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: The redirect URI of the authorization request, exactly (`com.webblock.app:/oauth2redirect`).
     RefreshTokenRequest:
       type: object
       additionalProperties: false
