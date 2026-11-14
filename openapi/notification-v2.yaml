@@ -71,6 +71,35 @@ paths:
         '422': { $ref: '#/components/responses/Unprocessable' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /me/notifications/{notificationId}:
+    parameters:
+      - $ref: '#/components/parameters/notificationId'
+    patch:
+      tags: [me]
+      operationId: updateMyNotification
+      summary: Mark one of the signed-in user's notifications read
+      description: |
+        Gap G6, requested by the coordinator for the mobile owner app (14 Nov 2026). Only `{"read": true}` is
+        supported; `false` answers 422. The notification must be in the caller's own feed: any other id answers 404.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadUpdate'
+      responses:
+        '200':
+          description: The notification, now read.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   /admin/notifications:
     get:
       tags: [admin]
@@ -465,6 +494,36 @@ components:
           description: The website it is about; null for platform messages.
         createdAt: { type: string, format: date-time }
         read: { type: boolean }
+        detail:
+          type: [string, 'null']
+          description: |
+            Longer text for a detail screen, or null. Built from the data Notification sent with the Knock trigger
+            (for example a failed deploy's failure code, the admin's subject and message for contact-owner, the amount
+            and due date for payment due). Added 14 Nov 2026 for the mobile owner app (gap G5); optional, so older
+            clients can ignore it.
+        target: { $ref: '#/components/schemas/NotificationTarget' }
+
+    NotificationTarget:
+      description: |
+        Where "Open" goes (gap G5, requested by the coordinator for the mobile owner app, 14 Nov 2026). Optional on
+        Notification; always sent by this service.
+      type: object
+      required: [websiteId, tab, workflow]
+      properties:
+        websiteId:
+          type: [string, 'null']
+          format: uuid
+          description: The website to open; the same as Notification.websiteId.
+        tab:
+          type: [string, 'null']
+          enum: [MONITOR, PRODUCTS, BUSINESS_INFO, null]
+          description: |
+            The website screen to open: MONITOR for deploy results and website alerts, PRODUCTS for a finished
+            generation. Null when there is no website or no screen for it (contact-owner, payment due). BUSINESS_INFO
+            is reserved.
+        workflow:
+          type: string
+          description: The Knock workflow key (for example deployment-succeeded), for clients that map more cases.
 
     NotificationPage:
       type: object
