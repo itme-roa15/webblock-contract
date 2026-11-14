@@ -967,8 +967,10 @@ components:
         refreshExpiresIn:
           type: integer
           description: |
-            Seconds until the refresh token expires (Keycloak's value, passed on as is): the SSO session idle time, or
-            for `stayLoggedIn` the offline session idle time. Refresh before it runs out; 0 means Keycloak set no end.
+            Seconds until the refresh token expires: the SSO session idle time (Keycloak's value, passed on as is), or
+            for an offline session (`stayLoggedIn`, or the app's `offline_access`) the offline session idle time. Keycloak
+            answers 0 for an offline session without a max lifespan; user-service then answers the realm's offline idle
+            (30 days today). Never 0 for an offline session. Refresh before it runs out.
         tokenType: { type: string, const: Bearer }
         userId: { type: string, format: uuid }
         email: { $ref: '#/components/schemas/Email' }
