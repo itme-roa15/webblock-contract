@@ -247,6 +247,39 @@ has a `note` (what it is and how the site shows it) and, on block props, the `de
 - **The live site:** the site template renders every block of the newest version (unknown types are never on a
   saved page, since Project refuses them). The template needs no per-version branch.
 
+## WebBlock AI skills
+
+`assistant/skills/<name>.md` are the WebBlock AI chat's skills, one file per "/" command: what the command does for
+the owner (in English and Khmer), when the router picks it, its rules, and worked examples. `assistant/rules.md` holds
+the rules every skill follows. `assistant/skills-<version>.json` is the index built from them by
+`node assistant/build-skills.mjs` (`--check` compares), never edited by hand.
+
+- OWNED BY webui (the files and the index), reviewed by the AWS config session. Readers: ai_codegen (the router,
+  the prompts, the evals) and the web UI (the "/" menu, `/help`, the chat's empty state, the reply's skill tag, and
+  the MCP server's prompts). They pin the index file by commit, like the editor catalog. Neither keeps a copy of the
+  wording: a command's description is shown from `summary` / `summary_km` everywhere.
+- **Frontmatter** (YAML where every value is one line of JSON):
+  - `name` (the file name; `command` is `/<name>`), `aliases`, `title`, `skill` (shown as "Used: <skill>"),
+    `group` (`design`, `content`, `utility`) and `order` (the menu order in the group);
+  - `args`: `null` or `{"name", "hint", "hint_km", "required"}`, e.g. `/translate <language>`;
+  - `blocks` (block types it suits, `*` for any) and `triggers` (English and Khmer words for the router's fallback);
+  - `mode`: `change` (proposes operations), `reply` (answers only, no operations) or `client` (answered by the chat
+    itself, never sent: `/help`); `maxTokens` 300–800 (null for client);
+  - `summary` (at most 80 characters) and `example`, with `summary_km` and `example_km` in Khmer, and
+    `km_reviewed`: false until a person has checked the Khmer.
+- **Body:** `## Rules` (the skill's own rules) and `## Examples`: JSON blocks with `message`, optional `refs` and
+  `page`, and the model's `output` (`reply` and `operations`, as AI Codegen's assistant answers). The build checks
+  every example against the editor catalog named in the index: props exist, values keep their rules, `ai: none`
+  props are never written, ADD only where `aiOperations` allows it and complete, and with refs only those blocks.
+- **Routing (AI Codegen):** `SendAiMessage.command` picks the skill by `name`; else the "@" blocks' types (`blocks`);
+  else a keyword match on `triggers`. At most two skills join the base prompt; the reply's `AiMessage.skill` names
+  the one used.
+- **Placeholders:** the index's `placeholders` lists the editor's starter texts (`{prop, text}`), taken by the build
+  from the catalog's `default` values for the props in `PLACEHOLDER_PROPS` (build-skills.mjs). /check and /fill use
+  that list; the web editor's pre-Deploy warning checks the same props. A listed prop without a starter text in the
+  catalog, or a skill rule that quotes a starter text, fails the build.
+- A released version never changes; new or changed skills are the next version.
+
 ## How to ask for a change
 
 Any team may ask any service for something here, Project and Provisioning included.

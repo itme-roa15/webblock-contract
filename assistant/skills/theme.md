@@ -1,0 +1,73 @@
+---
+name: "theme"
+title: "Theme"
+skill: "Theme & colour"
+group: "design"
+order: 5
+command: "/theme"
+aliases: ["/colors"]
+args: {"name": "mood", "hint": "warm, minimal, bold…", "hint_km": "កក់ក្តៅ សាមញ្ញ ខ្លាំងក្លា…", "required": true}
+blocks: ["*"]
+triggers: ["theme", "colour", "color", "colours", "font", "mood", "ពណ៌ទំព័រ", "ប្តូរពណ៌", "ពុម្ពអក្សរ", "រចនាប័ទ្ម"]
+mode: "change"
+maxTokens: 400
+summary: "Picks colours, font and buttons for a mood. Changes the look, keeps it readable."
+summary_km: "ជ្រើសពណ៌ ពុម្ពអក្សរ និងរាងប៊ូតុង តាមបែបដែលអ្នកចង់បាន។ វាប្តូររូបរាង តែនៅតែងាយអាន។"
+example: "/theme warm"
+example_km: "/theme កក់ក្តៅ"
+km_reviewed: false
+---
+
+## Rules
+
+- Change only the page's root: palette, font, buttonStyle, accentColor, backgroundColor and textColor. Never the
+  template, the blocks or any wording.
+- Start from the named options: palette (original, lavender, bakery, sage), font (original, editorial, clean,
+  rounded), buttonStyle (square, rounded, pill). For example (palette, font, buttons) warm: bakery, rounded,
+  rounded; minimal: original, clean, square; soft: lavender, rounded, pill; natural: sage, editorial, rounded.
+- Use the three colour overrides only for a colour the owner names (a brand colour), each as #rrggbb, or null to go
+  back to the palette.
+- Keep text readable (WCAG AA, 4.5:1): the text colour on the background, and white button text on the accent. When
+  the owner's colour is too light, use a darker shade of it and say so.
+- "Back to the original look": palette and font "original" and the three colours null.
+- Reply with what the page looks like now in plain words, not the option names alone.
+
+## Examples
+
+```json
+{
+  "message": "/theme warm",
+  "page": {
+    "root": { "props": { "businessName": "Tep Bakery", "templateId": "everyday-store", "palette": "original", "font": "original", "buttonStyle": "square", "accentColor": null, "backgroundColor": null, "textColor": null } },
+    "content": [
+      { "type": "Hero", "props": { "id": "hero-1", "heading": "Fresh bread every morning" } },
+      { "type": "Footer", "props": { "id": "footer-1", "tagline": "" } }
+    ]
+  },
+  "output": {
+    "reply": "I gave the page warm bakery colours, a soft rounded font and rounded buttons. Everything stays easy to read.",
+    "operations": [
+      { "op": "UPDATE", "component_id": "root", "props": { "palette": "bakery", "font": "rounded", "buttonStyle": "rounded" } }
+    ]
+  }
+}
+```
+
+```json
+{
+  "message": "/theme bold, with our orange #f26522",
+  "page": {
+    "root": { "props": { "businessName": "Angkor Moto Parts", "templateId": "warm-bold", "palette": "original", "font": "original", "buttonStyle": "rounded", "accentColor": null, "backgroundColor": null, "textColor": null } },
+    "content": [
+      { "type": "Hero", "props": { "id": "hero-1", "heading": "Spare parts for every moto" } },
+      { "type": "Footer", "props": { "id": "footer-1", "tagline": "" } }
+    ]
+  },
+  "output": {
+    "reply": "I used your orange with a clean, strong font and square buttons. White text on #f26522 is hard to read, so the buttons use a darker shade of it, #c74e17.",
+    "operations": [
+      { "op": "UPDATE", "component_id": "root", "props": { "accentColor": "#c74e17", "font": "clean", "buttonStyle": "square" } }
+    ]
+  }
+}
+```

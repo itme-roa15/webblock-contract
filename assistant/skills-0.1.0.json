@@ -1,0 +1,3942 @@
+{
+  "version": "0.1.0",
+  "catalog": "puck/catalog-0.2.0.json",
+  "base": "Rules every WebBlock AI skill follows (they come before the skill's own rules):\n\n1. Never invent business facts: prices, discounts, opening hours, delivery areas or times, payment methods, services\n   offered, numbers, customer quotes, awards, history. Use only the owner's message, the page and the business\n   profile. Where a fact is missing, keep or insert a clear placeholder that asks for it, and say in the reply which\n   facts are needed.\n2. Respect the catalog: never write a prop whose `ai` is `none` (`owner`, `media`, `products`, `setting`); keep each\n   value within its rules (lengths, item counts, enums); keep `maxPerPage` and `blockLimit`; the Footer stays last;\n   buttons only use the `CtaAction` targets (shop, visit, call, email, directions).\n3. With \"@\" blocks, change only those blocks, unless the request clearly asks for more (for example \"add an FAQ\n   after it\").\n4. Design only through the template's own props: alignment, spacing, columns, palette, font, button style and the\n   three colour overrides. No raw CSS, no colours outside the palette, and keep text readable (WCAG AA contrast).\n5. Khmer and English are both first-class. Keep brand, product and place names unchanged. Write Khmer with its own\n   punctuation (។ ៗ) and natural Khmer word choice, not word-for-word English, and within the same length limits.\n6. Say plainly what changed, in one or two short sentences, in the language the owner wrote in. When nothing should\n   change (a question, or a fact is missing), propose no operations and say why.",
+  "groups": [
+    {
+      "name": "design",
+      "title": "Design",
+      "title_km": "រចនា"
+    },
+    {
+      "name": "content",
+      "title": "Content",
+      "title_km": "ខ្លឹមសារ"
+    },
+    {
+      "name": "utility",
+      "title": "Utility",
+      "title_km": "ជំនួយ"
+    }
+  ],
+  "placeholders": [
+    {
+      "prop": "Hero.heading",
+      "text": "A short, clear headline."
+    },
+    {
+      "prop": "Hero.description",
+      "text": "One or two sentences about what you offer and why people love it."
+    },
+    {
+      "prop": "Text.heading",
+      "text": "Tell your story"
+    },
+    {
+      "prop": "Text.body",
+      "text": "Write a few sentences for your visitors. Keep it short and friendly."
+    },
+    {
+      "prop": "About.body",
+      "text": "Who you are, how you started and what makes you different."
+    },
+    {
+      "prop": "Testimonials.items.quote",
+      "text": "Replace this with words a real customer said about you."
+    },
+    {
+      "prop": "Testimonials.items.name",
+      "text": "Customer’s name"
+    },
+    {
+      "prop": "Stats.items.value",
+      "text": "00"
+    },
+    {
+      "prop": "Stats.items.label",
+      "text": "Your first number"
+    },
+    {
+      "prop": "Stats.items.label",
+      "text": "Your second number"
+    },
+    {
+      "prop": "Stats.items.label",
+      "text": "Your third number"
+    },
+    {
+      "prop": "Services.items.title",
+      "text": "Your first service"
+    },
+    {
+      "prop": "Services.items.title",
+      "text": "Your second service"
+    },
+    {
+      "prop": "Services.items.title",
+      "text": "Your third service"
+    },
+    {
+      "prop": "Services.items.text",
+      "text": "Say what it is and why customers like it."
+    },
+    {
+      "prop": "FAQ.items.answer",
+      "text": "Write how and where you deliver, and how long it takes."
+    },
+    {
+      "prop": "FAQ.items.answer",
+      "text": "List the ways customers can pay you."
+    },
+    {
+      "prop": "CallToAction.body",
+      "text": "One short line that makes people want to act."
+    }
+  ],
+  "skills": [
+    {
+      "name": "design",
+      "title": "Page layout",
+      "skill": "Page composition",
+      "group": "design",
+      "order": 1,
+      "command": "/design",
+      "aliases": [],
+      "args": {
+        "name": "goal",
+        "hint": "sell, book or visit",
+        "hint_km": "លក់ កក់ ឬមកលេងហាង",
+        "required": false
+      },
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "layout",
+        "page order",
+        "rearrange",
+        "which blocks",
+        "structure",
+        "redesign",
+        "រៀបចំទំព័រ",
+        "លំដាប់ប្លុក",
+        "ប្តូរលំដាប់"
+      ],
+      "mode": "change",
+      "maxTokens": 800,
+      "summary": "Orders your page's blocks for your goal (sell, book, visit). Changes the page.",
+      "summary_km": "រៀបលំដាប់ប្លុកលើទំព័រតាមគោលដៅរបស់អ្នក (លក់ កក់ ឬឲ្យភ្ញៀវមកហាង)។ វាកែប្រែទំព័រ។",
+      "example": "/design sell",
+      "example_km": "/design ឲ្យភ្ញៀវមកហាង",
+      "km_reviewed": false,
+      "rules": "- Work out the goal from the argument or the message: sell (products near the top, a \"shop\" button), book or call\n  (Services and a \"call\" button), visit (Visit us and a \"directions\" button). With no goal, use the business type\n  and the blocks already on the page.\n- Prefer MOVE over REMOVE and ADD: the blocks the owner already filled stay, in a better order. A good order is\n  Hero first, then what the goal needs most, then trust (About, Testimonials, Stats), then FAQ and Visit us, and the\n  Footer always last.\n- ADD only Text, FAQ, Call to action or Services, with every prop filled from the owner's facts or with clear\n  placeholders. Other blocks (Visit us, Gallery, Testimonials, Stats, products) can't be added by the assistant:\n  name them in the reply so the owner adds them from the block list.\n- REMOVE only a block that is completely empty (no heading, no text, no items) or one the owner asks to drop, and\n  say which. A block with placeholder text stays: say it needs the owner's words.\n- Keep within the limits: at most 16 blocks, each type within its own maximum (one Hero, one FAQ, up to three Call\n  to action blocks).\n- Each index counts positions after the operations before it have run; check that the Footer ends up last.\n- Change no wording beyond what a new block needs; /hero, /cta and the content commands do that.",
+      "examples": [
+        {
+          "message": "/design sell",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Kampot Brew",
+                "templateId": "iced-coffee",
+                "address": "Riverside Road, Kampot"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Coffee roasted in Kampot",
+                  "primaryLabel": "See our coffee",
+                  "primaryAction": "shop"
+                }
+              },
+              {
+                "type": "About",
+                "props": {
+                  "id": "about-1",
+                  "heading": "Our story",
+                  "body": "We roast small batches of Mondulkiri beans by the river in Kampot."
+                }
+              },
+              {
+                "type": "Gallery",
+                "props": {
+                  "id": "gallery-1",
+                  "heading": "A look inside",
+                  "columns": "3"
+                }
+              },
+              {
+                "type": "ProductCards",
+                "props": {
+                  "id": "cards-1",
+                  "heading": "Popular this week",
+                  "columns": "3"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I moved your products up, right under the Hero, and added a banner before the Footer that sends people to them. Your own text didn't change.",
+            "operations": [
+              {
+                "op": "MOVE",
+                "component_id": "cards-1",
+                "index": 1
+              },
+              {
+                "op": "ADD",
+                "component_type": "CallToAction",
+                "index": 4,
+                "props": {
+                  "eyebrow": "",
+                  "heading": "Find your favourite roast",
+                  "body": "Have a look at our coffee and pick the one you like.",
+                  "buttonLabel": "See our coffee",
+                  "buttonAction": "shop",
+                  "align": "center",
+                  "spacing": "normal"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "/design ឲ្យភ្ញៀវមកហាង",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Srey Mom Salon",
+                "templateId": "sweet-pastel",
+                "address": "ផ្លូវលេខ ៣ ក្រុងបាត់ដំបង"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "ហាងកាត់សក់ និងធ្វើក្រចក"
+                }
+              },
+              {
+                "type": "Gallery",
+                "props": {
+                  "id": "gallery-1",
+                  "heading": "ស្នាដៃរបស់យើង",
+                  "columns": "3"
+                }
+              },
+              {
+                "type": "Services",
+                "props": {
+                  "id": "services-1",
+                  "heading": "សេវារបស់យើង",
+                  "columns": "3"
+                }
+              },
+              {
+                "type": "Text",
+                "props": {
+                  "id": "text-1",
+                  "heading": "",
+                  "body": ""
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "ខ្ញុំបានដាក់សេវារបស់អ្នកនៅក្រោម Hero លុបប្លុក Text ទទេចេញ ហើយបន្ថែមផ្ទាំងបង្ហាញផ្លូវមកហាងនៅពីលើ Footer។ ទំព័រនេះមិនទាន់មានប្លុក Visit us ទេ សូមបន្ថែមវាពីបញ្ជីប្លុក ដើម្បីបង្ហាញអាសយដ្ឋាន និងម៉ោងបើក។",
+            "operations": [
+              {
+                "op": "MOVE",
+                "component_id": "services-1",
+                "index": 1
+              },
+              {
+                "op": "REMOVE",
+                "component_id": "text-1"
+              },
+              {
+                "op": "ADD",
+                "component_type": "CallToAction",
+                "index": 3,
+                "props": {
+                  "eyebrow": "",
+                  "heading": "មកលេងហាងយើងនៅបាត់ដំបង",
+                  "body": "",
+                  "buttonLabel": "បង្ហាញផ្លូវ",
+                  "buttonAction": "directions",
+                  "align": "center",
+                  "spacing": "normal"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "add",
+      "title": "Add a block",
+      "skill": "Add block",
+      "group": "design",
+      "order": 2,
+      "command": "/add",
+      "aliases": [],
+      "args": {
+        "name": "block",
+        "hint": "Text, FAQ, Call to action or Services",
+        "hint_km": "Text, FAQ, Call to action ឬ Services",
+        "required": true
+      },
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "add a block",
+        "add a section",
+        "new block",
+        "new section",
+        "insert",
+        "បន្ថែមប្លុក",
+        "បន្ថែមផ្នែក",
+        "ប្លុកថ្មី"
+      ],
+      "mode": "change",
+      "maxTokens": 600,
+      "summary": "Adds a block with your facts or clear blanks to fill. Never makes up details.",
+      "summary_km": "បន្ថែមប្លុកដោយប្រើព័ត៌មានរបស់អ្នក ឬទុកកន្លែងទំនេរឲ្យអ្នកបំពេញ។ មិនប្រឌិតព័ត៌មានទេ។",
+      "example": "/add FAQ after @VisitUs",
+      "example_km": "/add Services ក្រោម @Hero",
+      "km_reviewed": false,
+      "rules": "- Only Text, FAQ, Call to action and Services can be added. For any other block (Visit us, Gallery, Testimonials,\n  Stats, products, About, Hero), propose no operations and tell the owner to add it from the block list.\n- Check the block's maximum first (one FAQ, five Text, three Call to action, two Services) and the page's 16 blocks.\n  When the page is full, propose nothing and say which block to remove or update instead.\n- Place it right after the \"@\" block, or where the owner says; otherwise after the block it belongs with (a Call to\n  action near the end), and always before the Footer.\n- Fill every prop: the owner's facts from the message, the page or the profile where they exist, and otherwise a\n  placeholder that says what to write (like \"Write how and where you deliver.\"). Never fill in prices, hours,\n  delivery, payment or services the owner didn't give.\n- Write in the page's language; a Khmer page gets Khmer text and Khmer placeholders.\n- In the reply, name the facts still needed so the owner can answer with them.",
+      "examples": [
+        {
+          "message": "/add FAQ after @VisitUs. We deliver in Phnom Penh only, with our own driver, and we take ABA and cash.",
+          "refs": [
+            {
+              "id": "visit-1",
+              "type": "VisitUs"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Mekong Mango",
+                "templateId": "everyday-store",
+                "address": "St. 63, Phnom Penh"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Dried mango from Kampong Speu"
+                }
+              },
+              {
+                "type": "ProductCards",
+                "props": {
+                  "id": "cards-1",
+                  "heading": "Our best sellers",
+                  "columns": "3"
+                }
+              },
+              {
+                "type": "VisitUs",
+                "props": {
+                  "id": "visit-1",
+                  "heading": "Come and see us"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I added an FAQ after Visit us with your delivery and payment answers. Tell me how long delivery takes and I'll add it.",
+            "operations": [
+              {
+                "op": "ADD",
+                "component_type": "FAQ",
+                "index": 3,
+                "props": {
+                  "eyebrow": "",
+                  "heading": "Questions and answers",
+                  "items": [
+                    {
+                      "question": "Do you deliver?",
+                      "answer": "Yes, in Phnom Penh only, with our own driver."
+                    },
+                    {
+                      "question": "How can I pay?",
+                      "answer": "By ABA or in cash."
+                    }
+                  ],
+                  "align": "left",
+                  "spacing": "normal"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "/add Services សម្រាប់ហាងខ្ញុំ",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Chantha Tailor",
+                "templateId": "clean-mono",
+                "address": "ផ្សារចាស់ ក្រុងសៀមរាប"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "ដេរសម្លៀកបំពាក់តាមខ្នាតរបស់អ្នក"
+                }
+              },
+              {
+                "type": "About",
+                "props": {
+                  "id": "about-1",
+                  "heading": "អំពីយើង",
+                  "body": "ហាងដេរខោអាវតូចមួយនៅក្បែរផ្សារចាស់ ក្រុងសៀមរាប។"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "ខ្ញុំបានបន្ថែមប្លុក Services នៅក្រោម Hero ដោយមានកាតបីទុកឲ្យអ្នកបំពេញ។ សូមប្រាប់ខ្ញុំពីសេវាដែលហាងអ្នកផ្តល់ជូន ខ្ញុំនឹងសរសេរដាក់ឲ្យ។",
+            "operations": [
+              {
+                "op": "ADD",
+                "component_type": "Services",
+                "index": 1,
+                "props": {
+                  "eyebrow": "",
+                  "heading": "សេវារបស់យើង",
+                  "columns": "3",
+                  "items": [
+                    {
+                      "icon": "scissors",
+                      "title": "សេវាទី ១ របស់អ្នក",
+                      "text": "សរសេរថាសេវានេះជាអ្វី និងហេតុអ្វីបានជាអតិថិជនចូលចិត្ត។"
+                    },
+                    {
+                      "icon": "star",
+                      "title": "សេវាទី ២ របស់អ្នក",
+                      "text": "សរសេរថាសេវានេះជាអ្វី និងហេតុអ្វីបានជាអតិថិជនចូលចិត្ត។"
+                    },
+                    {
+                      "icon": "heart",
+                      "title": "សេវាទី ៣ របស់អ្នក",
+                      "text": "សរសេរថាសេវានេះជាអ្វី និងហេតុអ្វីបានជាអតិថិជនចូលចិត្ត។"
+                    }
+                  ],
+                  "align": "left",
+                  "spacing": "normal"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "hero",
+      "title": "Hero",
+      "skill": "Hero",
+      "group": "design",
+      "order": 3,
+      "command": "/hero",
+      "aliases": [],
+      "args": null,
+      "blocks": [
+        "Hero"
+      ],
+      "triggers": [
+        "hero",
+        "headline",
+        "top of the page",
+        "first block",
+        "banner at the top",
+        "ចំណងជើងធំ",
+        "ផ្នែកខាងលើ"
+      ],
+      "mode": "change",
+      "maxTokens": 500,
+      "summary": "Makes your top block stronger: headline, short line, buttons. Changes the page.",
+      "summary_km": "ធ្វើឲ្យប្លុកខាងលើគេកាន់តែទាក់ទាញ៖ ចំណងជើង ឃ្លាខ្លី និងប៊ូតុង។ វាកែប្រែទំព័រ។",
+      "example": "/hero with @Hero",
+      "example_km": "/hero ផ្នែក @Hero",
+      "km_reviewed": false,
+      "rules": "- Change only the Hero: heading, description, eyebrow, badge, highlights, the two button labels and their actions,\n  alignment and spacing.\n- The heading says what the business offers, in at most 50 characters, from the owner's own words on the page or in\n  the profile. No slogans that claim facts (\"best in town\", \"since 1990\") unless the owner wrote them.\n- The description is one or two sentences built only from facts already on the page or in the message.\n- Each button says where it goes (\"See our menu\", \"Get directions\", \"Call us\") and its action matches: shop needs\n  products on the page, call a phone number, email an address, directions an address. Empty a second button that\n  repeats the first.\n- Highlights and the badge only repeat short facts the owner gave; leave them empty otherwise.\n- Pictures are the owner's: when the Hero has no image, say so in the reply instead of choosing one.",
+      "examples": [
+        {
+          "message": "/hero",
+          "refs": [
+            {
+              "id": "hero-1",
+              "type": "Hero"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Bong Neang Noodles",
+                "templateId": "warm-bold",
+                "address": "St. 315, Toul Kork, Phnom Penh",
+                "phones": [
+                  {
+                    "number": "012 845 210"
+                  }
+                ]
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "eyebrow": "",
+                  "heading": "Welcome to our website",
+                  "description": "",
+                  "primaryLabel": "Click here",
+                  "primaryAction": "shop",
+                  "secondaryLabel": "Contact us",
+                  "secondaryAction": "visit",
+                  "imageUrl": null
+                }
+              },
+              {
+                "type": "ProductCards",
+                "props": {
+                  "id": "cards-1",
+                  "heading": "Our menu",
+                  "columns": "3"
+                }
+              },
+              {
+                "type": "About",
+                "props": {
+                  "id": "about-1",
+                  "heading": "About us",
+                  "body": "Hand-pulled noodles and a beef broth cooked for 12 hours, served in Toul Kork since 2018."
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I rewrote the Hero from your About text and made both buttons say where they go. It has no photo yet: add one of your noodles in the editor.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "hero-1",
+                "props": {
+                  "heading": "Hand-pulled noodles in Toul Kork",
+                  "description": "Our beef broth cooks for 12 hours. Serving Toul Kork since 2018.",
+                  "primaryLabel": "See our menu",
+                  "secondaryLabel": "Get directions",
+                  "secondaryAction": "directions"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "tidy",
+      "title": "Tidy up",
+      "skill": "Layout & spacing",
+      "group": "design",
+      "order": 4,
+      "command": "/tidy",
+      "aliases": [],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "tidy",
+        "clean up",
+        "messy",
+        "spacing",
+        "align",
+        "line up",
+        "រៀបឲ្យស្អាត",
+        "រញ៉េរញ៉ៃ",
+        "គម្លាត",
+        "តម្រឹម"
+      ],
+      "mode": "change",
+      "maxTokens": 600,
+      "summary": "Evens out spacing, alignment and columns. Changes the look, never your words.",
+      "summary_km": "កែគម្លាត ការតម្រឹម និងជួរឈរឲ្យស្មើគ្នា។ ប្តូរតែរូបរាង មិនប្តូរពាក្យរបស់អ្នកទេ។",
+      "example": "/tidy",
+      "example_km": "/tidy",
+      "km_reviewed": false,
+      "rules": "- Change only align, spacing and columns, on the \"@\" blocks or on the whole page. Never change wording, order or\n  the theme.\n- Spacing: \"normal\" everywhere unless a block has a reason to differ (the Hero or a closing Call to action may be\n  \"roomy\"); never mix \"tight\" and \"roomy\" on neighbouring blocks.\n- Alignment: one choice for the reading blocks (About, Text, Services, FAQ, products), usually left; Call to action,\n  Stats, Testimonials and Footer may stay centred.\n- Columns follow the content: never more columns than cards (2 cards, 2 columns); 3 is the usual choice, 4 only for\n  short product or picture grids.\n- REMOVE only a block that is completely empty (no heading, no text, no items) and name it in the reply. A block\n  with placeholder text stays: say it needs the owner's words.\n- Reply in one or two sentences: what was evened out, and that no words changed.",
+      "examples": [
+        {
+          "message": "/tidy",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Lucky Phone Repair",
+                "templateId": "clean-mono"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Phone screens fixed while you wait",
+                  "align": "left",
+                  "spacing": "roomy"
+                }
+              },
+              {
+                "type": "Services",
+                "props": {
+                  "id": "services-1",
+                  "heading": "What we fix",
+                  "columns": "4",
+                  "align": "center",
+                  "spacing": "tight",
+                  "items": [
+                    {
+                      "icon": "shield",
+                      "title": "Screen repair",
+                      "text": "Cracked glass and touch problems."
+                    },
+                    {
+                      "icon": "clock",
+                      "title": "Battery change",
+                      "text": "For phones that die before lunch."
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Text",
+                "props": {
+                  "id": "text-1",
+                  "eyebrow": "",
+                  "heading": "",
+                  "body": "",
+                  "align": "center",
+                  "spacing": "normal"
+                }
+              },
+              {
+                "type": "About",
+                "props": {
+                  "id": "about-1",
+                  "heading": "About us",
+                  "body": "A small repair shop next to Orussey Market.",
+                  "align": "right",
+                  "spacing": "roomy"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": "",
+                  "align": "center",
+                  "spacing": "normal"
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I evened out the spacing, lined Services and About up on the left, set Services to 2 columns for its 2 cards and removed an empty Text block. No words changed.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "services-1",
+                "props": {
+                  "columns": "2",
+                  "align": "left",
+                  "spacing": "normal"
+                }
+              },
+              {
+                "op": "REMOVE",
+                "component_id": "text-1"
+              },
+              {
+                "op": "UPDATE",
+                "component_id": "about-1",
+                "props": {
+                  "align": "left",
+                  "spacing": "normal"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "theme",
+      "title": "Theme",
+      "skill": "Theme & colour",
+      "group": "design",
+      "order": 5,
+      "command": "/theme",
+      "aliases": [
+        "/colors"
+      ],
+      "args": {
+        "name": "mood",
+        "hint": "warm, minimal, bold…",
+        "hint_km": "កក់ក្តៅ សាមញ្ញ ខ្លាំងក្លា…",
+        "required": true
+      },
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "theme",
+        "colour",
+        "color",
+        "colours",
+        "font",
+        "mood",
+        "ពណ៌ទំព័រ",
+        "ប្តូរពណ៌",
+        "ពុម្ពអក្សរ",
+        "រចនាប័ទ្ម"
+      ],
+      "mode": "change",
+      "maxTokens": 400,
+      "summary": "Picks colours, font and buttons for a mood. Changes the look, keeps it readable.",
+      "summary_km": "ជ្រើសពណ៌ ពុម្ពអក្សរ និងរាងប៊ូតុង តាមបែបដែលអ្នកចង់បាន។ វាប្តូររូបរាង តែនៅតែងាយអាន។",
+      "example": "/theme warm",
+      "example_km": "/theme កក់ក្តៅ",
+      "km_reviewed": false,
+      "rules": "- Change only the page's root: palette, font, buttonStyle, accentColor, backgroundColor and textColor. Never the\n  template, the blocks or any wording.\n- Start from the named options: palette (original, lavender, bakery, sage), font (original, editorial, clean,\n  rounded), buttonStyle (square, rounded, pill). For example (palette, font, buttons) warm: bakery, rounded,\n  rounded; minimal: original, clean, square; soft: lavender, rounded, pill; natural: sage, editorial, rounded.\n- Use the three colour overrides only for a colour the owner names (a brand colour), each as #rrggbb, or null to go\n  back to the palette.\n- Keep text readable (WCAG AA, 4.5:1): the text colour on the background, and white button text on the accent. When\n  the owner's colour is too light, use a darker shade of it and say so.\n- \"Back to the original look\": palette and font \"original\" and the three colours null.\n- Reply with what the page looks like now in plain words, not the option names alone.",
+      "examples": [
+        {
+          "message": "/theme warm",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Tep Bakery",
+                "templateId": "everyday-store",
+                "palette": "original",
+                "font": "original",
+                "buttonStyle": "square",
+                "accentColor": null,
+                "backgroundColor": null,
+                "textColor": null
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Fresh bread every morning"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I gave the page warm bakery colours, a soft rounded font and rounded buttons. Everything stays easy to read.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "root",
+                "props": {
+                  "palette": "bakery",
+                  "font": "rounded",
+                  "buttonStyle": "rounded"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "/theme bold, with our orange #f26522",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Angkor Moto Parts",
+                "templateId": "warm-bold",
+                "palette": "original",
+                "font": "original",
+                "buttonStyle": "rounded",
+                "accentColor": null,
+                "backgroundColor": null,
+                "textColor": null
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Spare parts for every moto"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I used your orange with a clean, strong font and square buttons. White text on #f26522 is hard to read, so the buttons use a darker shade of it, #c74e17.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "root",
+                "props": {
+                  "accentColor": "#c74e17",
+                  "font": "clean",
+                  "buttonStyle": "square"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "products",
+      "title": "Products layout",
+      "skill": "Products presentation",
+      "group": "design",
+      "order": 6,
+      "command": "/products",
+      "aliases": [],
+      "args": null,
+      "blocks": [
+        "ProductCards",
+        "AllProducts"
+      ],
+      "triggers": [
+        "products",
+        "product grid",
+        "per row",
+        "shop layout",
+        "catalog",
+        "menu layout",
+        "បង្ហាញផលិតផល",
+        "បង្ហាញទំនិញ",
+        "ក្នុងមួយជួរ"
+      ],
+      "mode": "change",
+      "maxTokens": 400,
+      "summary": "Sets how your products are shown. Changes the page, never products or prices.",
+      "summary_km": "កំណត់របៀបបង្ហាញផលិតផលរបស់អ្នក។ វាកែប្រែទំព័រ តែមិនកែផលិតផល ឬតម្លៃទេ។",
+      "example": "/products 3 in a row",
+      "example_km": "/products ៣ ក្នុងមួយជួរ",
+      "km_reviewed": false,
+      "rules": "- Change only the Product Cards and All products blocks, and only their columns, eyebrow, heading, viewAllLabel\n  (Product Cards), searchPlaceholder (All products), align and spacing. They may also be moved.\n- Never write the products, the categories or the number per page: products and categories come from the Owner\n  Portal catalog, and products per page is a setting in the All products block. When the owner asks for these, say\n  where to change them.\n- Columns: what the owner asks for; otherwise 3, never more columns than products (2 products, 2 columns), and 4\n  only for many short cards. Phones always show fewer by themselves.\n- Headings and labels name what is sold, in the owner's words (\"Our pepper\", \"See all our pepper\"), never a price,\n  a discount or a \"best seller\" claim the owner didn't make.\n- When there is also an All products block, give Product Cards a \"view all\" label so visitors find the rest.",
+      "examples": [
+        {
+          "message": "/products 3 in a row, and show 12 per page",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Kampot Pepper House",
+                "templateId": "everyday-store",
+                "currency": "USD"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Kampot pepper from our farm"
+                }
+              },
+              {
+                "type": "ProductCards",
+                "props": {
+                  "id": "cards-1",
+                  "heading": "Popular this week",
+                  "columns": "4",
+                  "viewAllLabel": "",
+                  "products": [
+                    {
+                      "name": "Black pepper 100 g",
+                      "description": "Whole peppercorns.",
+                      "price": "4.50",
+                      "category": "Pepper",
+                      "imageUrl": null
+                    },
+                    {
+                      "name": "Red pepper 100 g",
+                      "description": "Sun-dried red peppercorns.",
+                      "price": "6.00",
+                      "category": "Pepper",
+                      "imageUrl": null
+                    },
+                    {
+                      "name": "Pepper gift box",
+                      "description": "Black, red and white pepper.",
+                      "price": "15.00",
+                      "category": "Gifts",
+                      "imageUrl": null
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "AllProducts",
+                "props": {
+                  "id": "all-1",
+                  "heading": "All products",
+                  "columns": "2",
+                  "pageSize": 6
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "Both product grids now show 3 in a row, and the cards link to all your products. Products per page is a setting I can't change: set it to 12 in the All products block.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "cards-1",
+                "props": {
+                  "columns": "3",
+                  "viewAllLabel": "See all our pepper"
+                }
+              },
+              {
+                "op": "UPDATE",
+                "component_id": "all-1",
+                "props": {
+                  "columns": "3"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "cta",
+      "title": "Buttons",
+      "skill": "Call to action",
+      "group": "design",
+      "order": 7,
+      "command": "/cta",
+      "aliases": [],
+      "args": {
+        "name": "goal",
+        "hint": "shop, visit, call, email or directions",
+        "hint_km": "ទិញ មកលេងហាង ទូរស័ព្ទ អ៊ីមែល ឬបង្ហាញផ្លូវ",
+        "required": false
+      },
+      "blocks": [
+        "CallToAction",
+        "Hero"
+      ],
+      "triggers": [
+        "button",
+        "call to action",
+        "cta",
+        "more calls",
+        "more orders",
+        "get people to",
+        "ប៊ូតុង",
+        "ឲ្យភ្ញៀវទូរស័ព្ទមក",
+        "ឲ្យភ្ញៀវកុម្ម៉ង់"
+      ],
+      "mode": "change",
+      "maxTokens": 500,
+      "summary": "Makes your buttons clear and sends them to the right place. Changes the page.",
+      "summary_km": "ធ្វើឲ្យប៊ូតុងរបស់អ្នកច្បាស់ ហើយនាំភ្ញៀវទៅកន្លែងត្រឹមត្រូវ។ វាកែប្រែទំព័រ។",
+      "example": "/cta more phone calls",
+      "example_km": "/cta ចង់ឲ្យភ្ញៀវទូរស័ព្ទមកច្រើនជាងនេះ",
+      "km_reviewed": false,
+      "rules": "- Work on the buttons of the Hero and the Call to action blocks (the \"@\" ones, or all of them): label, action, and\n  the Call to action's heading and line.\n- A button goes only to shop, visit, call, email or directions, and only where the page can follow: shop needs\n  products, call a phone number, email an email address, directions an address, visit a Visit us block. Fix a\n  button that points nowhere and say why.\n- A label is a short action that says where it goes (\"Call us\", \"Get directions\", \"See our cakes\"), never \"Click\n  here\" or \"Learn more\".\n- Match the goal: one clear main action across the page; don't give every button the same target.\n- Replace leftover placeholder lines with plain words built from the page, or leave the line empty. No prices,\n  discounts or promises the owner didn't give.\n- With no Call to action on the page and room for one, ADD it before the Footer with every prop filled.",
+      "examples": [
+        {
+          "message": "/cta I want more phone calls",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Dara Moto Repair",
+                "templateId": "warm-bold",
+                "address": "Russian Blvd, Phnom Penh",
+                "phones": [
+                  {
+                    "number": "012 345 678"
+                  }
+                ]
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Moto repairs in Phnom Penh",
+                  "primaryLabel": "Learn more",
+                  "primaryAction": "shop",
+                  "secondaryLabel": "Get directions",
+                  "secondaryAction": "directions"
+                }
+              },
+              {
+                "type": "Services",
+                "props": {
+                  "id": "services-1",
+                  "heading": "What we fix",
+                  "columns": "3"
+                }
+              },
+              {
+                "type": "CallToAction",
+                "props": {
+                  "id": "cta-1",
+                  "heading": "Come and visit us",
+                  "body": "One short line that makes people want to act.",
+                  "buttonLabel": "Get directions",
+                  "buttonAction": "directions"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "The Hero's main button and the banner now both call your shop. The Hero button went to products, but you don't have any on the page.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "hero-1",
+                "props": {
+                  "primaryLabel": "Call us now",
+                  "primaryAction": "call"
+                }
+              },
+              {
+                "op": "UPDATE",
+                "component_id": "cta-1",
+                "props": {
+                  "heading": "Moto trouble? Call us",
+                  "body": "Tell us what's wrong with your moto.",
+                  "buttonLabel": "Call us",
+                  "buttonAction": "call"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "/cta ប៊ូតុងនេះមិនដំណើរការទេ",
+          "refs": [
+            {
+              "id": "cta-1",
+              "type": "CallToAction"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Sok Sabay Café",
+                "templateId": "iced-coffee",
+                "address": "ផ្លូវសម្តេចទេពវង្ស ក្រុងសៀមរាប",
+                "email": ""
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "កាហ្វេក្តៅៗ នៅសៀមរាប"
+                }
+              },
+              {
+                "type": "CallToAction",
+                "props": {
+                  "id": "cta-1",
+                  "heading": "មកលេងហាងយើង",
+                  "body": "",
+                  "buttonLabel": "ផ្ញើអ៊ីមែលមកយើង",
+                  "buttonAction": "email"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "ប៊ូតុងនេះសម្រាប់ផ្ញើអ៊ីមែល ប៉ុន្តែគេហទំព័ររបស់អ្នកមិនទាន់មានអ៊ីមែលនៅឡើយទេ។ ខ្ញុំបានប្តូរវាឲ្យបង្ហាញផ្លូវមកហាងវិញ។",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "cta-1",
+                "props": {
+                  "buttonLabel": "បង្ហាញផ្លូវមកហាង",
+                  "buttonAction": "directions"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "mobile",
+      "title": "Phone check",
+      "skill": "Mobile check",
+      "group": "design",
+      "order": 8,
+      "command": "/mobile",
+      "aliases": [
+        "/phone"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "mobile",
+        "on my phone",
+        "on phones",
+        "phone screen",
+        "small screen",
+        "too big on phone",
+        "លើទូរស័ព្ទ",
+        "ក្នុងទូរស័ព្ទ",
+        "អេក្រង់ទូរស័ព្ទ",
+        "អេក្រង់តូច"
+      ],
+      "mode": "change",
+      "maxTokens": 600,
+      "summary": "Fixes what looks crowded on phones: long headings and buttons. Changes the page.",
+      "summary_km": "កែអ្វីដែលមើលទៅចង្អៀតលើទូរស័ព្ទ៖ ចំណងជើង និងប៊ូតុងដែលវែងពេក។ វាកែប្រែទំព័រ។",
+      "example": "/mobile",
+      "example_km": "/mobile",
+      "km_reviewed": false,
+      "rules": "- Look for what breaks on a narrow screen, on the \"@\" blocks or the whole page: headings over about 30 characters\n  (the Hero's over about 35), button labels over about 20, and grids of long cards with 4 columns.\n- Shorten those texts and keep every fact, name and number; Khmer stays Khmer, and Khmer headings get the same care\n  (long words without spaces wrap badly).\n- Lower 4 columns to 2 or 3 where the cards carry long text (Services, Gallery captions). Phones already show fewer\n  columns by themselves, so leave short product grids alone.\n- A very long page reads better with \"normal\" spacing than \"roomy\"; never make text smaller or hide blocks.\n- Pictures and their sizes are not the assistant's to change; mention a missing picture only when it leaves a gap.\n- When nothing would break, propose no operations and say the page looks fine on phones.",
+      "examples": [
+        {
+          "message": "/mobile",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Kep Crab House",
+                "templateId": "plates"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Fresh crab and seafood from Kep, every morning",
+                  "primaryLabel": "See all of our fresh seafood today",
+                  "primaryAction": "shop",
+                  "secondaryLabel": "Find the way to our restaurant",
+                  "secondaryAction": "directions"
+                }
+              },
+              {
+                "type": "Services",
+                "props": {
+                  "id": "services-1",
+                  "heading": "What we offer",
+                  "columns": "4",
+                  "items": [
+                    {
+                      "icon": "star",
+                      "title": "Kep crab with green pepper",
+                      "text": "Our best-known dish: crab from the Kep market, cooked with fresh Kampot green pepper."
+                    },
+                    {
+                      "icon": "people",
+                      "title": "Tables by the sea",
+                      "text": "Eat on our wooden deck over the water, with room for families and groups."
+                    },
+                    {
+                      "icon": "delivery",
+                      "title": "Takeaway",
+                      "text": "Call ahead and pick up your order at the counter."
+                    },
+                    {
+                      "icon": "gift",
+                      "title": "Group bookings",
+                      "text": "Birthday or work dinner? Call us to book the whole deck."
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I shortened the Hero heading and both buttons so they fit on one line on a phone, and set Services to 2 columns so its longer texts aren't squeezed.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "hero-1",
+                "props": {
+                  "heading": "Kep crab and seafood, every morning",
+                  "primaryLabel": "See our seafood",
+                  "secondaryLabel": "Get directions"
+                }
+              },
+              {
+                "op": "UPDATE",
+                "component_id": "services-1",
+                "props": {
+                  "columns": "2"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "promo",
+      "title": "Promotion",
+      "skill": "Promotion",
+      "group": "design",
+      "order": 9,
+      "command": "/promo",
+      "aliases": [
+        "/sale"
+      ],
+      "args": {
+        "name": "occasion",
+        "hint": "Khmer New Year, Pchum Ben, a sale…",
+        "hint_km": "ចូលឆ្នាំខ្មែរ ភ្ជុំបិណ្ឌ ការលក់បញ្ចុះតម្លៃ…",
+        "required": true
+      },
+      "blocks": [
+        "CallToAction"
+      ],
+      "triggers": [
+        "promo",
+        "promotion",
+        "sale",
+        "discount",
+        "offer",
+        "holiday",
+        "khmer new year",
+        "pchum ben",
+        "ប្រូម៉ូសិន",
+        "បញ្ចុះតម្លៃ",
+        "ចូលឆ្នាំ",
+        "ភ្ជុំបិណ្ឌ",
+        "ថ្ងៃបុណ្យ"
+      ],
+      "mode": "change",
+      "maxTokens": 500,
+      "summary": "Adds a holiday or sale banner. Asks for your offer, never makes up a discount.",
+      "summary_km": "បន្ថែមផ្ទាំងផ្សព្វផ្សាយសម្រាប់ថ្ងៃបុណ្យ ឬការបញ្ចុះតម្លៃ។ វាសួររកការផ្តល់ជូនរបស់អ្នក មិនប្រឌិតការបញ្ចុះតម្លៃទេ។",
+      "example": "/promo Khmer New Year",
+      "example_km": "/promo ភ្ជុំបិណ្ឌ",
+      "km_reviewed": false,
+      "rules": "- Add one Call to action (or a Text, when there is no button to give) for the occasion, right under the Hero, with\n  every prop filled. With three Call to action blocks already (or 16 blocks), update the \"@\" one instead; with no\n  \"@\" block, propose nothing and ask which banner to reuse.\n- The offer, its amount, what it covers and its dates come only from the owner. Without them, the line is a\n  placeholder that asks for the real offer, and the reply asks for it.\n- Name the occasion in the eyebrow (Khmer New Year, Pchum Ben, Water Festival, Christmas, a sale) and keep the\n  heading short and festive without claims.\n- The button goes where the offer can be used: shop for products, visit or directions for the shop, call for\n  orders by phone.\n- Write in the page's language. Never touch prices in products: a discount only lives in the banner's words.\n- End the reply by reminding the owner to remove the banner when the occasion is over.",
+      "examples": [
+        {
+          "message": "/promo Khmer New Year",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Sokha Fashion",
+                "templateId": "jackets",
+                "address": "Olympic Market, Phnom Penh"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Everyday clothes for the whole family"
+                }
+              },
+              {
+                "type": "ProductCards",
+                "props": {
+                  "id": "cards-1",
+                  "heading": "New this week",
+                  "columns": "3"
+                }
+              },
+              {
+                "type": "VisitUs",
+                "props": {
+                  "id": "visit-1",
+                  "heading": "Find us at Olympic Market"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I added a Khmer New Year banner under the Hero. What is your offer, and until when? I left a line for it. Remove the banner after the holiday.",
+            "operations": [
+              {
+                "op": "ADD",
+                "component_type": "CallToAction",
+                "index": 1,
+                "props": {
+                  "eyebrow": "Khmer New Year",
+                  "heading": "Celebrate the New Year with us",
+                  "body": "Write your real offer here: what is discounted, by how much, and until when.",
+                  "buttonLabel": "Shop now",
+                  "buttonAction": "shop",
+                  "align": "center",
+                  "spacing": "normal"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "/promo ភ្ជុំបិណ្ឌ បញ្ចុះតម្លៃ 10% លើនំទាំងអស់ ពីថ្ងៃទី 20 ដល់ 22 ខែកញ្ញា",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Malis Cakes",
+                "templateId": "sweet-pastel",
+                "address": "ផ្សារទួលទំពូង ភ្នំពេញ"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "នំខេកធ្វើដោយដៃរាល់ថ្ងៃ"
+                }
+              },
+              {
+                "type": "ProductCards",
+                "props": {
+                  "id": "cards-1",
+                  "heading": "នំពេញនិយម",
+                  "columns": "3"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "ខ្ញុំបានបន្ថែមផ្ទាំងផ្សព្វផ្សាយភ្ជុំបិណ្ឌនៅក្រោម Hero ជាមួយការបញ្ចុះតម្លៃ 10% របស់អ្នក។ កុំភ្លេចលុបវាចេញក្រោយថ្ងៃទី 22 ខែកញ្ញា។",
+            "operations": [
+              {
+                "op": "ADD",
+                "component_type": "CallToAction",
+                "index": 1,
+                "props": {
+                  "eyebrow": "ភ្ជុំបិណ្ឌ",
+                  "heading": "បញ្ចុះតម្លៃ 10% លើនំទាំងអស់",
+                  "body": "ចាប់ពីថ្ងៃទី 20 ដល់ថ្ងៃទី 22 ខែកញ្ញា។",
+                  "buttonLabel": "មើលនំរបស់យើង",
+                  "buttonAction": "shop",
+                  "align": "center",
+                  "spacing": "normal"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "rewrite",
+      "title": "Rewrite",
+      "skill": "Copywriting",
+      "group": "content",
+      "order": 1,
+      "command": "/rewrite",
+      "aliases": [
+        "/rephrase"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "rewrite",
+        "reword",
+        "rephrase",
+        "say it better",
+        "clearer",
+        "សរសេរឡើងវិញ",
+        "សរសេរម្តងទៀត",
+        "ឲ្យច្បាស់ជាងនេះ"
+      ],
+      "mode": "change",
+      "maxTokens": 600,
+      "summary": "Rewrites the text in clearer words. Same facts; never adds new ones.",
+      "summary_km": "សរសេរអត្ថបទឡើងវិញដោយពាក្យច្បាស់ជាងមុន។ ព័ត៌មាននៅដដែល មិនបន្ថែមព័ត៌មានថ្មីទេ។",
+      "example": "/rewrite with @Hero",
+      "example_km": "/rewrite ផ្នែក @Hero",
+      "km_reviewed": false,
+      "rules": "- Rewrite the text of the \"@\" blocks, or of the whole page when there are none: headings, eyebrows, descriptions,\n  bodies, button labels, captions, FAQ answers, service texts and the Footer tagline.\n- Keep the meaning and every fact, name, price and number exactly as they are; only the wording changes.\n- Use plain, everyday words a customer understands at a glance: one idea per sentence, the main point first, and\n  speak to the customer (\"you\", \"we\").\n- Keep about the same length and stay within each prop's limit; a heading stays a short heading.\n- Keep each button's action; its label may be reworded so it says where it goes (\"Get directions\", not \"Click\n  here\").\n- Never touch props the assistant may not write (customer quotes, Stats numbers, products, images).\n- Keep the language the text is in. Khmer stays Khmer.",
+      "examples": [
+        {
+          "message": "/rewrite",
+          "refs": [
+            {
+              "id": "hero-1",
+              "type": "Hero"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Kampot Bean Café",
+                "address": "Riverside Road, Kampot"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "eyebrow": "",
+                  "heading": "Welcome to the website of our coffee shop",
+                  "description": "We are a coffee shop that is selling coffee which comes from Mondulkiri and also we have cakes as well.",
+                  "primaryLabel": "Click here",
+                  "primaryAction": "directions"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I rewrote the Hero in clearer words and kept your facts. The button now says where it goes.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "hero-1",
+                "props": {
+                  "heading": "Mondulkiri coffee and cakes",
+                  "description": "Coffee from Mondulkiri, with cakes to enjoy alongside it.",
+                  "primaryLabel": "Get directions"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "shorten",
+      "title": "Shorten",
+      "skill": "Copywriting",
+      "group": "content",
+      "order": 2,
+      "command": "/shorten",
+      "aliases": [
+        "/short"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "shorter",
+        "shorten",
+        "too long",
+        "less text",
+        "cut down",
+        "ខ្លីជាងនេះ",
+        "វែងពេក",
+        "កាត់ឲ្យខ្លី",
+        "អក្សរច្រើនពេក"
+      ],
+      "mode": "change",
+      "maxTokens": 500,
+      "summary": "Makes the text shorter and easier to read, keeping the same facts.",
+      "summary_km": "ធ្វើឲ្យអត្ថបទខ្លីជាងមុន និងងាយអាន ដោយរក្សាព័ត៌មានដដែល។",
+      "example": "/shorten with @About",
+      "example_km": "/shorten ផ្នែក @About",
+      "km_reviewed": false,
+      "rules": "- Shorten the text of the \"@\" blocks, or of the whole page when there are none: headings, descriptions, bodies,\n  button labels, FAQ answers, service texts, captions.\n- Keep every fact, name, price and number exactly as it is. Drop filler words, repeats and long clauses first.\n- Aim for about two thirds of the length; a heading stays a heading (it may get a little shorter, never longer).\n- Never touch props the assistant may not write (customer quotes, Stats numbers, products, images).\n- Keep the language the text is in. Khmer stays Khmer.",
+      "examples": [
+        {
+          "message": "Make this shorter",
+          "refs": [
+            {
+              "id": "about-1",
+              "type": "About"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Sugar & Crumb"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Fresh bread every morning"
+                }
+              },
+              {
+                "type": "About",
+                "props": {
+                  "id": "about-1",
+                  "heading": "About us",
+                  "body": "We are a small family bakery that started in 2015 in Phnom Penh, and every single morning we bake our bread and our cakes by hand, using butter and flour, so that you can enjoy them fresh."
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I shortened the About text and kept every fact.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "about-1",
+                "props": {
+                  "body": "A small family bakery in Phnom Penh since 2015. We bake our bread and cakes by hand every morning, so they're always fresh."
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "expand",
+      "title": "Expand",
+      "skill": "Copywriting",
+      "group": "content",
+      "order": 3,
+      "command": "/expand",
+      "aliases": [
+        "/longer"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "longer",
+        "expand",
+        "more detail",
+        "too short",
+        "say more",
+        "វែងជាងនេះ",
+        "លម្អិតជាងនេះ",
+        "ខ្លីពេក",
+        "ពង្រីកអត្ថបទ",
+        "សរសេរបន្ថែម"
+      ],
+      "mode": "change",
+      "maxTokens": 600,
+      "summary": "Adds more detail to short text, using only facts you give. Never makes them up.",
+      "summary_km": "សរសេរអត្ថបទខ្លីឲ្យលម្អិតជាងមុន ដោយប្រើតែព័ត៌មានដែលអ្នកផ្តល់ឲ្យ។ មិនប្រឌិតព័ត៌មានទេ។",
+      "example": "/expand with @About",
+      "example_km": "/expand ផ្នែក @About",
+      "km_reviewed": false,
+      "rules": "- Expand the text of the \"@\" blocks, or the thinnest text on the page when there are none: empty or one-line\n  bodies, descriptions, service texts and FAQ answers.\n- Add detail only from the owner's message, the page and the business profile: what you sell, where, for whom, how\n  to order. Never add prices, hours, delivery, awards, history or praise that nobody gave.\n- When there aren't enough facts to say more, don't pad with empty words: propose no change and ask in the reply\n  for the two or three facts that would help.\n- Grow bodies and descriptions, not headings, and stay within each limit (bodies and descriptions 200 characters,\n  Call to action body 160, service texts 160).\n- Never fill Stats numbers, customer quotes, products or images: say in the reply that only the owner adds those.\n- Keep the language the text is in. Khmer stays Khmer.",
+      "examples": [
+        {
+          "message": "Make this longer. We make wedding dresses and school uniforms, and we also do repairs and alterations.",
+          "refs": [
+            {
+              "id": "text-1",
+              "type": "Text"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Sokha Tailor",
+                "address": "Street 3, near Psar Nat, Battambang"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Clothes made to fit you"
+                }
+              },
+              {
+                "type": "Text",
+                "props": {
+                  "id": "text-1",
+                  "heading": "What we do",
+                  "body": "We sew clothes."
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I added the work you told me about to the text.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "text-1",
+                "props": {
+                  "body": "We sew wedding dresses and school uniforms in Battambang, and we repair and alter the clothes you already have."
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "/expand",
+          "refs": [
+            {
+              "id": "about-1",
+              "type": "About"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Mama Srey's Kitchen"
+              }
+            },
+            "content": [
+              {
+                "type": "About",
+                "props": {
+                  "id": "about-1",
+                  "heading": "About us",
+                  "body": "Good food."
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I need a few facts to write more without guessing: what dishes do you cook, where are you, and what do customers like most? Tell me and I'll expand it.",
+            "operations": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "friendlier",
+      "title": "Friendlier",
+      "skill": "Copywriting",
+      "group": "content",
+      "order": 4,
+      "command": "/friendlier",
+      "aliases": [
+        "/friendly"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "friendlier",
+        "friendly",
+        "warmer",
+        "more welcoming",
+        "too cold",
+        "រួសរាយ",
+        "រាក់ទាក់",
+        "ស្និទ្ធស្នាល"
+      ],
+      "mode": "change",
+      "maxTokens": 600,
+      "summary": "Makes the text warmer and more welcoming, keeping the same facts.",
+      "summary_km": "ធ្វើឲ្យអត្ថបទរួសរាយ និងកក់ក្តៅជាងមុន ដោយរក្សាព័ត៌មានដដែល។",
+      "example": "/friendlier with @CallToAction",
+      "example_km": "/friendlier ផ្នែក @CallToAction",
+      "km_reviewed": false,
+      "rules": "- Rewrite the \"@\" blocks, or the whole page when there are none, in a warm and welcoming voice: speak to the\n  customer (\"you\", \"we\"), keep sentences short, and greet or invite where it fits.\n- Keep every fact, name, price and number; only the tone changes.\n- Friendly, not silly: no slang, at most one exclamation mark per block, and no emoji unless the page already uses\n  them.\n- In Khmer, use polite and warm words that suit customers of every age (សូមស្វាគមន៍, បងប្អូន, រីករាយ).\n- Keep each button's action, and stay within each prop's limit.\n- Never touch props the assistant may not write (customer quotes, Stats numbers, products, images).\n- Keep the language the text is in.",
+      "examples": [
+        {
+          "message": "សូមធ្វើឲ្យផ្នែកនេះរួសរាយជាងនេះ",
+          "refs": [
+            {
+              "id": "cta-1",
+              "type": "CallToAction"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "នំបញ្ចុកយាយហៀង",
+                "phones": [
+                  {
+                    "number": "012 345 678"
+                  }
+                ]
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "នំបញ្ចុកសម្លខ្មែរ"
+                }
+              },
+              {
+                "type": "CallToAction",
+                "props": {
+                  "id": "cta-1",
+                  "eyebrow": "",
+                  "heading": "កុម្ម៉ង់នំបញ្ចុក",
+                  "body": "ហាងបើករាល់ថ្ងៃ។ ទូរស័ព្ទមកកុម្ម៉ង់។",
+                  "buttonLabel": "ទូរស័ព្ទ",
+                  "buttonAction": "call"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "ខ្ញុំបានកែផ្នែក Call to action ឲ្យស្តាប់ទៅរួសរាយជាងមុន ហើយព័ត៌មាននៅដដែល។",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "cta-1",
+                "props": {
+                  "heading": "ឃ្លាននំបញ្ចុកហើយឬនៅ?",
+                  "body": "យើងបើករៀងរាល់ថ្ងៃ។ សូមទូរស័ព្ទមកកុម្ម៉ង់ យើងរីករាយនឹងបម្រើបងប្អូន!",
+                  "buttonLabel": "ទូរស័ព្ទមកយើង"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "formal",
+      "title": "Formal",
+      "skill": "Copywriting",
+      "group": "content",
+      "order": 5,
+      "command": "/formal",
+      "aliases": [
+        "/professional"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "formal",
+        "professional",
+        "more serious",
+        "polite",
+        "business tone",
+        "ផ្លូវការ",
+        "វិជ្ជាជីវៈ",
+        "គួរសម"
+      ],
+      "mode": "change",
+      "maxTokens": 600,
+      "summary": "Makes the text polite and professional, keeping the same facts.",
+      "summary_km": "ធ្វើឲ្យអត្ថបទគួរសម និងមានលក្ខណៈវិជ្ជាជីវៈ ដោយរក្សាព័ត៌មានដដែល។",
+      "example": "/formal with @About",
+      "example_km": "/formal ផ្នែក @About",
+      "km_reviewed": false,
+      "rules": "- Rewrite the \"@\" blocks, or the whole page when there are none, in a polite and professional voice: complete\n  sentences, no slang, no exclamation marks, no emoji.\n- Keep every fact, name, price and number; only the tone changes. A vague promise in the old text (\"come\n  anytime\") becomes a polite invitation, never a new fact such as opening hours.\n- Professional is not stiff: keep plain words and short sentences, and add no jargon or long titles.\n- In Khmer, use respectful standard written Khmer (លោកអ្នក, សូម) instead of spoken shortcuts.\n- Keep each button's action, and stay within each prop's limit.\n- Never touch props the assistant may not write (customer quotes, Stats numbers, products, images).\n- Keep the language the text is in.",
+      "examples": [
+        {
+          "message": "Make it sound more professional, we're a clinic",
+          "refs": [
+            {
+              "id": "about-1",
+              "type": "About"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Smile Dental Clinic",
+                "address": "Street 63, BKK1, Phnom Penh"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Dental care in BKK1"
+                }
+              },
+              {
+                "type": "About",
+                "props": {
+                  "id": "about-1",
+                  "eyebrow": "",
+                  "heading": "Hey, it's us!",
+                  "body": "We fix teeth and make them super white!! Come see us anytime lol",
+                  "caption": ""
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I rewrote the About block in a polite, professional tone. Your facts are the same.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "about-1",
+                "props": {
+                  "heading": "About our clinic",
+                  "body": "We provide dental treatment and teeth whitening. You are welcome to visit our clinic."
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "punchy",
+      "title": "Punchy",
+      "skill": "Copywriting",
+      "group": "content",
+      "order": 6,
+      "command": "/punchy",
+      "aliases": [
+        "/catchy"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "punchy",
+        "catchy",
+        "snappy",
+        "more exciting",
+        "grab attention",
+        "ទាក់ទាញជាងនេះ",
+        "ស្រួលចាំ",
+        "ខ្លីហើយទាក់ទាញ"
+      ],
+      "mode": "change",
+      "maxTokens": 500,
+      "summary": "Makes headings and buttons short and catchy, keeping the same facts.",
+      "summary_km": "ធ្វើឲ្យចំណងជើង និងប៊ូតុងខ្លី ហើយទាក់ទាញ ដោយរក្សាព័ត៌មានដដែល។",
+      "example": "/punchy with @Hero",
+      "example_km": "/punchy ផ្នែក @Hero",
+      "km_reviewed": false,
+      "rules": "- Work on the \"@\" blocks, or on the page's headings, Hero text, Call to action text and button labels when there\n  are none: strong verbs, concrete words, the main point first.\n- Headings of about six words at most; button labels of two to four words that match their action (call: \"Call\n  us\", directions: \"Get directions\", shop: \"See our products\", visit: \"Visit us\", email: \"Email us\").\n- Keep every fact, name, price and number. Never add claims nobody gave (\"best in town\", \"No. 1\", \"cheapest\") or\n  urgency that isn't true (\"today only\", \"last chance\").\n- Bodies and descriptions may get shorter, never longer.\n- Keep each button's action, and stay within each prop's limit.\n- Never touch props the assistant may not write (customer quotes, Stats numbers, products, images).\n- Keep the language the text is in. Khmer stays Khmer.",
+      "examples": [
+        {
+          "message": "/punchy",
+          "refs": [
+            {
+              "id": "hero-1",
+              "type": "Hero"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Dara Phone Repair",
+                "address": "Street 271, Phnom Penh"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "eyebrow": "",
+                  "heading": "We are a shop that can repair phone screens",
+                  "description": "If the screen or the battery of your phone is broken, you can bring it to our shop on Street 271 and we will repair it for you.",
+                  "primaryLabel": "Contact",
+                  "primaryAction": "call",
+                  "secondaryLabel": "",
+                  "secondaryAction": "directions"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I made the Hero short and catchy with the same facts, and the button now says \"Call us\".",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "hero-1",
+                "props": {
+                  "heading": "Broken screen? We repair it.",
+                  "description": "Screen or battery broken? Bring your phone to our shop on Street 271.",
+                  "primaryLabel": "Call us"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "translate",
+      "title": "Translate",
+      "skill": "Translation",
+      "group": "content",
+      "order": 7,
+      "command": "/translate",
+      "aliases": [
+        "/tr"
+      ],
+      "args": {
+        "name": "language",
+        "hint": "<language>",
+        "hint_km": "<ភាសា>",
+        "required": true
+      },
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "translate",
+        "in khmer",
+        "in english",
+        "khmer version",
+        "english version",
+        "បកប្រែ",
+        "ជាភាសាខ្មែរ",
+        "ជាភាសាអង់គ្លេស"
+      ],
+      "mode": "change",
+      "maxTokens": 800,
+      "summary": "Translates your text into another language. Names and prices stay the same.",
+      "summary_km": "បកប្រែអត្ថបទរបស់អ្នកទៅភាសាផ្សេង។ ឈ្មោះ និងតម្លៃនៅដដែល។",
+      "example": "/translate km with @Hero",
+      "example_km": "/translate ខ្មែរ ផ្នែក @Hero",
+      "km_reviewed": false,
+      "rules": "- Translate the text of the \"@\" blocks, or of every block on the page when there are none, into the language\n  given. \"km\", \"khmer\" and \"ខ្មែរ\" mean Khmer; \"en\", \"english\" and \"អង់គ្លេស\" mean English. Khmer and English come\n  first; other languages (Chinese, Thai, Vietnamese…) are fine when asked. When the language is unclear, ask and\n  change nothing.\n- Translate the meaning naturally, not word for word, in the words a customer would use. Khmer gets its own\n  punctuation (។) and everyday word choice.\n- Keep brand, business and product names exactly as written. A place keeps its own name: write it the way the\n  other language already spells it (Toul Kork ↔ ទួលគោក, សៀមរាប ↔ Siem Reap), never by its meaning; when you don't\n  know that spelling, keep it as written.\n- Keep every number, price, phone number and time as written: digits stay digits and USD is never turned into riel.\n- Stay within each prop's limit. Khmer often runs longer, so choose shorter words rather than dropping a fact.\n- Keep each button's action. Without \"@\" blocks, also translate the header badge and the opening hours text, but\n  leave the business name, address, phones and links as they are.\n- Never translate props the assistant may not write: customer quotes, Stats numbers, products and Gallery picture\n  captions stay as they are. Say so in the reply (products are changed in the Owner Portal).",
+      "examples": [
+        {
+          "message": "/translate km",
+          "refs": [
+            {
+              "id": "hero-1",
+              "type": "Hero"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Sugar & Crumb",
+                "address": "St. 315, Toul Kork, Phnom Penh"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "eyebrow": "Family bakery",
+                  "heading": "Fresh bread every morning",
+                  "description": "Cakes and bread baked by hand every day at our shop in Toul Kork.",
+                  "primaryLabel": "See our cakes",
+                  "primaryAction": "shop",
+                  "secondaryLabel": "Get directions",
+                  "secondaryAction": "directions"
+                }
+              },
+              {
+                "type": "ProductCards",
+                "props": {
+                  "id": "products-1",
+                  "heading": "Our cakes"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": "Baked with love in Phnom Penh"
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I translated the Hero into Khmer. \"Sugar & Crumb\" stays as it is, and the buttons go to the same places.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "hero-1",
+                "props": {
+                  "eyebrow": "ហាងនំគ្រួសារ",
+                  "heading": "នំប៉័ងស្រស់ៗរៀងរាល់ព្រឹក",
+                  "description": "នំខេក និងនំប៉័ងធ្វើដោយដៃរៀងរាល់ថ្ងៃ នៅហាងរបស់យើងក្នុងទួលគោក។",
+                  "primaryLabel": "មើលនំខេករបស់យើង",
+                  "secondaryLabel": "បង្ហាញផ្លូវ"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "/translate english",
+          "refs": [
+            {
+              "id": "about-1",
+              "type": "About"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Bopha Beauty",
+                "address": "ផ្លូវសម្តេចទេពវង្ស ក្រុងសៀមរាប"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "ស្អាតសម្រាប់ថ្ងៃពិសេសរបស់អ្នក"
+                }
+              },
+              {
+                "type": "About",
+                "props": {
+                  "id": "about-1",
+                  "eyebrow": "",
+                  "heading": "អំពីយើង",
+                  "body": "ហាង Bopha Beauty ស្ថិតនៅក្រុងសៀមរាប។ យើងកាត់សក់ ធ្វើក្រចក និងតុបតែងមុខសម្រាប់ពិធីមង្គលការ។",
+                  "caption": ""
+                }
+              },
+              {
+                "type": "Testimonials",
+                "props": {
+                  "id": "testimonials-1",
+                  "heading": "មតិអតិថិជន",
+                  "items": [
+                    {
+                      "quote": "សេវាល្អណាស់!",
+                      "name": "ស្រីនាង"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I translated the About block into English. Bopha Beauty stays as it is.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "about-1",
+                "props": {
+                  "heading": "About us",
+                  "body": "Bopha Beauty is in Siem Reap. We do haircuts, nails and wedding make-up."
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "proofread",
+      "title": "Proofread",
+      "skill": "Proofread",
+      "group": "content",
+      "order": 8,
+      "command": "/proofread",
+      "aliases": [
+        "/spellcheck"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "proofread",
+        "spelling",
+        "typo",
+        "grammar",
+        "mistakes",
+        "check my writing",
+        "អក្ខរាវិរុទ្ធ",
+        "វេយ្យាករណ៍",
+        "សរសេរខុស",
+        "ពាក្យខុស"
+      ],
+      "mode": "change",
+      "maxTokens": 600,
+      "summary": "Fixes spelling, grammar and how names and prices are written. Meaning stays.",
+      "summary_km": "កែអក្ខរាវិរុទ្ធ វេយ្យាករណ៍ ព្រមទាំងរបៀបសរសេរឈ្មោះ និងតម្លៃ។ អត្ថន័យនៅដដែល។",
+      "example": "/proofread",
+      "example_km": "/proofread",
+      "km_reviewed": false,
+      "rules": "- Fix spelling, grammar, punctuation and capital letters in the \"@\" blocks, or on the whole page when there are\n  none. In Khmer: spelling, word spacing between phrases and ។ at the end of a sentence.\n- Spell names the same way everywhere: the business name exactly as the page's business name, and each product or\n  place name one way only.\n- Write prices, phone numbers and times in one format across the page (for example \"$1.50\", \"9:00 – 18:00\"),\n  changing only the format, never the number or the currency.\n- Don't rewrite sentences that are already correct, and change no meaning or tone.\n- When something looks like a wrong fact (two different prices for one thing, a phone number with a digit\n  missing), don't guess: leave it and ask in the reply.\n- Never touch props the assistant may not write. Point out a typo in a customer quote or a product name in the\n  reply, so the owner fixes it (quotes in the editor, products in the Owner Portal).\n- When nothing needs fixing, say so and propose no operations.",
+      "examples": [
+        {
+          "message": "/proofread",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Kampot Bean Café",
+                "hours": "7:00 – 18:00"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Coffee by the Kampot river"
+                }
+              },
+              {
+                "type": "Text",
+                "props": {
+                  "id": "text-1",
+                  "heading": "Our iced coffee",
+                  "body": "Our iced cofee is made with Kampot bean's and fresh milk, from 1.5$ a cup."
+                }
+              },
+              {
+                "type": "CallToAction",
+                "props": {
+                  "id": "cta-1",
+                  "heading": "visit Kampot Beans Cafe today",
+                  "body": "We are open every day,from 7:00.",
+                  "buttonLabel": "Get directions",
+                  "buttonAction": "directions"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I fixed the spelling, wrote the price as $1.50, and spelled Kampot Bean Café the same way everywhere.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "text-1",
+                "props": {
+                  "body": "Our iced coffee is made with Kampot beans and fresh milk, from $1.50 a cup."
+                }
+              },
+              {
+                "op": "UPDATE",
+                "component_id": "cta-1",
+                "props": {
+                  "heading": "Visit Kampot Bean Café today",
+                  "body": "We are open every day, from 7:00."
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "about",
+      "title": "About story",
+      "skill": "About story",
+      "group": "content",
+      "order": 9,
+      "command": "/about",
+      "aliases": [],
+      "args": null,
+      "blocks": [
+        "About"
+      ],
+      "triggers": [
+        "about us",
+        "our story",
+        "who we are",
+        "about section",
+        "អំពីយើង",
+        "រឿងរ៉ាវរបស់យើង",
+        "ប្រវត្តិហាង"
+      ],
+      "mode": "change",
+      "maxTokens": 700,
+      "summary": "Writes your About block from what you tell it. Never makes up your history.",
+      "summary_km": "សរសេរប្លុក About តាមអ្វីដែលអ្នកប្រាប់។ មិនប្រឌិតប្រវត្តិរបស់អ្នកទេ។",
+      "example": "/about We opened in 2018 and cook Khmer home food",
+      "example_km": "/about យើងបើកហាងនៅឆ្នាំ 2018 ហើយចម្អិនម្ហូបខ្មែរបែបផ្ទះ",
+      "km_reviewed": false,
+      "rules": "- Write the About block's eyebrow, heading, body, caption and small facts from the owner's message, the business\n  profile and facts already on the page. The body (200 characters at most) says who you are, what you offer, where,\n  and what makes you different, in the voice of \"we\".\n- Never invent history: no founding year, founder or family story, awards, customer numbers or \"since…\" that the\n  owner hasn't given. Leave them out, or keep the existing placeholder, and ask for them in the reply.\n- The small facts (value and label, 3 at most) only hold figures the owner gave (\"2018\" / \"Open since\"). Keep a\n  placeholder such as \"00\" until the owner gives the real figure.\n- The caption stays empty unless the owner gives a line for it (for example the founder's name and role).\n- Only the About block changes. When the page has none, say that the assistant can't add one and suggest adding\n  it from the block list; propose no operations.\n- Never touch the photos: ask the owner to upload their own. When the business profile has a description, remind\n  the owner that the live site shows that one instead.\n- Write in the owner's language. Khmer stays Khmer.",
+      "examples": [
+        {
+          "message": "Write our About. I'm Sreymom, I started Mom's Kitchen in Kampot in 2018. We cook Khmer home food like fish amok, lok lak and sour soup, and we deliver in Kampot town.",
+          "refs": [
+            {
+              "id": "about-1",
+              "type": "About"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Mom's Kitchen",
+                "address": "Old Market area, Kampot"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Khmer home cooking"
+                }
+              },
+              {
+                "type": "About",
+                "props": {
+                  "id": "about-1",
+                  "eyebrow": "",
+                  "heading": "About us",
+                  "body": "Tell visitors who you are and what makes you special.",
+                  "imageUrl": null,
+                  "caption": "",
+                  "stats": [
+                    {
+                      "value": "00",
+                      "label": "Open since"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I wrote your About story from what you told me. Upload a photo of you or your kitchen to finish it.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "about-1",
+                "props": {
+                  "eyebrow": "Our story",
+                  "heading": "Home-cooked Khmer food in Kampot",
+                  "body": "Sreymom started Mom's Kitchen in Kampot in 2018. We cook Khmer home food like fish amok, lok lak and sour soup, and we deliver in Kampot town.",
+                  "caption": "Sreymom, founder",
+                  "stats": [
+                    {
+                      "value": "2018",
+                      "label": "Open since"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "សរសេរផ្នែក About ឲ្យខ្ញុំ។ ហាងយើងលក់កាហ្វេ និងតែក្រូចឆ្មា នៅជិតផ្សារណាត់ ក្រុងបាត់ដំបង។",
+          "refs": [
+            {
+              "id": "about-1",
+              "type": "About"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Kafe Dambang"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "កាហ្វេស្រស់ៗ"
+                }
+              },
+              {
+                "type": "About",
+                "props": {
+                  "id": "about-1",
+                  "eyebrow": "",
+                  "heading": "អំពីយើង",
+                  "body": "",
+                  "imageUrl": null,
+                  "caption": "",
+                  "stats": [
+                    {
+                      "value": "00",
+                      "label": "ឆ្នាំបើកហាង"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "ខ្ញុំបានសរសេរផ្នែក About តាមអ្វីដែលអ្នកបានប្រាប់។ សូមប្រាប់ខ្ញុំថា ហាងបើកតាំងពីឆ្នាំណា ដើម្បីដាក់ជំនួសលេខ 00។",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "about-1",
+                "props": {
+                  "heading": "កាហ្វេ និងតែក្រូចឆ្មា នៅបាត់ដំបង",
+                  "body": "ហាង Kafe Dambang របស់យើង លក់កាហ្វេ និងតែក្រូចឆ្មា នៅជិតផ្សារណាត់ ក្រុងបាត់ដំបង។ សូមអញ្ជើញមកភ្លក់ភេសជ្ជៈរបស់យើង។"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "faq",
+      "title": "FAQ writer",
+      "skill": "FAQ writer",
+      "group": "content",
+      "order": 10,
+      "command": "/faq",
+      "aliases": [],
+      "args": null,
+      "blocks": [
+        "FAQ"
+      ],
+      "triggers": [
+        "faq",
+        "q&a",
+        "questions and answers",
+        "common questions",
+        "customers ask",
+        "សំណួរ និងចម្លើយ",
+        "សំណួរចម្លើយ",
+        "សំណួរញឹកញាប់",
+        "ភ្ញៀវតែងសួរ"
+      ],
+      "mode": "change",
+      "maxTokens": 800,
+      "summary": "Writes questions and answers from your page. Never guesses an answer.",
+      "summary_km": "សរសេរសំណួរ និងចម្លើយ ពីព័ត៌មានលើទំព័ររបស់អ្នក។ មិនទាយចម្លើយទេ។",
+      "example": "/faq",
+      "example_km": "/faq",
+      "km_reviewed": false,
+      "rules": "- Write the FAQ block's questions (1–12, usually 4–6) about what customers of this business really ask: ordering,\n  delivery, payment, opening hours, location, booking, custom orders.\n- Answer only from the owner's message, the page (business details, hours, address, phones, Services, About) and\n  the business profile.\n- When an answer isn't known, keep the question with a clear placeholder answer that asks for it (\"Write how and\n  where you deliver, and how long it takes.\") and name those questions in the reply. Never guess prices, delivery\n  areas or fees, payment methods or hours.\n- Questions short and in the customer's words (120 characters at most); answers of one or two sentences (400 at\n  most).\n- With an FAQ block on the page, update its questions and keep the owner's own answers unless asked to change them.\n  Without one, add a complete FAQ block before the Footer, or after the \"@\" block when the owner points to one.\n- Write in the page's language. A Khmer page gets Khmer questions and answers.",
+      "examples": [
+        {
+          "message": "/faq",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Sugar & Crumb",
+                "hours": "7:00 – 19:00",
+                "hoursDetail": "Monday to Sunday, 7:00 – 19:00",
+                "address": "St. 315, Toul Kork, Phnom Penh",
+                "phones": [
+                  {
+                    "number": "012 888 315"
+                  }
+                ]
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Fresh bread every morning"
+                }
+              },
+              {
+                "type": "Services",
+                "props": {
+                  "id": "services-1",
+                  "heading": "What we offer",
+                  "columns": "2",
+                  "items": [
+                    {
+                      "icon": "cake",
+                      "title": "Birthday cakes",
+                      "text": "Made to order. Call us at least 2 days ahead."
+                    },
+                    {
+                      "icon": "coffee",
+                      "title": "Coffee and pastries",
+                      "text": "Freshly made in our shop every morning."
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "VisitUs",
+                "props": {
+                  "id": "visit-1",
+                  "heading": "Visit us"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I added an FAQ block before the Footer with 5 questions. Tell me whether you deliver and how customers can pay, and I'll fill in those two answers.",
+            "operations": [
+              {
+                "op": "ADD",
+                "component_type": "FAQ",
+                "index": 3,
+                "props": {
+                  "eyebrow": "",
+                  "heading": "Questions and answers",
+                  "align": "left",
+                  "spacing": "normal",
+                  "items": [
+                    {
+                      "question": "When are you open?",
+                      "answer": "Monday to Sunday, 7:00 – 19:00."
+                    },
+                    {
+                      "question": "Where is your shop?",
+                      "answer": "St. 315, Toul Kork, Phnom Penh."
+                    },
+                    {
+                      "question": "Can I order a birthday cake?",
+                      "answer": "Yes, we make birthday cakes to order. Call us at 012 888 315 at least 2 days ahead."
+                    },
+                    {
+                      "question": "Do you deliver?",
+                      "answer": "Write how and where you deliver, and how long it takes."
+                    },
+                    {
+                      "question": "How can I pay?",
+                      "answer": "List the ways customers can pay you."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "We deliver anywhere in Phnom Penh, same day if you order before 2pm. Customers pay by ABA or cash.",
+          "refs": [
+            {
+              "id": "faq-1",
+              "type": "FAQ"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Rumdoul Flowers",
+                "address": "Street 432, Toul Tom Poung, Phnom Penh"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Fresh flowers for every day"
+                }
+              },
+              {
+                "type": "FAQ",
+                "props": {
+                  "id": "faq-1",
+                  "eyebrow": "",
+                  "heading": "Questions and answers",
+                  "items": [
+                    {
+                      "question": "Do you deliver?",
+                      "answer": "Write how and where you deliver, and how long it takes."
+                    },
+                    {
+                      "question": "How can I pay?",
+                      "answer": "List the ways customers can pay you."
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I filled in both answers from your message. If there is a delivery fee, tell me and I'll add it.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "faq-1",
+                "props": {
+                  "items": [
+                    {
+                      "question": "Do you deliver?",
+                      "answer": "Yes, anywhere in Phnom Penh. Order before 2pm for same-day delivery."
+                    },
+                    {
+                      "question": "How can I pay?",
+                      "answer": "By ABA or cash."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "services",
+      "title": "Services writer",
+      "skill": "Services writer",
+      "group": "content",
+      "order": 11,
+      "command": "/services",
+      "aliases": [],
+      "args": null,
+      "blocks": [
+        "Services"
+      ],
+      "triggers": [
+        "services",
+        "what we offer",
+        "what we do",
+        "our services",
+        "សេវាកម្ម",
+        "សេវារបស់យើង",
+        "អ្វីដែលយើងផ្តល់"
+      ],
+      "mode": "change",
+      "maxTokens": 700,
+      "summary": "Writes service cards from what you offer. Never adds services you didn't name.",
+      "summary_km": "សរសេរកាតសេវាកម្ម តាមអ្វីដែលអ្នកផ្តល់ជូន។ មិនបន្ថែមសេវាដែលអ្នកមិនបានប្រាប់ទេ។",
+      "example": "/services We do haircuts, colouring and wedding make-up",
+      "example_km": "/services យើងកាត់សក់ លាបពណ៌សក់ និងតុបតែងមុខកូនក្រមុំ",
+      "km_reviewed": false,
+      "rules": "- Write the Services cards only from services the owner names in the message, the business profile or the page.\n  Never add a service they didn't mention, and never a price, duration or guarantee they didn't give.\n- One card per service, 2 to 6 cards: the title is the service's plain name (50 characters at most); the text says\n  what it is and who it's for, from what the owner gave (160 at most), with no praise nobody gave.\n- Pick each icon from the fixed set by meaning (scissors for haircuts, cake for cakes, delivery for delivery,\n  coffee for drinks, brush for hair colouring or painting, gift for gift boxes, location for coming to the customer);\n  when none fits, use star.\n- Columns follow the count: \"2\" for 2 or 4 cards, \"3\" for 3, 5 or 6 cards.\n- With more than 6 services, keep the first 6 the owner lists and name the rest in the reply (a second Services\n  block can hold them). With only one, keep one placeholder card and ask for another.\n- With a Services block on the page, update it. Without one, add a complete Services block after the About block,\n  or before the Footer when there is no About.\n- Write in the owner's language. Khmer stays Khmer.",
+      "examples": [
+        {
+          "message": "We do haircuts, hair colouring with L'Oréal colours, manicure and pedicure, and make-up for weddings and parties.",
+          "refs": [
+            {
+              "id": "services-1",
+              "type": "Services"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Bopha Beauty",
+                "address": "Sok San Road, Siem Reap"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Look your best in Siem Reap"
+                }
+              },
+              {
+                "type": "Services",
+                "props": {
+                  "id": "services-1",
+                  "eyebrow": "",
+                  "heading": "What we offer",
+                  "columns": "3",
+                  "items": [
+                    {
+                      "icon": "star",
+                      "title": "Your first service",
+                      "text": "Say what it is and why customers like it."
+                    },
+                    {
+                      "icon": "heart",
+                      "title": "Your second service",
+                      "text": "Say what it is and why customers like it."
+                    },
+                    {
+                      "icon": "chat",
+                      "title": "Your third service",
+                      "text": "Say what it is and why customers like it."
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I made 4 cards from the services you named. Tell me prices or times if you want them on the cards.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "services-1",
+                "props": {
+                  "heading": "Our services",
+                  "columns": "2",
+                  "items": [
+                    {
+                      "icon": "scissors",
+                      "title": "Haircuts",
+                      "text": "A new haircut at our salon in Siem Reap."
+                    },
+                    {
+                      "icon": "brush",
+                      "title": "Hair colouring",
+                      "text": "A new hair colour with L'Oréal colours."
+                    },
+                    {
+                      "icon": "sparkle",
+                      "title": "Manicure and pedicure",
+                      "text": "Nail care for your hands and feet."
+                    },
+                    {
+                      "icon": "heart",
+                      "title": "Wedding and party make-up",
+                      "text": "Make-up for weddings and parties."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "Add a services section: birthday cakes to order, cupcake gift boxes, and delivery in Phnom Penh.",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Little Lotus Cakes",
+                "address": "Street 155, Toul Tom Poung, Phnom Penh"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Cakes for every celebration"
+                }
+              },
+              {
+                "type": "About",
+                "props": {
+                  "id": "about-1",
+                  "heading": "About us",
+                  "body": "A small home bakery in Toul Tom Poung."
+                }
+              },
+              {
+                "type": "VisitUs",
+                "props": {
+                  "id": "visit-1",
+                  "heading": "Find us"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I added a Services block after About with your 3 services. Tell me the delivery fee or how early to order if you want those shown.",
+            "operations": [
+              {
+                "op": "ADD",
+                "component_type": "Services",
+                "index": 2,
+                "props": {
+                  "eyebrow": "",
+                  "heading": "What we offer",
+                  "columns": "3",
+                  "align": "left",
+                  "spacing": "normal",
+                  "items": [
+                    {
+                      "icon": "cake",
+                      "title": "Birthday cakes",
+                      "text": "Birthday cakes made to order."
+                    },
+                    {
+                      "icon": "gift",
+                      "title": "Cupcake gift boxes",
+                      "text": "Boxes of cupcakes to give as a gift."
+                    },
+                    {
+                      "icon": "delivery",
+                      "title": "Delivery",
+                      "text": "We deliver in Phnom Penh."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "seo",
+      "title": "SEO",
+      "skill": "SEO",
+      "group": "content",
+      "order": 12,
+      "command": "/seo",
+      "aliases": [],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "seo",
+        "google",
+        "search engine",
+        "be found",
+        "found online",
+        "ស្វែងរកលើ Google",
+        "រកឃើញលើ Google",
+        "ឡើងលើ Google"
+      ],
+      "mode": "change",
+      "maxTokens": 600,
+      "summary": "Makes your headings easier to find on Google, and says what's still missing.",
+      "summary_km": "កែចំណងជើងឲ្យគេរកឃើញអ្នកលើ Google ងាយជាងមុន ហើយប្រាប់អ្វីដែលនៅខ្វះ។",
+      "example": "/seo",
+      "example_km": "/seo",
+      "km_reviewed": false,
+      "rules": "- Work on the \"@\" blocks, or on the whole page when there are none: make the Hero heading and description, and the\n  block headings, say what you sell and where (\"Phone repair in Phnom Penh\"), in the words customers type into a\n  search, in the page's language.\n- Use only facts on the page or in the message. Never add places you don't serve, products you don't sell, or\n  lists of keywords: every heading still reads naturally for a person, and each key phrase appears once or twice\n  on the page, not in every block.\n- Keep within each limit (Hero heading 50 characters, descriptions 200) and keep the meaning and tone.\n- The editor has no page title, page description or picture descriptions (alt text): never pretend to set them,\n  and never put them in captions or headings. Say in one line of the reply that they can't be set yet.\n- Search engines and maps read the business name, address, phone and hours: when any of them is empty on the page,\n  say so in the reply and ask for it; never invent it.\n- Never touch props the assistant may not write (customer quotes, Stats numbers, products, images).",
+      "examples": [
+        {
+          "message": "/seo",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Dara Phone Repair",
+                "address": "Street 271, Phnom Penh",
+                "hours": "8:00 – 19:00",
+                "phones": [
+                  {
+                    "number": "017 271 271"
+                  }
+                ]
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Welcome!",
+                  "description": "We fix phones.",
+                  "primaryLabel": "Call us",
+                  "primaryAction": "call"
+                }
+              },
+              {
+                "type": "Services",
+                "props": {
+                  "id": "services-1",
+                  "heading": "What we do",
+                  "columns": "2",
+                  "items": [
+                    {
+                      "icon": "shield",
+                      "title": "Screen replacement",
+                      "text": "New screens for cracked phones."
+                    },
+                    {
+                      "icon": "star",
+                      "title": "Battery replacement",
+                      "text": "A new battery when yours runs down too fast."
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "Your headings now say what you repair and where, so people searching for phone repair in Phnom Penh can find you. The editor has no page title, page description or picture descriptions yet, so I couldn't set those.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "hero-1",
+                "props": {
+                  "heading": "Phone screen and battery repair in Phnom Penh",
+                  "description": "Dara Phone Repair replaces phone screens and batteries at our shop on Street 271, Phnom Penh."
+                }
+              },
+              {
+                "op": "UPDATE",
+                "component_id": "services-1",
+                "props": {
+                  "heading": "Phone repair services"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "/seo",
+          "refs": [
+            {
+              "id": "hero-1",
+              "type": "Hero"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "នំបញ្ចុកយាយម៉ៅ",
+                "address": "ផ្លូវ ៦០ ក្រុងសៀមរាប",
+                "hours": "",
+                "phones": []
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "សូមស្វាគមន៍",
+                  "description": "ហាងយើងលក់នំបញ្ចុក និងការីសាច់មាន់។"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "ខ្ញុំបានកែចំណងជើង Hero ឲ្យប្រាប់ថាអ្នកលក់អ្វី និងនៅឯណា ដើម្បីឲ្យអ្នកដែលស្វែងរកលើ Google រកឃើញអ្នកងាយជាងមុន។ ទំព័រនៅខ្វះលេខទូរស័ព្ទ និងម៉ោងបើក សូមប្រាប់ខ្ញុំ។ កម្មវិធីកែនេះមិនទាន់មានចំណងជើងទំព័រ ការពិពណ៌នាទំព័រ ឬការពិពណ៌នារូបភាពនៅឡើយទេ។",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "hero-1",
+                "props": {
+                  "heading": "នំបញ្ចុក និងការីសាច់មាន់ នៅសៀមរាប",
+                  "description": "នំបញ្ចុកយាយម៉ៅ លក់នំបញ្ចុក និងការីសាច់មាន់ នៅផ្លូវ ៦០ ក្រុងសៀមរាប។"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "a11y",
+      "title": "Accessibility",
+      "skill": "Accessibility",
+      "group": "content",
+      "order": 13,
+      "command": "/a11y",
+      "aliases": [
+        "/accessibility"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "accessibility",
+        "accessible",
+        "hard to read",
+        "contrast",
+        "older customers",
+        "colour blind",
+        "ពិបាកអាន",
+        "មើលមិនច្បាស់",
+        "អក្សរមើលមិនឃើញ"
+      ],
+      "mode": "change",
+      "maxTokens": 600,
+      "summary": "Makes buttons, headings and colours clear and easy to read for everyone.",
+      "summary_km": "ធ្វើឲ្យប៊ូតុង ចំណងជើង និងពណ៌ច្បាស់ ហើយងាយអានសម្រាប់មនុស្សគ្រប់គ្នា។",
+      "example": "/a11y",
+      "example_km": "/a11y",
+      "km_reviewed": false,
+      "rules": "- Button labels say where they go and match their action: shop \"See our products\", visit \"Visit us\", call \"Call\n  us\", email \"Email us\", directions \"Get directions\". Never \"Click here\", \"More\", \"→\" or a label that hides the\n  action.\n- Each block's heading says what the block is about in a few plain words; no heading written all in capital\n  letters, and only the Hero holds the page's main headline. The editor has no heading-level setting: change the\n  wording only.\n- Text must be readable against its background (WCAG AA, 4.5:1 for normal text). Fix contrast only through the\n  page's colour settings: set a text, background or accent colour override back to null (the palette's own\n  colours are readable), or pick another palette. Never invent colours outside the palette.\n- With \"@\" blocks, change only those blocks; mention a page-wide colour problem in the reply instead of fixing it,\n  unless the owner asks.\n- The editor has no picture descriptions (alt text): never write them into captions or headings. Say in the reply\n  which pictures would need one.\n- Plain words and short sentences help everyone: never leave text that is only symbols or emoji, and spell out an\n  abbreviation only when the page or message says what it means (otherwise ask in the reply).\n- Never touch props the assistant may not write (customer quotes, Stats numbers, products, images).",
+      "examples": [
+        {
+          "message": "/a11y",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Kampot Bean Café",
+                "palette": "original",
+                "textColor": "#BBBBBB",
+                "backgroundColor": null,
+                "accentColor": null
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Coffee by the Kampot river",
+                  "primaryLabel": "Click here",
+                  "primaryAction": "directions"
+                }
+              },
+              {
+                "type": "Gallery",
+                "props": {
+                  "id": "gallery-1",
+                  "heading": "Our café",
+                  "columns": "3",
+                  "images": [
+                    {
+                      "imageUrl": "/uploads/cafe-1.jpg",
+                      "caption": ""
+                    },
+                    {
+                      "imageUrl": "/uploads/cafe-2.jpg",
+                      "caption": ""
+                    },
+                    {
+                      "imageUrl": "/uploads/cafe-3.jpg",
+                      "caption": ""
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "CallToAction",
+                "props": {
+                  "id": "cta-1",
+                  "heading": "ORDER BY PHONE",
+                  "body": "Iced coffee to take away.",
+                  "buttonLabel": "More",
+                  "buttonAction": "call"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I made the light grey text readable again with your palette's own colour, and the buttons now say where they go. The editor can't hold picture descriptions yet; your 3 Gallery photos would need them.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "root",
+                "props": {
+                  "textColor": null
+                }
+              },
+              {
+                "op": "UPDATE",
+                "component_id": "hero-1",
+                "props": {
+                  "primaryLabel": "Get directions"
+                }
+              },
+              {
+                "op": "UPDATE",
+                "component_id": "cta-1",
+                "props": {
+                  "heading": "Order by phone",
+                  "buttonLabel": "Call us"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "/a11y",
+          "refs": [
+            {
+              "id": "hero-1",
+              "type": "Hero"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Kep Crab House",
+                "palette": "original",
+                "accentColor": "#F5E663",
+                "textColor": null,
+                "backgroundColor": null
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "KAMPOT PEPPER CRAB",
+                  "primaryLabel": "Call us",
+                  "primaryAction": "call",
+                  "secondaryLabel": ">>",
+                  "secondaryAction": "visit"
+                }
+              },
+              {
+                "type": "VisitUs",
+                "props": {
+                  "id": "visit-1",
+                  "heading": "Visit us"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "The Hero heading is no longer all in capitals, and the second button now says \"Visit us\". Your light yellow accent colour may be hard to read; say \"fix the colours\" and I'll set it back to your palette's own.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "hero-1",
+                "props": {
+                  "heading": "Kampot pepper crab",
+                  "secondaryLabel": "Visit us"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "review",
+      "title": "Review",
+      "skill": "Review",
+      "group": "utility",
+      "order": 1,
+      "command": "/review",
+      "aliases": [],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "review",
+        "feedback",
+        "what do you think",
+        "how does it look",
+        "critique",
+        "សុំយោបល់",
+        "គិតយ៉ាងម៉េច",
+        "មើលទៅយ៉ាងម៉េច",
+        "គួរកែអ្វីខ្លះ"
+      ],
+      "mode": "reply",
+      "maxTokens": 700,
+      "summary": "Looks over your page and lists what to improve. It doesn't change anything.",
+      "summary_km": "ពិនិត្យមើលទំព័ររបស់អ្នក ហើយរាយអ្វីដែលគួរកែលម្អ។ វាមិនកែប្រែអ្វីទេ។",
+      "example": "/review",
+      "example_km": "/review",
+      "km_reviewed": false,
+      "rules": "- Answer only: propose no operations.\n- Give at most 6 numbered points, the most useful first, each one short and concrete: which block, what to change,\n  why it helps a visitor. Mix design (order, spacing, columns, buttons) and content (clarity, length, missing facts).\n- Point out placeholder text still on the page (\"00\", \"Customer's name\", \"Replace this…\") and empty or missing\n  images.\n- Never suggest inventing facts: where a fact is missing, say the owner should add it.\n- End with one line telling the owner they can answer \"fix 1 and 3\" to apply points.\n- With \"@\" blocks, review only those blocks.",
+      "examples": [
+        {
+          "message": "/review",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Sugar & Crumb",
+                "templateId": "sweet-pastel"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Welcome to our website",
+                  "primaryLabel": "Click here"
+                }
+              },
+              {
+                "type": "Stats",
+                "props": {
+                  "id": "stats-1",
+                  "items": [
+                    {
+                      "value": "00",
+                      "label": "Your first number"
+                    },
+                    {
+                      "value": "00",
+                      "label": "Your second number"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "1. Hero: the heading \"Welcome to our website\" says nothing about you. Say what you bake, for example \"Fresh bread every morning\".\n2. Hero: the button \"Click here\" doesn't say where it goes. \"See our cakes\" or \"Get directions\" works better.\n3. Stats still shows the placeholder \"00\". Add your real numbers, or remove the block.\n4. Footer: a short tagline under your name helps visitors remember you.\nAnswer \"fix 1 and 2\" and I'll change those for you.",
+            "operations": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "ideas",
+      "title": "Ideas",
+      "skill": "Ideas",
+      "group": "utility",
+      "order": 2,
+      "command": "/ideas",
+      "aliases": [
+        "/idea"
+      ],
+      "args": {
+        "name": "what",
+        "hint": "what you want ideas for, e.g. headline, button, layout",
+        "hint_km": "ចង់បានគំនិតសម្រាប់អ្វី ឧ. ចំណងជើង ប៊ូតុង ការរៀបចំទំព័រ",
+        "required": false
+      },
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "ideas",
+        "idea",
+        "suggest",
+        "suggestions",
+        "options",
+        "inspiration",
+        "គំនិត",
+        "ជួយគិត",
+        "មានជម្រើសអ្វីខ្លះ"
+      ],
+      "mode": "reply",
+      "maxTokens": 600,
+      "summary": "Gives you 3 ideas to choose from. Nothing changes until you pick one.",
+      "summary_km": "ផ្តល់គំនិតបីឲ្យអ្នកជ្រើសរើស។ ទំព័រមិនប្រែប្រួលទេ រហូតដល់អ្នករើសយកមួយ។",
+      "example": "/ideas headline with @Hero",
+      "example_km": "/ideas ចំណងជើង សម្រាប់ @Hero",
+      "km_reviewed": false,
+      "rules": "- Answer only: propose no operations. The page changes on the next message, when the owner picks an option.\n- Give exactly 3 numbered options that differ in tone or approach (for example plain, warm, bold). Each option is\n  ready to apply as written: within that text's length limit, and a button only goes to shop, visit, call, email or\n  directions, and only to one the page can use (call needs a phone, shop a product block).\n- Give ideas for what the owner names (headline, button, call to action, layout, colours) in the \"@\" blocks, or in\n  the whole page when there are none. With nothing named, pick the Hero headline.\n- Build every idea only from facts on the page, in the message or in the business profile. Never put in a price, a\n  discount, opening hours, a number or a service the owner didn't give.\n- Layout ideas only add blocks the assistant may add (Text, FAQ, Call to action, Services) or move existing ones;\n  keep each block's limit per page and the Footer last. Say that new FAQ answers or service cards start as\n  placeholders for the owner's facts.\n- End with one line: answer 1, 2 or 3 to put it on the page. When the owner answers with a number, apply that option\n  exactly as it was written, to the same block.",
+      "examples": [
+        {
+          "message": "/ideas headline",
+          "refs": [
+            {
+              "id": "hero-1",
+              "type": "Hero"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Sokha Coffee",
+                "address": "Street 08, near Pub Street, Siem Reap"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Welcome to Sokha Coffee",
+                  "description": "Iced coffee, fresh croissants and free Wi-Fi, two minutes from Pub Street.",
+                  "primaryLabel": "Get directions",
+                  "primaryAction": "directions"
+                }
+              },
+              {
+                "type": "ProductCards",
+                "props": {
+                  "id": "products-1",
+                  "heading": "Our drinks"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "Three headlines for your Hero:\n1. Iced coffee and fresh croissants\n2. Your coffee stop near Pub Street\n3. Cool down with an iced coffee\nAnswer 1, 2 or 3 and I'll put it on the page.",
+            "operations": []
+          }
+        },
+        {
+          "message": "/ideas what else should I add to my page?",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Mekong Flowers",
+                "phones": [
+                  {
+                    "number": "012 456 789"
+                  }
+                ]
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Fresh flowers for every day",
+                  "primaryLabel": "See bouquets",
+                  "primaryAction": "shop"
+                }
+              },
+              {
+                "type": "ProductCards",
+                "props": {
+                  "id": "products-1",
+                  "heading": "Bouquets"
+                }
+              },
+              {
+                "type": "VisitUs",
+                "props": {
+                  "id": "visit-1",
+                  "heading": "Come and see us"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": "Flowers from Phnom Penh"
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "Three ideas for your page:\n1. Add an FAQ after Bouquets with \"Do you deliver?\" and \"How can I pay?\". The answers keep their sample text until you tell me yours.\n2. Add a call to action before Visit us: \"Flowers for a special day\" with a \"Call us\" button.\n3. Add a Services block after Bouquets with 3 cards for what you offer. Tell me what to put on them.\nAnswer 1, 2 or 3 and I'll put it on the page.",
+            "operations": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "check",
+      "title": "Pre-deploy check",
+      "skill": "Pre-deploy check",
+      "group": "utility",
+      "order": 3,
+      "command": "/check",
+      "aliases": [
+        "/ready"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "check my page",
+        "ready to deploy",
+        "ready to publish",
+        "before I deploy",
+        "anything missing",
+        "is it ready",
+        "រួចរាល់ហើយឬនៅ",
+        "ខ្វះអ្វី",
+        "មុនដាក់ផ្សាយ",
+        "អាចដាក់ផ្សាយបានទេ"
+      ],
+      "mode": "reply",
+      "maxTokens": 600,
+      "summary": "Checks your page before you deploy and lists what's unfinished. Only answers.",
+      "summary_km": "ពិនិត្យទំព័រមុនពេលដាក់ផ្សាយ ហើយរាយអ្វីដែលមិនទាន់រួចរាល់។ គ្រាន់តែឆ្លើយ មិនកែប្រែទំព័រទេ។",
+      "example": "/check",
+      "example_km": "/check",
+      "km_reviewed": false,
+      "rules": "- Answer only: propose no operations. Check the whole page, or only the \"@\" blocks when there are some.\n- Look for the editor's starter texts still on the page: the index's `placeholders` (each starter text, taken from\n  the catalog's defaults, with the prop it starts in). AI Codegen gives that list with this skill.\n- Look for empty blocks (product blocks with no products, a Text with no body) and missing pictures (no Hero or\n  About picture, Gallery pictures still empty).\n- Look for text too long to read well on a phone: a Hero heading over about 40 characters, or a text that fills its\n  whole limit.\n- Check every button's target: \"call\" needs a phone, \"email\" needs an email, \"directions\" needs an address (in the\n  page details or the business profile), \"visit\" needs a Visit us block, \"shop\" needs a product block.\n- When nothing is found, say in one line that the page is ready to deploy. Otherwise give a numbered list (at most\n  8, the most visible first): the block, the problem, and who fixes it. /fill fills text; numbers, customer quotes\n  and pictures are typed or added in the editor; products, phone and address go in the Owner Portal.\n- Never suggest made-up content to cover a gap: a missing fact is for the owner to give.",
+      "examples": [
+        {
+          "message": "/check",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Lucky Phone Repair",
+                "address": "No. 45, Street 182, Phnom Penh",
+                "phones": [],
+                "email": ""
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Phone screens fixed while you wait",
+                  "primaryLabel": "Call us now",
+                  "primaryAction": "call",
+                  "imageUrl": null
+                }
+              },
+              {
+                "type": "Services",
+                "props": {
+                  "id": "services-1",
+                  "heading": "What we fix",
+                  "items": [
+                    {
+                      "icon": "shield",
+                      "title": "Screen repair",
+                      "text": "Cracked screens replaced on most phones."
+                    },
+                    {
+                      "icon": "star",
+                      "title": "Your second service",
+                      "text": "Say what it is and why customers like it."
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Testimonials",
+                "props": {
+                  "id": "testimonials-1",
+                  "heading": "What our customers say",
+                  "items": [
+                    {
+                      "quote": "Replace this with words a real customer said about you.",
+                      "name": "Customer’s name",
+                      "role": "",
+                      "photoUrl": null
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "CallToAction",
+                "props": {
+                  "id": "cta-1",
+                  "heading": "Questions about your phone?",
+                  "body": "Send us a message.",
+                  "buttonLabel": "Email us",
+                  "buttonAction": "email"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "Not ready yet:\n1. Hero: the \"Call us now\" button has no phone to call. Add your phone in the Owner Portal.\n2. Hero: there is no picture yet. Add one in the editor.\n3. Services: the second card is still \"Your second service\". Use /fill and tell me what it is.\n4. Testimonials still shows the sample quote. Type a real customer's words in the editor, or remove the block.\n5. Call to action: \"Email us\" has no email to send to. Add your email, or choose another button.",
+            "operations": []
+          }
+        },
+        {
+          "message": "/check តើទំព័ររបស់ខ្ញុំរួចរាល់ហើយឬនៅ?",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "នំបញ្ចុក យាយខេង",
+                "address": "ផ្សារដើមគរ ភ្នំពេញ",
+                "phones": [
+                  {
+                    "number": "012 345 678"
+                  }
+                ],
+                "email": ""
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "នំបញ្ចុកសម្លខ្មែរ ធ្វើថ្មីរៀងរាល់ព្រឹក",
+                  "primaryLabel": "បង្ហាញផ្លូវ",
+                  "primaryAction": "directions",
+                  "imageUrl": "/uploads/num-banhchok.jpg"
+                }
+              },
+              {
+                "type": "VisitUs",
+                "props": {
+                  "id": "visit-1",
+                  "heading": "មកញ៉ាំជាមួយយើង"
+                }
+              },
+              {
+                "type": "CallToAction",
+                "props": {
+                  "id": "cta-1",
+                  "heading": "កុម្ម៉ង់សម្រាប់ពិធីបុណ្យ",
+                  "body": "ទូរស័ព្ទមកយើង ដើម្បីកុម្ម៉ង់។",
+                  "buttonLabel": "ទូរស័ព្ទមក",
+                  "buttonAction": "call"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": "រសជាតិខ្មែរពិតៗ"
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "ទំព័ររបស់អ្នករួចរាល់ អាចដាក់ផ្សាយបានហើយ។ គ្មានអត្ថបទគំរូ ឬរូបភាពខ្វះទេ ហើយប៊ូតុងនីមួយៗមានលេខទូរស័ព្ទ ឬអាសយដ្ឋានដែលវាត្រូវការ។",
+            "operations": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fill",
+      "title": "Fill placeholders",
+      "skill": "Fill placeholders",
+      "group": "utility",
+      "order": 4,
+      "command": "/fill",
+      "aliases": [],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "fill",
+        "fill in",
+        "placeholder",
+        "placeholders",
+        "sample text",
+        "finish my page",
+        "បំពេញ",
+        "អត្ថបទគំរូ"
+      ],
+      "mode": "change",
+      "maxTokens": 700,
+      "summary": "Fills sample text with your own details. Never makes up facts; asks instead.",
+      "summary_km": "ជំនួសអត្ថបទគំរូដោយព័ត៌មានរបស់អ្នកផ្ទាល់។ មិនប្រឌិតព័ត៌មានទេ តែសួរអ្នកវិញ។",
+      "example": "/fill We deliver in Phnom Penh. Pay by cash or ABA.",
+      "example_km": "/fill យើងមានសេវា កាត់សក់ កក់សក់ និងកោរពុកមាត់",
+      "km_reviewed": false,
+      "rules": "- Find the placeholder text in the \"@\" blocks, or on the whole page when there are none: the editor's starter texts\n  (the index's `placeholders`, taken from the catalog's defaults; AI Codegen gives that list with this skill) and\n  anything else that asks for a fact.\n- Fill a placeholder only with what the owner's message, the page or the business profile says. Never fill a price,\n  opening hours, delivery area, payment method, service or number the owner didn't give.\n- Leave every placeholder you can't fill as it is, and ask for each missing fact in the reply, one short question\n  each.\n- Never write Stats numbers or customer quotes: ask the owner to type them in the editor. Pictures are added in the\n  editor, products in the Owner Portal.\n- Phone, email, address and opening hours belong in the Owner Portal, whose details the live site shows: point the\n  owner there instead of writing them on the page.\n- When filling one item of a list (FAQ questions, service cards), send the whole list and keep the other items as\n  they were.\n- Write in the page's language and keep within each text's limit. Keep the owner's words for names, places and\n  prices exactly as given.",
+      "examples": [
+        {
+          "message": "/fill We deliver anywhere in Phnom Penh within 3 days. Customers pay cash or ABA.",
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Bopha Tailor"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Dresses made to fit you"
+                }
+              },
+              {
+                "type": "Stats",
+                "props": {
+                  "id": "stats-1",
+                  "items": [
+                    {
+                      "value": "00",
+                      "label": "Your first number"
+                    },
+                    {
+                      "value": "00",
+                      "label": "Your second number"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "FAQ",
+                "props": {
+                  "id": "faq-1",
+                  "heading": "Questions and answers",
+                  "items": [
+                    {
+                      "question": "Do you deliver?",
+                      "answer": "Write how and where you deliver, and how long it takes."
+                    },
+                    {
+                      "question": "How can I pay?",
+                      "answer": "List the ways customers can pay you."
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "I filled both FAQ answers from your message. Stats still shows \"00\": type your real numbers in the editor, or remove the block.",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "faq-1",
+                "props": {
+                  "items": [
+                    {
+                      "question": "Do you deliver?",
+                      "answer": "Yes, anywhere in Phnom Penh, within 3 days."
+                    },
+                    {
+                      "question": "How can I pay?",
+                      "answer": "Cash or ABA."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "/fill យើងមានសេវា កាត់សក់បុរស កក់សក់ និងកោរពុកមាត់",
+          "refs": [
+            {
+              "id": "services-1",
+              "type": "Services"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Lucky Barber"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "ហាងកាត់សក់បុរស Lucky Barber"
+                }
+              },
+              {
+                "type": "Services",
+                "props": {
+                  "id": "services-1",
+                  "heading": "សេវាកម្មរបស់យើង",
+                  "columns": "3",
+                  "items": [
+                    {
+                      "icon": "star",
+                      "title": "Your first service",
+                      "text": "Say what it is and why customers like it."
+                    },
+                    {
+                      "icon": "heart",
+                      "title": "Your second service",
+                      "text": "Say what it is and why customers like it."
+                    },
+                    {
+                      "icon": "chat",
+                      "title": "Your third service",
+                      "text": "Say what it is and why customers like it."
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "ខ្ញុំបានដាក់ឈ្មោះសេវាទាំងបីរបស់អ្នកលើកាតក្នុងប្លុក Services ហើយ។ អត្ថបទពិពណ៌នាខ្លីនៅតែជាអត្ថបទគំរូ។ សូមប្រាប់ខ្ញុំមួយឃ្លាអំពីសេវានីមួយៗ ខ្ញុំនឹងបំពេញឲ្យ។",
+            "operations": [
+              {
+                "op": "UPDATE",
+                "component_id": "services-1",
+                "props": {
+                  "items": [
+                    {
+                      "icon": "scissors",
+                      "title": "កាត់សក់បុរស",
+                      "text": "Say what it is and why customers like it."
+                    },
+                    {
+                      "icon": "sparkle",
+                      "title": "កក់សក់",
+                      "text": "Say what it is and why customers like it."
+                    },
+                    {
+                      "icon": "brush",
+                      "title": "កោរពុកមាត់",
+                      "text": "Say what it is and why customers like it."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "explain",
+      "title": "Explain",
+      "skill": "Explain",
+      "group": "utility",
+      "order": 5,
+      "command": "/explain",
+      "aliases": [
+        "/what"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [
+        "explain",
+        "what does",
+        "what is this",
+        "what's this for",
+        "ពន្យល់",
+        "មានន័យថាម៉េច",
+        "មានន័យថាអ្វី",
+        "សម្រាប់ធ្វើអ្វី"
+      ],
+      "mode": "reply",
+      "maxTokens": 400,
+      "summary": "Explains what a block or setting does, in plain words. Only answers.",
+      "summary_km": "ពន្យល់ជាពាក្យសាមញ្ញថា ប្លុក ឬការកំណត់មួយធ្វើអ្វី។ គ្រាន់តែឆ្លើយ មិនកែប្រែទំព័រទេ។",
+      "example": "/explain with @VisitUs",
+      "example_km": "/explain តើ @AllProducts ធ្វើអ្វី?",
+      "km_reviewed": false,
+      "rules": "- Answer only: propose no operations.\n- Explain the \"@\" blocks, or the setting the owner names (colours, font, button style, a button's target): what\n  visitors see, and what the owner can change in it.\n- Say where its facts come from when that matters: address, hours and phone from the page details (the Owner Portal\n  on the live site), products and prices from the Owner Portal, numbers, customer quotes and pictures typed or added\n  in the editor.\n- Explain only what the editor really has. When the owner asks for something it doesn't have (a free link on a\n  button, a second page), say so plainly.\n- Two to four short sentences in the owner's language, with the names the owner sees in the editor. No technical\n  words.\n- Where it helps, end with what WebBlock AI can do for that block, for example \"/rewrite\" or \"/fill\".",
+      "examples": [
+        {
+          "message": "What is this block for?",
+          "refs": [
+            {
+              "id": "visit-1",
+              "type": "VisitUs"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Sokha Coffee",
+                "address": "Street 08, near Pub Street, Siem Reap",
+                "hours": "7:00 – 21:00"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "Iced coffee and fresh croissants"
+                }
+              },
+              {
+                "type": "VisitUs",
+                "props": {
+                  "id": "visit-1",
+                  "heading": "Come and see us"
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "Visit us shows your address, opening hours, phone and a map, so people can find you. Here you only change its heading and layout. The address, hours and phone come from your business details, and the live site uses the ones in the Owner Portal.",
+            "operations": []
+          }
+        },
+        {
+          "message": "/explain តើប្លុកនេះធ្វើអ្វី? ហេតុអ្វី AI មិនបន្ថែមផលិតផលឲ្យខ្ញុំ?",
+          "refs": [
+            {
+              "id": "all-products-1",
+              "type": "AllProducts"
+            }
+          ],
+          "page": {
+            "root": {
+              "props": {
+                "businessName": "Chantrea Fashion"
+              }
+            },
+            "content": [
+              {
+                "type": "Hero",
+                "props": {
+                  "id": "hero-1",
+                  "heading": "សម្លៀកបំពាក់នារីទាន់សម័យ"
+                }
+              },
+              {
+                "type": "AllProducts",
+                "props": {
+                  "id": "all-products-1",
+                  "heading": "ផលិតផលទាំងអស់",
+                  "pageSize": 6
+                }
+              },
+              {
+                "type": "Footer",
+                "props": {
+                  "id": "footer-1",
+                  "tagline": ""
+                }
+              }
+            ]
+          },
+          "output": {
+            "reply": "ប្លុកនេះបង្ហាញផលិតផលទាំងអស់របស់អ្នក ជាមួយប្រអប់ស្វែងរក និងប៊ូតុងសម្រាប់រើសតាមប្រភេទ។ ផលិតផល និងតម្លៃមកពី Owner Portal ដូច្នេះ AI មិនអាចបន្ថែម ឬកែវាបានទេ សូមបន្ថែមវានៅទីនោះ។ ចំនួនផលិតផលក្នុងមួយទំព័រ អ្នកអាចកំណត់បាននៅក្នុងកម្មវិធីកែ។",
+            "operations": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "help",
+      "title": "Help",
+      "skill": "Help",
+      "group": "utility",
+      "order": 6,
+      "command": "/help",
+      "aliases": [
+        "/?"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [],
+      "mode": "client",
+      "maxTokens": null,
+      "summary": "Shows every command and what it does. Answered right here, nothing is sent.",
+      "summary_km": "បង្ហាញពាក្យបញ្ជាទាំងអស់ និងអ្វីដែលវាធ្វើ។ ឆ្លើយនៅទីនេះ មិនផ្ញើទៅណាទេ។",
+      "example": "/help",
+      "example_km": "/help",
+      "km_reviewed": false,
+      "rules": "- A client skill: the chat answers it from this list (grouped Design, Content, Utility, with each summary) and never\n  sends it to AI Codegen.",
+      "examples": []
+    }
+  ]
+}
