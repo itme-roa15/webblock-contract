@@ -1439,6 +1439,11 @@ components:
         domain: {type: [string, 'null'], description: Public host; null until the first deploy.}
         templateId: {type: string}
         thumbnailUrl: {type: [string, 'null']}
+        logoUrl:
+          type: [string, 'null']
+          description: |
+            The business logo's public URL (the business details' logo), null when there is none or the catalog cannot
+            be read. Added for the owner apps (mobile mapping G4).
         updatedAt: {type: string, format: date-time}
         suspendedAt: {type: [string, 'null'], format: date-time}
         reactivatedAt: {type: [string, 'null'], format: date-time}
@@ -1553,14 +1558,23 @@ components:
         updatedAt: {type: string, format: date-time}
     ProductBody:
       type: object
-      description: As v1. `imageUrl` absent keeps the photo; `version` optional.
-      required: [name, category, price]
+      description: |
+        As v1, except the price. `imageUrl` absent keeps the photo; `version` optional. `price` absent or null is a hidden
+        price (stored empty, read back as null; mobile mapping G7); v1 still requires it.
+      required: [name, category]
       properties:
         name: {type: string}
         description: {type: string}
         category: {type: string}
-        price: {type: string}
-        imageUrl: {type: [string, 'null']}
+        price:
+          type: [string, 'null']
+          description: Up to 6 digits, optionally 1 or 2 decimals (for example "3.50"); null or absent is a hidden price.
+        imageUrl:
+          type: [string, 'null']
+          description: |
+            Absent, or the current photo's URL, keeps the photo; null removes it; otherwise exactly the `url` of one of
+            this website's media library images (`GET .../media`). Any other value is 400 VALIDATION_FAILED, code
+            VALUE_INVALID on `imageUrl`. A removed or replaced photo stays in the media library.
         version: {type: integer}
     ProductPage:
       type: object
