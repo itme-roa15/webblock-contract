@@ -158,15 +158,18 @@ paths:
         reply is asked once more by the service itself; if it still can't be used, the answer is `502`
         `MODEL_REPLY_UNUSABLE` and the client may offer Retry. Sending the same prompt again (equal once trimmed)
         while it is still the last message answers that stored prompt instead of storing it twice. With `blockRefs`, a
-        send is "the same" only when its references are the same too.
+        send is "the same" only when its references (and its `command`) are the same too.
 
         `blockRefs` (optional, additive) name the blocks the owner pointed at with "@" in the chat. The assistant
         treats them as the target: its change set only touches those blocks, unless the prompt clearly asks for more
         (for example "and add an FAQ after it"). The references are checked against the draft before anything is
         stored or the model is asked: an id that is not on the page, or is on it with another `type`, answers `422`
         `BLOCK_REF_NOT_FOUND` with plain words ("A block you pointed at is no longer on the page. Pick it again with
-        @."), and nothing is stored. "/" commands (/rewrite, /shorten, /translate …) are expanded by the client into a
-        normal prompt; there is no command field.
+        @."), and nothing is stored.
+
+        "/" commands (/rewrite, /translate km …) come as `command` {name, args}, naming a pinned WebBlock AI skill
+        (assistant/skills-<version>.json): the router picks that skill exactly, and `prompt` keeps the text the owner
+        typed, so the history reads naturally. A client skill (/help) is answered by the chat and never sent.
       x-replaces: "POST /v1/ui/projects/{project_id}/ai/messages"
       requestBody:
         required: true
