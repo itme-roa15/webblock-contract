@@ -559,6 +559,16 @@ components:
           type: array
           maxItems: 5
           items: { $ref: "#/components/schemas/BlockRef" }
+        skill:
+          description: |
+            Additive. Only on an ASSISTANT reply that used a skill: the skill that shaped it (the UI shows "Used:
+            <title>", with the skill's `summary` as a tooltip from the pinned skill list). Absent otherwise.
+          type: object
+          additionalProperties: false
+          required: [name, title]
+          properties:
+            name: { type: string, description: The skill file's `name`, e.g. `shorten`. }
+            title: { type: string, description: "The skill shown to the owner, e.g. `Copywriting`." }
     BlockRef:
       description: |
         One block of the page's draft, as the editor's Puck data holds it: `props.id` and the block `type` (a block
@@ -599,6 +609,18 @@ components:
           type: array
           maxItems: 5
           items: { $ref: "#/components/schemas/BlockRef" }
+        command:
+          description: |
+            Additive, optional. The "/" command the owner picked (WebBlock AI skills, assistant/skills-<version>.json):
+            `name` is a pinned skill's `name` (for example `translate`), `args` what followed it (`km`). The router uses
+            it to pick the skill exactly, never parsed from the text; `prompt` still carries the readable request so the
+            history reads naturally. A name AI Codegen doesn't pin is 400. A `client` skill (`help`) is never sent.
+          type: object
+          additionalProperties: false
+          required: [name]
+          properties:
+            name: { type: string, pattern: "^[a-z][a-z0-9-]{0,29}$" }
+            args: { type: string, maxLength: 200 }
     Problem:
       description: RFC 9457 problem details. The UI shows `title` and `detail` and branches on `status`.
       type: object
