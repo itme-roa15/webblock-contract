@@ -605,11 +605,14 @@ components:
       properties:
         key:
           type: string
-          enum: [websites, deploys, redeploys, generations, products]
+          enum: [websites, deploys, redeploys, generations, products, photos]
           description: |
             In the order sent. The free trial (owner, 11 Nov): `websites` labelled "Draft websites" (used / the draft
             cap, 20), `deploys` "Deploys" (deploys in total / 1, a redeploy counts), `generations`, `products`; it has
             no `redeploys`. A paid plan: `websites`, `redeploys` (this period / redeploysPerMonth), `products`.
+            Every plan then has `photos` ("Photos per website", cardLabel "Photos"; owner 14 Nov): the website's
+            media-library images against the plan's limit, `used` on GET /projects/{projectId}/usage only (from
+            Project), `null` on /me/usage and /me/subscription.
         label: { type: string, example: Websites }
         cardLabel: { type: string, example: Website }
         used: { type: [integer, 'null'], description: '`null` when the owning service could not be asked.' }
