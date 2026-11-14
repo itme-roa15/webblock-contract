@@ -274,6 +274,9 @@ the rules every skill follows. `assistant/skills-<version>.json` is the index bu
 - **Routing (AI Codegen):** `SendAiMessage.command` picks the skill by `name`; else the "@" blocks' types (`blocks`);
   else a keyword match on `triggers`. At most two skills join the base prompt; the reply's `AiMessage.skill` names
   the one used.
+- **Labels:** `assistant/labels.json` holds the few words around the descriptions where the chat lists them (the
+  mode labels "Changes your page" / "Only answers", "e.g.", the list's heading and hint, "Used:"), in English and
+  Khmer; the build copies them into the index's `labels`, so the UI keeps no copy of that wording either.
 - **Placeholders:** the index's `placeholders` lists the editor's starter texts (`{prop, text}`), taken by the build
   from the catalog's `default` values for the props in `PLACEHOLDER_PROPS` (build-skills.mjs). /check and /fill use
   that list; the web editor's pre-Deploy warning checks the same props. A listed prop without a starter text in the

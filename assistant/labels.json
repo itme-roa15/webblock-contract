@@ -1,0 +1,13 @@
+{
+  "note": "The words around the skills' own descriptions, where the chat lists them (the / menu, /help, the empty chat, the reply's tag). Khmer to be reviewed by the owner, like summary_km.",
+  "km_reviewed": false,
+  "modes": {
+    "change": { "en": "Changes your page", "km": "វាកែប្រែទំព័រ" },
+    "reply": { "en": "Only answers", "km": "គ្រាន់តែឆ្លើយ" },
+    "client": { "en": "Answered here", "km": "ឆ្លើយនៅទីនេះ" }
+  },
+  "example": { "en": "e.g.", "km": "ឧ." },
+  "heading": { "en": "What can WebBlock AI do?", "km": "WebBlock AI អាចធ្វើអ្វីបានខ្លះ?" },
+  "hint": { "en": "Type / in the box, or pick one:", "km": "វាយ / ក្នុងប្រអប់ ឬជ្រើសរើសមួយ៖" },
+  "used": { "en": "Used:", "km": "បានប្រើ៖" }
+}

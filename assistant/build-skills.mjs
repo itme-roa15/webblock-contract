@@ -231,6 +231,7 @@ const index = {
     { name: "content", title: "Content", title_km: "ខ្លឹមសារ" },
     { name: "utility", title: "Utility", title_km: "ជំនួយ" },
   ],
+  labels: JSON.parse(readFileSync(path.join(ROOT, "assistant", "labels.json"), "utf8")),
   placeholders,
   skills,
 };
