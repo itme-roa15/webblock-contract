@@ -1608,7 +1608,12 @@ components:
       required: [name, category]
       properties:
         name: {type: string}
-        description: {type: string}
+        description:
+          type: [string, 'null']
+          description: |
+            Optional. Absent, null, "" or whitespace only is no description (stored empty; Product.description reads
+            ""). Otherwise trimmed and 10 to 300 characters (400 VALIDATION_FAILED, FIELD_LENGTH_INVALID on
+            `description`). v1 still requires it (Android finding of 14 November 2026).
         category: {type: string}
         price:
           type: [string, 'null']
