@@ -213,6 +213,8 @@ has a `note` (what it is and how the site shows it) and, on block props, the `de
   - `Testimonials.items` and `Stats.items` are `owner` facts: real customers' words and the business's own
     numbers, which the assistant never writes or changes.
   - `Gallery.images` is `media`.
+  - Known 0.1.0 leftover: `About.stats` (small facts such as "10+ years") stays AI-editable, because changing an
+    old block's policy would not be additive. The assistant should still not invent numbers there.
 - **How a page moves from 0.1.0 to 0.2.0: on its next save from a 0.2.0 client.**
   1. The page saves (`PUT /api/project/v2/projects/{projectId}/page` from the editor, and
      `PUT /internal/v1/projects/{projectId}/page/draft` from AI Codegen) carry an optional `componentCatalogVersion`:
