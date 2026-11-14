@@ -52,6 +52,11 @@ paths:
         Exchanges the email and password for Keycloak tokens. The first sign-in of an account with the role `user`
         publishes `account.user_first_login.v1` (Payment starts the free trial from it). A user re-created in
         Keycloak with the same email is matched by email and keeps their account (issue 4).
+
+        `stayLoggedIn: true` (a phone) asks Keycloak for an offline session (`scope=offline_access`): the refresh
+        token then lasts Keycloak's offline session idle time instead of the SSO session's 30 minutes, and
+        `refreshExpiresIn` says how long. Refresh and sign-out work the same way. Changing or resetting the password
+        and suspending the account end offline sessions too. Without the field (the web) nothing changes.
       x-replaces: "POST /api/user/v1/auth/login"
       security: []
       requestBody:
@@ -67,7 +72,9 @@ paths:
               schema: { $ref: '#/components/schemas/TokenSet' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401':
-          description: Wrong email or password (`invalid-credentials`). The answer never says which one.
+          description: |
+            Wrong email or password (`invalid-credentials`). The answer never says which one. Also while Keycloak's
+            brute-force protection holds the account after too many wrong passwords: there is no 429 and no wait.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -81,7 +88,6 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
         '503': { $ref: '#/components/responses/Unavailable' }
   /sessions/refresh:
     post:
@@ -124,7 +130,8 @@ paths:
       summary: Sign out (end the session of this refresh token)
       description: |
         Creates a revocation instead of `DELETE /sessions/{id}`: the session has no id the client knows, and the
-        refresh token must not appear in a path. Answers 204 also when the token was already ended.
+        refresh token must not appear in a path. Answers 204 also when the token was already ended. An offline
+        session (`stayLoggedIn`) ends the same way.
       x-replaces: "POST /api/user/v1/ui/auth/logout"
       security: []
       requestBody:
@@ -186,7 +193,7 @@ paths:
               schema: { $ref: '#/components/schemas/CodeSent' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '429':
-          description: Asked again within 60 seconds (`otp-resend-too-soon`). `Retry-After` gives the seconds to wait.
+          description: Asked again within 60 seconds (`otp-resend-too-soon`). `Retry-After` gives the seconds left of that wait.
           headers:
             Retry-After: { schema: { type: integer, minimum: 1 } }
           content:
@@ -794,7 +801,10 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
     TooManyRequests:
-      description: Rate limit reached. `Retry-After` gives the seconds to wait.
+      description: |
+        A new code was asked for before the 60-second resend wait ended (`otp-resend-too-soon`). `Retry-After` gives
+        the seconds left of that wait (at least 1). Too many wrong codes is a different 429 (`otp-too-many-attempts`,
+        on the verification routes) and has no `Retry-After`: that code is gone, only a new code helps.
       headers:
         Retry-After: { schema: { type: integer, minimum: 1 } }
       content:
@@ -872,6 +882,10 @@ components:
       properties:
         email: { $ref: '#/components/schemas/Email' }
         password: { type: string, minLength: 1, maxLength: 128 }
+        stayLoggedIn:
+          type: boolean
+          default: false
+          description: true asks for an offline session (stay signed in on a phone). Absent or false = today's session.
     RefreshTokenRequest:
       type: object
       additionalProperties: false
@@ -885,7 +899,11 @@ components:
         accessToken: { type: string }
         refreshToken: { type: string }
         expiresIn: { type: integer, description: Seconds until the access token expires. }
-        refreshExpiresIn: { type: integer, description: Seconds until the refresh token expires. }
+        refreshExpiresIn:
+          type: integer
+          description: |
+            Seconds until the refresh token expires (Keycloak's value, passed on as is): the SSO session idle time, or
+            for `stayLoggedIn` the offline session idle time. Refresh before it runs out; 0 means Keycloak set no end.
         tokenType: { type: string, const: Bearer }
         userId: { type: string, format: uuid }
         email: { $ref: '#/components/schemas/Email' }
