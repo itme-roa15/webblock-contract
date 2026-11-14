@@ -153,6 +153,11 @@ paths:
 
         The answer is the assistant's reply, a new message: `201` with `Location` pointing at it. The owner's own
         prompt is the message just before it in the list.
+
+        When the model fails, the prompt stays stored, unanswered, as the conversation's last message. An unusable
+        reply is asked once more by the service itself; if it still can't be used, the answer is `502`
+        `MODEL_REPLY_UNUSABLE` and the client may offer Retry. Sending the same prompt again (equal once trimmed)
+        while it is still the last message answers that stored prompt instead of storing it twice.
       x-replaces: "POST /v1/ui/projects/{project_id}/ai/messages"
       requestBody:
         required: true
@@ -177,6 +182,7 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/ProjectNotFound" }
+        "502": { $ref: "#/components/responses/ModelReplyUnusable" }
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /projects/{projectId}/ai-messages/{messageId}:
     parameters:
@@ -384,7 +390,8 @@ paths:
       description: |
         Stores the prompt, asks the model about the project's current draft, and answers 201 with the reply, the change
         set it proposes and a warning when its proposal was invalid (then no change set). The change set is only
-        proposed: PATCH it to apply it. `Location` is the reply.
+        proposed: PATCH it to apply it. `Location` is the reply. Model failures, the stored prompt and Retry are as for
+        `POST /projects/{projectId}/ai-messages`.
       x-replaces: "POST /v1/conversations/{conversation_id}/messages"
       requestBody:
         required: true
@@ -402,6 +409,7 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/ModelReplyUnusable" }
         "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /projects/{projectId}/conversations/{conversationId}/messages/{messageId}:
     parameters:
@@ -749,10 +757,20 @@ components:
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
+    ModelReplyUnusable:
+      description: |
+        The model answered, but its answer couldn't be used, even after the service asked once more by itself: an
+        empty reply, no or invalid JSON, a stream error, or the connection dropping twice
+        (`urn:webblock:problem:model-reply-unusable`, code `MODEL_REPLY_UNUSABLE`). No `Retry-After`: the client may
+        offer Retry at once, sending the same prompt again.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example: { type: "urn:webblock:problem:model-reply-unusable", title: Bad gateway, status: 502, detail: "WebBlock AI's answer couldn't be used; try again.", instance: "/api/ai-codegen/v2/projects/6c17b5d1-a784-4987-89ff-86079305776b/ai-messages", code: MODEL_REPLY_UNUSABLE, requestId: "9f1c2e3d-4b5a-6c7d-8e9f-0a1b2c3d4e5f" }
     ServiceUnavailable:
       description: |
-        A dependency is down, with `Retry-After`: the model, Keycloak's key set, Project or the database
-        (`urn:webblock:problem:service-unavailable`).
+        A dependency is down, with `Retry-After`: the model (no answer in time, a 4xx, or 429/5xx twice), Keycloak's
+        key set, Project or the database (`urn:webblock:problem:service-unavailable`).
       headers:
         Retry-After:
           schema: { type: integer }
