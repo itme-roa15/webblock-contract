@@ -98,9 +98,17 @@ paths:
         The mobile app runs Keycloak's authorization code flow with PKCE on its own PUBLIC client `webblock-ios`
         (no secret; `kc_idp_hint=google`; redirect `com.webblock.app:/oauth2redirect`) and sends the code here.
         user-service exchanges it at Keycloak's token endpoint with that client and answers the same token set as
-        `createSession`. Same account rules as the web's Google sign-in: the first time creates the account (one email
-        = one account), and the first sign-in of an account with the role `user` publishes
-        `account.user_first_login.v1` once. To stay signed in, the app asks for `scope=openid offline_access` in its
+        `createSession`.
+
+        The phone never creates an account (owner, 14 November 2026): accounts are made on the WebBlock website, and
+        the web's Google sign-in still creates them. An existing account (made with a password or with Google) signs
+        in here with the same rules as on the web; the first sign-in of an account with the role `user` publishes
+        `account.user_first_login.v1` once. A Google identity without a WebBlock account gets 404
+        `account-not-found`: no account, no event, the new session is ended, and the Keycloak user that this very
+        attempt created for that Google identity is deleted (a user that existed before the attempt is never
+        touched). Signing up on the website and then signing in here works.
+
+        To stay signed in, the app asks for `scope=openid offline_access` in its
         authorization request (the scope is fixed there, not here). `refresh` and `revokeSession` take the app's
         refresh token as they are.
       security: []
@@ -128,13 +136,15 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
-        '409':
-          description: The email belongs to another WebBlock account (`account-email-in-use`). The new session is ended.
+        '404':
+          description: |
+            No WebBlock account for this Google identity (`account-not-found`, title "Create your account on the
+            WebBlock website first."). Show the website's sign-up; do not retry.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
-        '422':
-          description: The Google account gave no email (`account-email-missing`).
+        '409':
+          description: The email belongs to another WebBlock account (`account-email-in-use`). The new session is ended.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
