@@ -1339,8 +1339,8 @@
           },
           "default": [
             {
-              "quote": "Add a few words a customer said about you.",
-              "name": "Customer name",
+              "quote": "Replace this with words a real customer said about you.",
+              "name": "Customer’s name",
               "role": "",
               "photoUrl": null
             }
@@ -1726,19 +1726,19 @@
         "columns": "3",
         "items": [
           {
-            "icon": "delivery",
-            "title": "Delivery",
-            "text": "Say where you deliver and how fast."
+            "icon": "star",
+            "title": "Your first service",
+            "text": "Say what it is and why customers like it."
           },
           {
-            "icon": "gift",
-            "title": "Gift wrapping",
-            "text": "Describe something extra you do for customers."
+            "icon": "heart",
+            "title": "Your second service",
+            "text": "Say what it is and why customers like it."
           },
           {
             "icon": "chat",
-            "title": "Friendly help",
-            "text": "Tell visitors how you can help them choose."
+            "title": "Your third service",
+            "text": "Say what it is and why customers like it."
           }
         ],
         "align": "left",
@@ -1867,19 +1867,19 @@
           },
           "default": [
             {
-              "icon": "delivery",
-              "title": "Delivery",
-              "text": "Say where you deliver and how fast."
+              "icon": "star",
+              "title": "Your first service",
+              "text": "Say what it is and why customers like it."
             },
             {
-              "icon": "gift",
-              "title": "Gift wrapping",
-              "text": "Describe something extra you do for customers."
+              "icon": "heart",
+              "title": "Your second service",
+              "text": "Say what it is and why customers like it."
             },
             {
               "icon": "chat",
-              "title": "Friendly help",
-              "text": "Tell visitors how you can help them choose."
+              "title": "Your third service",
+              "text": "Say what it is and why customers like it."
             }
           ],
           "note": "2–6 cards, each with an icon from the fixed set, a title (required) and a short text. The icon keys are fixed; the site draws its own icon for each key."
@@ -1978,16 +1978,16 @@
           },
           "default": [
             {
-              "value": "10+",
-              "label": "Years open"
+              "value": "00",
+              "label": "Your first number"
             },
             {
-              "value": "500",
-              "label": "Happy customers"
+              "value": "00",
+              "label": "Your second number"
             },
             {
-              "value": "4.9",
-              "label": "Average rating"
+              "value": "00",
+              "label": "Your third number"
             }
           ],
           "note": "2–4 big numbers with a label each (both required), e.g. 500 / Happy customers. Only the owner sets them."

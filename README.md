@@ -204,14 +204,20 @@ has a `note` (what it is and how the site shows it) and, on block props, the `de
 
 - **A newer 0.x only adds.** Every block, prop and value rule of the older version is the same in the newer one,
   and its page rules are the same or looser. So every page valid under 0.1.0 is valid under 0.2.0. A version that
-  breaks this would be 1.x, and needs its own migration plan.
+  breaks this needs its own migration plan, and must not be numbered 1.0.0: AI Codegen already uses "1.0.0" for its
+  own generated-site catalog.
+- **Version order** is numeric major.minor.patch ("0.10.0" is newer than "0.9.0"). A version a reader can't parse
+  or doesn't pin is refused.
 - **0.2.0's AI policy:**
-  - WebBlock AI may add Text, FAQ, CallToAction and Services, which it can fill with words alone, starting from
-    `addDefaults`.
+  - WebBlock AI may add Text, FAQ, CallToAction and Services, starting from `addDefaults`.
+  - It never invents business facts: delivery areas or times, payment methods, prices, opening hours, services
+    offered, numbers. FAQ answers and Services cards hold only facts from the owner's prompt or already on the
+    page; where the owner gave none, the assistant keeps a placeholder that asks for them (as `addDefaults` do).
   - It edits the wording of Testimonials, Gallery and Stats (heading, eyebrow) and may move or remove them, but
     never adds them.
   - `Testimonials.items` and `Stats.items` are `owner` facts: real customers' words and the business's own
-    numbers, which the assistant never writes or changes.
+    numbers, which the assistant never writes or changes. Their `default`s are plain placeholders ("Replace this
+    with words a real customer said about you.", "00 / Your first number"), never values that pass for real.
   - `Gallery.images` is `media`.
   - Known 0.1.0 leftover: `About.stats` (small facts such as "10+ years") stays AI-editable, because changing an
     old block's policy would not be additive. The assistant should still not invent numbers there.
@@ -229,6 +235,12 @@ has a `note` (what it is and how the site shows it) and, on block props, the `de
      (a 0.1.0 page is a valid 0.2.0 page).
   6. AI Codegen sends the version of the catalog it built its change set with.
   7. A restore (PATCH) keeps the stored version: an older published tree is valid under the newer catalog.
+- **Rollout order.** `componentCatalogVersion` is optional for Project's callers, but today's Project refuses
+  unknown body properties, so a client must not send it before Project accepts it. Ship in this order:
+  1. AI Codegen's catalog loader accepts the flag value `owner` (it reads `flag` as a closed list), and its site
+     template renders the six new blocks (a block type the site doesn't know must not be dropped silently);
+  2. Project pins 0.2.0 and accepts the field on both page saves;
+  3. then the 0.2.0 web editor and AI Codegen sending the field.
 - **Pages never saved again stay 0.1.0** and keep working: they hold only 0.1.0 blocks, which every reader of
   0.2.0 still knows.
 - **New projects:** Project creates them at the newest version it pins.
