@@ -160,18 +160,24 @@ function linksOf(type, prop, value) {
   if (type === "root" && catalog.page.links.appliesTo.includes(`root.${prop}`)) return [value];
   return [];
 }
-/** The host as a browser reads it (WHATWG URL), as the editor checks it: the social links' looser 0.2.0 pattern lets
- * userinfo, percent signs and non-ASCII through (README "No WhatsApp"). For a 0.3.0 link it is the same host. */
+/** The authority of an https:// link: the text up to the first "/", "?" or "#" (a backslash does not end it). */
+const authorityOf = (link) => (typeof link === "string" && link.startsWith("https://") ? /^https:\/\/([^/?#]*)/.exec(link)[1] : null);
+/**
+ * Whether a link's host is blocked (page.links.blockedHosts, suffix match). The host is cut by hand, as every reader
+ * cuts it (README "No WhatsApp"): the text between https:// and the first ":", "/", "?" or "#", lower-case, without a
+ * trailing dot. Never a URL parser's host: a social link whose authority could read differently is refused first.
+ */
 const blocked = (link) => {
-  if (typeof link !== "string" || !link.startsWith("https://")) return false;
-  let host;
-  try {
-    host = new URL(link).hostname.toLowerCase().replace(/\.$/, "");
-  } catch {
-    return false;
-  }
+  const authority = authorityOf(link);
+  if (authority === null) return false;
+  const host = authority.split(":")[0].toLowerCase().replace(/\.$/, "");
   return catalog.page.links.blockedHosts.some((entry) => host === entry || host.endsWith(`.${entry}`));
 };
+/** The root's 0.2.0 social links, whose looser pattern lets userinfo, "%", a backslash and non-ASCII through. */
+const SOCIAL_LINKS = ["facebookUrl", "instagramUrl"];
+/** The social links' host rule (README "No WhatsApp"): every reader refuses an authority holding @, %, a backslash or
+ * a non-ASCII character, so no URL parser decides which host it is. */
+const unclearAuthority = (link) => /[@%\\]|[^\x00-\x7f]/.test(authorityOf(link) ?? "");
 /** The whole https:// addresses a text holds (a trailing full stop, comma or the like is not part of one). */
 const addressesIn = (text) => (String(text).match(/https:\/\/[^\s"'<>()[\]{}]+/g) ?? []).map((a) => a.replace(/[.,;:!?]+$/, ""));
 /** Every string of a JSON value, at any depth. */
@@ -186,7 +192,9 @@ function checkWritten(where, example, type, prop, value, current) {
     fail(where, `${type}.${prop} uses the telegram action on a page without root.telegramUrl (ask the owner for their Telegram link)`);
   }
   for (const link of links) {
-    if (blocked(link)) fail(where, `${type}.${prop} links to a blocked host (page.links.blockedHosts): ${link}`);
+    if (type === "root" && SOCIAL_LINKS.includes(prop) && unclearAuthority(link)) {
+      fail(where, `root.${prop}: its address holds @, %, a backslash or a non-ASCII character before its first /, ? or # (the social links' host rule): ${link}`);
+    } else if (blocked(link)) fail(where, `${type}.${prop} links to a blocked host (page.links.blockedHosts): ${link}`);
     else if (typeof link === "string" && link.startsWith("https://") && !said.has(link)) {
       fail(where, `${type}.${prop} links to ${link}, which neither the message nor the page holds (never invent an address)`);
     }
@@ -282,9 +290,10 @@ function checkTree(where, page) {
 /**
  * Where an ADD or MOVE puts its block: the target list and index (README 0.3.0, nested operations). With "@" blocks
  * (and no touchesMore) the target is an "@" block or one inside it, or a block added earlier in the set: never the
- * top level or another container.
+ * top level or another container. A MOVE may also keep its block in the list it came from (`from`: its original
+ * parent id, null at the top level, and slot), as a reorder of an "@" block in its own list or in its own parent does.
  */
-function target(where, op, work, refs, moving, scope, example) {
+function target(where, op, work, refs, moving, scope, example, from = null) {
   if (op.position !== undefined && op.index !== undefined) return fail(where, `${op.op}: give the index inside "position", not both`), null;
   const position = op.position ?? (op.index !== undefined ? { index: op.index } : op.op === "ADD" ? {} : null);
   if (!position || typeof position !== "object" || Object.keys(position).some((k) => !["parentId", "slot", "index"].includes(k))) {
@@ -292,12 +301,17 @@ function target(where, op, work, refs, moving, scope, example) {
   }
   let list = work.content;
   const parentId = position.parentId ?? null;
-  const outOfScope = scope.size > 0 && !example.touchesMore;
+  const resolved = parentId === null ? null : refs.get(parentId) ?? parentId;
+  // A MOVE back into its own list stays where the request put it: in scope whatever that list is.
+  const staysInItsList = from !== null && from.parentId === resolved && from.slot === (position.slot ?? null);
+  const outOfScope = scope.size > 0 && !example.touchesMore && !staysInItsList;
   if (parentId === null) {
     if (position.slot != null) return fail(where, `${op.op}: a top-level position has no slot`), null;
     if (outOfScope) fail(where, `${op.op} puts a block at the top level, outside the @ blocks (set "touchesMore": true when the request asks for more)`);
   } else {
-    const id = refs.get(parentId) ?? parentId;
+    const id = resolved;
+    // Into an "@" container or a block inside one (so a block moved inside its own "@" container stays in scope), or
+    // into a block added earlier in the set.
     if (outOfScope && !scope.has(id) && ![...refs.values()].includes(id)) {
       fail(where, `${op.op} puts a block into ${parentId}, which is not an @ block or inside one (set "touchesMore": true when the request asks for more)`);
     }
@@ -403,9 +417,11 @@ function checkExample(file, skill, example, n) {
       const at = find(work, id);
       if (!at) { fail(where, `${op.op} of ${id}, which is not on the example page`); continue; }
       if (!components[at.block.type].aiOperations.includes(op.op)) fail(where, `${op.op} is not allowed on ${at.block.type}`);
+      // Where the moved block came from, before it is taken out: its parent's id (null at the top level) and slot.
+      const from = { parentId: at.parent?.props?.id ?? null, slot: at.slot ?? null };
       at.list.splice(at.index, 1);
       if (op.op === "MOVE") {
-        const place = target(where, op, work, refs, at.block, scope, example);
+        const place = target(where, op, work, refs, at.block, scope, example, from);
         if (place) place.list.splice(place.index, 0, at.block);
       }
     }

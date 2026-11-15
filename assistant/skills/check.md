@@ -33,6 +33,10 @@ km_reviewed: false
   page details or the business profile), "visit" needs a Visit us block, "shop" needs a product block, and
   "telegram" needs the page's Telegram link (`telegramUrl`): without it the button only falls back to the Telegram
   username or to Visit us, so report it.
+- Check the page's Facebook and Instagram links (`facebookUrl`, `instagramUrl`) and report first: the Facebook or
+  Instagram link is a WhatsApp address (a host of the catalog's `page.links.blockedHosts`), or holds "@", "%", "\" or
+  a letter outside A–Z before its first "/": change it in the editor's page settings (the page no longer saves until
+  then, the assistant's changes included).
 - Check the products to show, against what AI Codegen gives with the page (`catalog`: the website's `categories`,
   and `goneProductIds`, the picks that are no longer products of the website). Category names match ignoring case
   ("coffee" is Coffee). Without `categories`, report no category as unknown.
@@ -44,8 +48,8 @@ km_reviewed: false
     every pick in `goneProductIds`, or an empty catalog.
 - When nothing is found, say in one line that the page is ready to deploy. Otherwise give a numbered list (at most
   8, the most visible first): the block, the problem, and who fixes it. /fill fills text; /products sets which
-  products show; numbers, customer quotes, pictures, picks and the Telegram link are typed or added in the editor;
-  products, phone and address go in the Owner Portal.
+  products show; numbers, customer quotes, pictures, picks and the Telegram, Facebook and Instagram links are typed
+  or added in the editor; products, phone and address go in the Owner Portal.
 - Never suggest made-up content to cover a gap: a missing fact is for the owner to give.
 
 ## Examples
@@ -112,6 +116,24 @@ km_reviewed: false
   },
   "output": {
     "reply": "Not ready yet:\n1. Hero: \"Message us on Telegram\" has no Telegram link to open. Add your link (https://t.me/…) in the editor's page settings, or choose another button.\n2. Product Cards \"Our favourites\": 1 picked product is no longer in your catalog. Remove it in the editor's product picker.\n3. Product Cards \"Cakes\": \"Cakes\" isn't one of your categories (Coffee, Tea), so the block shows no products. Use /products to choose a category, or show all.\n4. All products opens on \"Smoothies\", which isn't one of your categories, so it opens on All. Use /products to change it.\n5. \"Our story\": the text under it is still the editor's starter text. Use /fill and tell me your story.",
+    "operations": []
+  }
+}
+```
+
+```json
+{
+  "message": "/check",
+  "page": {
+    "root": { "props": { "businessName": "Dara Bike Rental", "address": "Street 60, Kampot", "phones": [{ "number": "097 606 060" }], "facebookUrl": "https://wa.me/85597606060", "instagramUrl": "https://www.instagram.com/darabikes/" } },
+    "content": [
+      { "type": "Hero", "props": { "id": "hero-1", "heading": "Bikes and scooters by the day", "primaryLabel": "Call us", "primaryAction": "call", "imageUrl": "/media/bikes.jpg" } },
+      { "type": "VisitUs", "props": { "id": "visit-1", "heading": "Find us by the river" } },
+      { "type": "Footer", "props": { "id": "footer-1", "tagline": "Ride Kampot your way" } }
+    ]
+  },
+  "output": {
+    "reply": "Not ready yet:\n1. Your Facebook link is a WhatsApp address (https://wa.me/…). Change it in the editor's page settings to your Facebook page: the page no longer saves until then, my changes included.",
     "operations": []
   }
 }
