@@ -113,8 +113,9 @@ x-internal-routes:
                 type: integer
                 minimum: 0
                 description: |
-                  The website's photos: the rows of its media library (every PNG or JPEG uploaded, used or not); a
-                  file deleted through deleteMedia leaves the count at once. Payment's "Photos" meter (payment agent
+                  The website's photos: the rows of its media library the owner uploaded (`origin` UPLOAD, every PNG
+                  or JPEG uploaded, used or not; TEMPLATE copies never count, W8, owner decision of 15 November 2026);
+                  a file deleted through deleteMedia leaves the count at once. Payment's "Photos" meter (payment agent
                   76e8d818 agreed, 14 November 2026).
       errors:
         - '400 VALIDATION_FAILED: no id, more than 100 distinct ids, or an id that is not a UUID (field `id`).'
@@ -402,8 +403,9 @@ paths:
         with Payment, E2E phase A). v1 answers 422 for all five. Sending the same body again for a website that
         already exists answers 200 with it (no second website). `details.logoUrl` is the wizard's logo as a
         `data:image/...;base64,...` URL (the UI reads the chosen file into one) or null. It is checked before anything
-        is created, as a media upload: PNG or JPEG read from the bytes (never the declared type), at most 5 MiB
-        (400 VALIDATION_FAILED for anything else, 413, 415). It becomes the website's first media asset and, once the
+        is created, as a media upload: PNG or JPEG read from the bytes (never the declared type), at most the
+        website's image size limit (2 MiB by default, never more than 5 MiB) (400 VALIDATION_FAILED for anything else,
+        413, 415). It becomes the website's first media asset and, once the
         catalog has registered the website, its business logo. The body may be up to 6 MiB. `category` and
         `thumbnailUrl` are ignored (the server owns them).
       x-phase: 2
@@ -872,6 +874,10 @@ paths:
       tags: [media]
       operationId: listMedia
       summary: The website's images.
+      description: |
+        Every image of the library: the owner's uploads and, since W8 (owner decision of 15 November 2026), Project's
+        copies of the site template's images (`origin` TEMPLATE). The apps show both, the copies marked (owner, 15
+        November 2026: "show them, marked"). Only uploads count toward the photo and storage limits.
       x-phase: 2
       x-replaces: ["GET /api/v1/ui/projects/{projectId}/media"]
       parameters:
@@ -888,14 +894,15 @@ paths:
     post:
       tags: [media]
       operationId: uploadMedia
-      summary: Uploads an image (PNG or JPEG, at most 2 MiB) to the website's library.
+      summary: Uploads an image (PNG or JPEG, at most the website's image size limit, 2 MiB by default, never more than 5 MiB) to the website's library.
       description: |
         The type is read from the file's bytes, never from the client's content type or file name. The website owner's
-        plan limits its photos (library images): Project reads `photosLimit` from Payment's per-website entitlement
-        before storing (never a number of its own), and a library already at the limit is 422 `PHOTO_LIMIT_REACHED`
-        (owner decision of 14 November 2026; payment agent 76e8d818 agreed). When Payment does not answer clearly:
-        503 `PAYMENT_UNAVAILABLE` with `Retry-After`. The library's bytes are limited too (422
-        `STORAGE_LIMIT_REACHED`).
+        plan limits its photos (the library images the owner uploaded, `origin` UPLOAD): Project reads `photosLimit`
+        from Payment's per-website entitlement before storing (never a number of its own), and a library already at
+        the limit is 422 `PHOTO_LIMIT_REACHED` (owner decision of 14 November 2026; payment agent 76e8d818 agreed).
+        When Payment does not answer clearly: 503 `PAYMENT_UNAVAILABLE` with `Retry-After`. The uploads' bytes are
+        limited too (422 `STORAGE_LIMIT_REACHED`). TEMPLATE copies count toward neither limit (W8), so a client never
+        compares listMedia's `totalItems` with `photosLimit`.
       x-phase: 2
       x-replaces: ["POST /api/v1/ui/projects/{projectId}/media"]
       requestBody:
@@ -919,6 +926,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
         '413': {$ref: '#/components/responses/BadRequest'}
+        '415': {$ref: '#/components/responses/BadRequest'}
         '422': {$ref: '#/components/responses/BusinessRule'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /projects/{projectId}/media/{mediaId}:
@@ -931,15 +939,61 @@ paths:
     delete:
       tags: [media]
       operationId: deleteMedia
-      summary: Deletes a library image that nothing uses.
+      summary: Deletes a library image that nothing uses (with force=true, also one that only the page uses).
       description: |
         Owner only (owner decision of 14 November 2026). The image may be deleted only when nothing uses it: no
-        product's photo, not the business logo, no live page, and no deployment that is live, restorable or still
-        running. Otherwise 409 `MEDIA_IN_USE`, with one `errors[]` entry per place (`field` one of `products`,
-        `businessLogo`, `pages`, `deployments`). A deleted image frees its photo and its bytes for new uploads at once;
-        its file is deleted from storage after the row. The apps call it after replacing or removing a photo. A
-        suspended website is 422 `PROJECT_READ_ONLY`; the catalog not answering is 503 `CATALOG_UNAVAILABLE`.
+        product's photo, not the business logo, not the website's page (its draft), and no deployment that is live,
+        restorable or still running. Otherwise 409 `MEDIA_IN_USE`, with at least one `errors[]` entry per place
+        (`field` one of `products`, `businessLogo`, `pages`, `deployments`). Deleting an UPLOAD frees its photo and
+        its bytes for new uploads at once; deleting a TEMPLATE copy (`MediaAsset.origin`) frees neither, as copies
+        count toward no limit. The file is deleted from storage after the row. The apps call it after replacing or
+        removing a photo. A suspended website is 422 `PROJECT_READ_ONLY`; the catalog not answering is 503
+        `CATALOG_UNAVAILABLE`. A repeated DELETE of an image already deleted is 404 `MEDIA_NOT_FOUND`: the image is
+        gone.
+
+        The page's uses (W8b, owner decision of 15 November 2026). The page uses the image when a string anywhere in
+        its `root.props` or in a block's props contains the image's storage key (the path part of `url` after the
+        media host, `<projectId>/media/<file>`), the check Project makes today. Each use is one `pages` entry:
+        - in an image field of a block: `blockId` (the block's `props.id`), `blockType` (its catalog type, e.g.
+          `Hero`), `code` `MEDIA_IN_USE`;
+        - in the page's own settings (`root.props.logoUrl`): `blockType` `root`, no `blockId`, `code` `MEDIA_IN_USE`;
+        - anywhere else (a text, a link such as `facebookUrl`, an unknown prop): `code` `MEDIA_NAMED_IN_TEXT`, with
+          `blockId` and `blockType` when it is inside a block (`blockType` `root` in the settings). It is never
+          forced.
+        - a use Project finds on the page but cannot tie to the settings or a block (e.g. a key the walk does not
+          know): one `code` `MEDIA_NAMED_IN_TEXT` entry with neither `blockId` nor `blockType`. It is never forced.
+        Blocks inside `zones` are walked like the page's own blocks. The image fields are: `root.props.logoUrl`; a
+        block's `imageUrl` and `secondImageUrl`; and inside arrays `sideImages[].imageUrl`, `products[].imageUrl`,
+        `images[].imageUrl` and `items[].photoUrl` (catalogs 0.1.0 and 0.2.0; a later catalog version lists its own
+        image fields). One block using the image in several fields is one entry. A `pages` entry with `code`
+        `MEDIA_IN_USE` and neither `blockId` nor `blockType` comes from a Project before W8b: name no block ("used on
+        your page") and do not offer force.
+
+        `force=true` deletes an image that only the page's image fields use, once the owner has confirmed in the app.
+        In the same transaction Project sets each image field whose value contains the storage key to `null` (every
+        image field is nullable in every catalog version), keeping arrays and their items, so item counts such as a
+        Gallery's 2 to 12 images do not change and the blocks show no image instead of a broken one (a Gallery whose
+        images are all null shows nothing on the published site). It then checks the page again: if the key is still
+        anywhere, nothing is deleted or changed and the answer is the 409. The page gets a new edit revision, so an
+        editor that saves with its old revision (`If-Match` or `expectedEditRevision`) gets the usual 412. `force`
+        never overrides `products`, `businessLogo`, `deployments` or a `MEDIA_NAMED_IN_TEXT` use: with any of those,
+        the answer is the same 409 with every entry, `pages` entries included. A client may offer force only when
+        every `errors[]` entry is `field` `pages` with `code` `MEDIA_IN_USE` and a `blockType`. Clients send
+        `force=true` only after the owner confirms that exact image's deletion, never in the automatic clean-up after
+        replacing or removing a photo.
+
+        Rollout: Project ships W8b before any client offers force. A Project before W8b ignores `force` and answers
+        the same 409; clients can tell a W8b Project by `origin` on listMedia items.
       x-phase: 3
+      parameters:
+        - name: force
+          in: query
+          required: false
+          description: |
+            W8b (owner decision of 15 November 2026): `true` also deletes an image that only the page's image fields
+            use, after the owner confirmed; those fields become `null`. Never forces `products`, `businessLogo`,
+            `deployments` or a `MEDIA_NAMED_IN_TEXT` use. Absent or `false`: as before.
+          schema: {type: boolean, default: false}
       responses:
         '204': {description: Deleted.}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -1423,6 +1477,17 @@ components:
             properties:
               field: {type: string}
               code: {type: string}
+              blockId:
+                type: string
+                description: |
+                  Optional (W8b): on deleteMedia's 409 `pages` entries, the page block that uses the image (its
+                  `props.id`). Absent for a use in the page's settings, and everywhere else.
+              blockType:
+                type: string
+                description: |
+                  Optional (W8b): on deleteMedia's 409 `pages` entries, the block's catalog type (e.g. `Hero`,
+                  `Gallery`), or `root` for the page's own settings. Clients show their own label for the type, or a
+                  generic one ("a block on your page") for a type they don't know.
 
     TemplateCategory:
       type: string
@@ -1693,6 +1758,16 @@ components:
         id: {type: string, format: uuid}
         url: {type: string}
         name: {type: string}
+        origin:
+          type: string
+          enum: [UPLOAD, TEMPLATE]
+          description: |
+            Optional (W8b, owner decision of 15 November 2026: "show them, marked"). UPLOAD: a file the owner
+            uploaded. TEMPLATE: Project's copy of a site template image, made for this website when it was created,
+            by the W8 backfill, or when a version deployed before W8 is restored (so a deleted copy can come back);
+            copies may be WebP. The apps mark it ("From your template"). TEMPLATE copies count toward neither the
+            photo limit (`photoCount`, Payment's `photosLimit`) nor the storage limit. Absent (an older Project):
+            treat as UPLOAD. Clients treat an unknown value as UPLOAD too.
     MediaPage:
       type: object
       required: [items, page, size, totalItems]
