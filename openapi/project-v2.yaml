@@ -958,11 +958,14 @@ paths:
         - anywhere else (a text, a link such as `facebookUrl`, an unknown prop): `code` `MEDIA_NAMED_IN_TEXT`, with
           `blockId` and `blockType` when it is inside a block (`blockType` `root` in the settings). It is never
           forced.
-        The image fields are: `root.props.logoUrl`; a block's `imageUrl` and `secondImageUrl`; and inside arrays
-        `sideImages[].imageUrl`, `products[].imageUrl`, `images[].imageUrl` and `items[].photoUrl` (catalogs 0.1.0
-        and 0.2.0; a later catalog version lists its own image fields). One block using the image in several fields
-        is one entry. A `pages` entry with neither `blockId` nor `blockType` comes from a Project before W8b: name no
-        block ("used on your page") and do not offer force.
+        - a use Project finds on the page but cannot tie to the settings or a block (e.g. a key the walk does not
+          know): one `code` `MEDIA_NAMED_IN_TEXT` entry with neither `blockId` nor `blockType`. It is never forced.
+        Blocks inside `zones` are walked like the page's own blocks. The image fields are: `root.props.logoUrl`; a
+        block's `imageUrl` and `secondImageUrl`; and inside arrays `sideImages[].imageUrl`, `products[].imageUrl`,
+        `images[].imageUrl` and `items[].photoUrl` (catalogs 0.1.0 and 0.2.0; a later catalog version lists its own
+        image fields). One block using the image in several fields is one entry. A `pages` entry with `code`
+        `MEDIA_IN_USE` and neither `blockId` nor `blockType` comes from a Project before W8b: name no block ("used on
+        your page") and do not offer force.
 
         `force=true` deletes an image that only the page's image fields use, once the owner has confirmed in the app.
         In the same transaction Project sets each image field whose value contains the storage key to `null` (every
