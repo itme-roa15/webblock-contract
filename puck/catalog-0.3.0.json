@@ -12,6 +12,7 @@
     ]
   },
   "page": {
+    "strictSince": "0.3.0",
     "blockLimit": 40,
     "topLevelLimit": 16,
     "maxDepth": 3,
@@ -48,6 +49,14 @@
       "Map"
     ],
     "blockIdProp": "id",
+    "blockId": {
+      "prop": "id",
+      "schema": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      }
+    },
     "uniqueBlockIds": true,
     "anchors": {
       "block": "Section",
@@ -56,10 +65,25 @@
       "reserved": [
         "top",
         "shop",
-        "visit"
+        "visit",
+        "about",
+        "all-products"
       ]
     },
+    "document": {
+      "keys": [
+        "root",
+        "content",
+        "zones"
+      ],
+      "zones": "empty"
+    },
     "notes": {
+      "strictSince": "Every block, prop and slot with \"since\" (added in 0.3.0 or later) is strict: a value that fails any keyword of its schema (pattern, lengths, item counts, enum, additionalProperties) is refused, and so is an unknown prop or item key on such a block. Props without \"since\" (0.1.0 and 0.2.0) keep their readers' older leniency.",
+      "blockId": "Every block's props.id: a string of 1–100 characters, unique across the whole tree.",
+      "document": "A page document holds root, content and zones. Blocks nest through slots only, so zones (Puck's DropZones, which no block uses) is absent or {}.",
+      "patterns": "A pattern matches the whole string under ECMA-262 rules ($ is the end of input): Python readers use re.fullmatch, Java readers Matcher.matches() or networknt's ECMA-262 regex. The 0.3.0 patterns use ASCII classes only, so the result is the same in every engine. `patterns` lists strings every reader must accept and refuse.",
+      "liveData": "ProductCards, AllProducts, About and VisitUs show live data (the Owner Portal's products and business facts), which the sites fill in only at the top level: no slot takes them.",
       "blockLimit": "Blocks on the page in all, counting every block inside a container at every depth (40). Before 0.3.0 the top level was the only level.",
       "topLevelLimit": "Blocks in the page's own content list, the top level (16).",
       "maxDepth": "How deep blocks nest: a top-level block is depth 1, a block in its slot depth 2, a block in a slot of that one depth 3. Nothing sits deeper than 3, so a container at depth 3 stays empty.",
@@ -67,9 +91,9 @@
       "lastBlock": "The Footer is the last block of the top level. Hero and Footer are topLevelOnly: never inside a container.",
       "slots": "A container holds blocks in its slot props, each a list of blocks ({type, props}, as at the top level). A block in a slot must be allowed by it (allow \"any\": every type whose topLevelOnly is false, minus disallow), the slot holds minItems to maxItems blocks, and a slot with activeWhen holds blocks only while that prop has one of the listed values.",
       "uniqueBlockIds": "Every block's props.id is unique across the whole tree, slots included.",
-      "anchors": "A Section's anchorId, when not empty, is unique on the page and never top, shop, visit (the site's own anchors).",
+      "anchors": "A Section's anchorId, when not empty, is unique on the page and never top, shop, visit, about, all-products (the site's own in-page link targets). Every other id the site emits holds a character the anchorId pattern can't (e.g. _), so the two never meet.",
       "links": "A 0.3.0 link (Buttons items[].link, ImageBanner buttonLink, a rich text link's href) is a CtaAction target or an https:// address of the vetted pattern; never javascript:, data:, http: or a relative path.",
-      "plainText": "Every string is plain text, shown as text: no prop takes HTML, CSS, a script or an iframe. The only embeds are Video (YouTube, Vimeo) and Map (Google Maps embed), which the site builds from an address of the vetted pattern."
+      "plainText": "Every string is plain text, shown as text: no prop takes HTML, CSS, a script or an iframe. The only embeds are Video (YouTube, Vimeo) and Map (Google Maps embed), which the site builds from an address of the vetted pattern. A picture goes into CSS only as url(\"…\") with the value CSS-escaped, never by string concatenation."
     }
   },
   "root": {
@@ -365,7 +389,8 @@
           "type": "string",
           "maxLength": 60
         },
-        "note": "The page's title in the browser tab and search results, up to 60 characters (added in 0.3.0). Optional: older pages leave it out; empty or missing uses the business name."
+        "note": "The page's title in the browser tab and search results, up to 60 characters (added in 0.3.0). Optional: older pages leave it out. The site uses it when not empty, then Project's page SEO title, then the business name.",
+        "since": "0.3.0"
       },
       "seoDescription": {
         "required": false,
@@ -375,7 +400,8 @@
           "type": "string",
           "maxLength": 160
         },
-        "note": "The short description search results show under the title, up to 160 characters (added in 0.3.0). Optional: older pages leave it out; empty or missing leaves it out."
+        "note": "The short description search results show under the title, up to 160 characters (added in 0.3.0). Optional: older pages leave it out. The site uses it when not empty, then Project's page SEO description, else none.",
+        "since": "0.3.0"
       }
     }
   },
@@ -538,7 +564,8 @@
             "type": "string",
             "maxLength": 150
           },
-          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; empty means decorative."
+          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; missing or empty uses the heading, as before 0.3.0.",
+          "since": "0.3.0"
         },
         "sideImages": {
           "required": true,
@@ -721,7 +748,8 @@
             "type": "string",
             "maxLength": 150
           },
-          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; empty means decorative."
+          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; missing or empty uses the heading, as before 0.3.0.",
+          "since": "0.3.0"
         }
       }
     },
@@ -1169,7 +1197,8 @@
             "type": "string",
             "maxLength": 150
           },
-          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; empty means decorative."
+          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; missing or empty uses the caption, else the heading, as before 0.3.0.",
+          "since": "0.3.0"
         },
         "secondImageAlt": {
           "required": false,
@@ -1179,7 +1208,8 @@
             "type": "string",
             "maxLength": 150
           },
-          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; empty means decorative. For the second photo."
+          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; missing or empty uses the caption, else the heading, as before 0.3.0. For the second photo.",
+          "since": "0.3.0"
         },
         "caption": {
           "required": true,
@@ -2109,6 +2139,7 @@
       }
     },
     "Section": {
+      "since": "0.3.0",
       "label": "Section",
       "maxPerPage": 8,
       "topLevelOnly": false,
@@ -2145,7 +2176,8 @@
             ]
           },
           "default": "muted",
-          "note": "The surface behind the section, from the theme: none, muted, accent, inverse, gradient-soft or gradient-accent (both from the palette) or image. The site keeps text over it readable (WCAG AA)."
+          "note": "The surface behind the section, from the theme: none, muted, accent, inverse, gradient-soft or gradient-accent (both from the palette) or image. The site keeps text over it readable (WCAG AA).",
+          "since": "0.3.0"
         },
         "backgroundImageUrl": {
           "required": true,
@@ -2157,7 +2189,7 @@
               {
                 "type": "string",
                 "maxLength": 500,
-                "pattern": "^(\\/[^/]|https:\\/\\/)"
+                "pattern": "^(\\/[A-Za-z0-9._~-][A-Za-z0-9._~%\\/-]*|https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:[0-9]{1,5})?(\\/[A-Za-z0-9._~!&*+,=:@%\\/-]*)?(\\?[A-Za-z0-9._~!&*+,=:@%\\/?-]*)?)$"
               },
               {
                 "type": "null"
@@ -2165,7 +2197,8 @@
             ]
           },
           "default": null,
-          "note": "The picture used when background is image: an uploaded file or an https:// link; null falls back to none. Decorative, so it has no alt text."
+          "note": "The picture used when background is image: an uploaded file (/…) or an https:// link of the vetted 0.3.0 picture pattern (no quotes, brackets, parentheses or spaces); null falls back to none. Decorative, so it has no alt text. The site writes it into CSS only as url(\"…\") with the value escaped.",
+          "since": "0.3.0"
         },
         "overlay": {
           "required": true,
@@ -2179,7 +2212,8 @@
             ]
           },
           "default": "dark",
-          "note": "The tint over a background picture, so text over it stays readable: dark or light. Only used with image."
+          "note": "The tint over a background picture, so text over it stays readable: dark or light. Only used with image.",
+          "since": "0.3.0"
         },
         "padding": {
           "required": true,
@@ -2195,7 +2229,8 @@
             ]
           },
           "default": "medium",
-          "note": "Space inside the section, from the theme's spacing scale: none, small, medium or large."
+          "note": "Space inside the section, from the theme's spacing scale: none, small, medium or large.",
+          "since": "0.3.0"
         },
         "width": {
           "required": true,
@@ -2211,7 +2246,8 @@
             ]
           },
           "default": "normal",
-          "note": "How wide the content runs: narrow, normal, wide or full (edge to edge)."
+          "note": "How wide the content runs: narrow, normal, wide or full (edge to edge).",
+          "since": "0.3.0"
         },
         "anchorId": {
           "required": true,
@@ -2223,15 +2259,21 @@
             "pattern": "^([a-z][a-z0-9-]{1,39})?$"
           },
           "default": "",
-          "note": "Link name of the section (the #name in an address), 2–40 small letters, numbers and -. Empty for none. Unique on the page, and never top, shop or visit (the site's own)."
+          "note": "Link name of the section (the #name in an address), 2–40 small letters, numbers and -. Empty for none. Unique on the page, and never top, shop, visit, about or all-products (the site's own).",
+          "since": "0.3.0"
         }
       },
       "slots": {
         "content": {
+          "since": "0.3.0",
           "label": "Content",
           "allow": "any",
           "disallow": [
-            "Section"
+            "Section",
+            "ProductCards",
+            "AllProducts",
+            "About",
+            "VisitUs"
           ],
           "minItems": 0,
           "maxItems": 12,
@@ -2240,6 +2282,7 @@
       }
     },
     "Columns": {
+      "since": "0.3.0",
       "label": "Columns",
       "maxPerPage": 6,
       "topLevelOnly": false,
@@ -2280,7 +2323,8 @@
             ]
           },
           "default": "50-50",
-          "note": "The columns and their widths in percent, left to right, e.g. 33-67. The number of parts is the number of columns (2–4); the slots past it stay empty."
+          "note": "The columns and their widths in percent, left to right, e.g. 33-67. The number of parts is the number of columns (2–4); the slots past it stay empty.",
+          "since": "0.3.0"
         },
         "gap": {
           "required": true,
@@ -2295,7 +2339,8 @@
             ]
           },
           "default": "medium",
-          "note": "Space between the columns: small, medium or large."
+          "note": "Space between the columns: small, medium or large.",
+          "since": "0.3.0"
         },
         "stackOnMobile": {
           "required": true,
@@ -2305,7 +2350,8 @@
             "type": "boolean"
           },
           "default": true,
-          "note": "true: on a phone the columns stack, first column on top. false: they stay side by side."
+          "note": "true: on a phone the columns stack, first column on top. false: they stay side by side.",
+          "since": "0.3.0"
         },
         "verticalAlign": {
           "required": true,
@@ -2320,11 +2366,13 @@
             ]
           },
           "default": "top",
-          "note": "How columns of different heights line up: top, center or bottom."
+          "note": "How columns of different heights line up: top, center or bottom.",
+          "since": "0.3.0"
         }
       },
       "slots": {
         "column1": {
+          "since": "0.3.0",
           "label": "Column 1",
           "allow": [
             "Heading",
@@ -2345,6 +2393,7 @@
           "note": "The blocks this slot holds, in order: a list of blocks, each {type, props} as at the top level (a Puck slot). The first (left) column."
         },
         "column2": {
+          "since": "0.3.0",
           "label": "Column 2",
           "allow": [
             "Heading",
@@ -2365,6 +2414,7 @@
           "note": "The blocks this slot holds, in order: a list of blocks, each {type, props} as at the top level (a Puck slot). The second column."
         },
         "column3": {
+          "since": "0.3.0",
           "label": "Column 3",
           "allow": [
             "Heading",
@@ -2395,6 +2445,7 @@
           "note": "The blocks this slot holds, in order: a list of blocks, each {type, props} as at the top level (a Puck slot). The third column; only with a three- or four-part ratio, else empty."
         },
         "column4": {
+          "since": "0.3.0",
           "label": "Column 4",
           "allow": [
             "Heading",
@@ -2423,6 +2474,7 @@
       }
     },
     "Grid": {
+      "since": "0.3.0",
       "label": "Grid",
       "maxPerPage": 4,
       "topLevelOnly": false,
@@ -2451,7 +2503,8 @@
             ]
           },
           "default": "3",
-          "note": "Columns of the grid on a wide screen (2–4); phones always show fewer."
+          "note": "Columns of the grid on a wide screen (2–4); phones always show fewer.",
+          "since": "0.3.0"
         },
         "gap": {
           "required": true,
@@ -2466,11 +2519,13 @@
             ]
           },
           "default": "medium",
-          "note": "Space between the items: small, medium or large."
+          "note": "Space between the items: small, medium or large.",
+          "since": "0.3.0"
         }
       },
       "slots": {
         "items": {
+          "since": "0.3.0",
           "label": "Items",
           "allow": [
             "Card",
@@ -2490,6 +2545,7 @@
       }
     },
     "Card": {
+      "since": "0.3.0",
       "label": "Card",
       "maxPerPage": 16,
       "topLevelOnly": false,
@@ -2521,7 +2577,8 @@
             ]
           },
           "default": "plain",
-          "note": "The card's background from the theme: plain, muted or accent."
+          "note": "The card's background from the theme: plain, muted or accent.",
+          "since": "0.3.0"
         },
         "border": {
           "required": true,
@@ -2536,7 +2593,8 @@
             ]
           },
           "default": "subtle",
-          "note": "The card's border: none, subtle or strong."
+          "note": "The card's border: none, subtle or strong.",
+          "since": "0.3.0"
         },
         "radius": {
           "required": true,
@@ -2552,7 +2610,8 @@
             ]
           },
           "default": "medium",
-          "note": "Corner rounding from the theme's radius scale: none, small, medium or large."
+          "note": "Corner rounding from the theme's radius scale: none, small, medium or large.",
+          "since": "0.3.0"
         },
         "shadow": {
           "required": true,
@@ -2567,7 +2626,8 @@
             ]
           },
           "default": "none",
-          "note": "The card's shadow: none, soft or strong."
+          "note": "The card's shadow: none, soft or strong.",
+          "since": "0.3.0"
         },
         "padding": {
           "required": true,
@@ -2582,11 +2642,13 @@
             ]
           },
           "default": "medium",
-          "note": "Space inside the card: small, medium or large."
+          "note": "Space inside the card: small, medium or large.",
+          "since": "0.3.0"
         }
       },
       "slots": {
         "content": {
+          "since": "0.3.0",
           "label": "Content",
           "allow": [
             "Heading",
@@ -2606,6 +2668,7 @@
       }
     },
     "Heading": {
+      "since": "0.3.0",
       "label": "Heading",
       "maxPerPage": 16,
       "topLevelOnly": false,
@@ -2633,7 +2696,8 @@
             "maxLength": 80
           },
           "default": "A short, clear heading",
-          "note": "The heading's words (required)."
+          "note": "The heading's words (required).",
+          "since": "0.3.0"
         },
         "level": {
           "required": true,
@@ -2648,7 +2712,8 @@
             ]
           },
           "default": "2",
-          "note": "The heading level for screen readers and search engines: 2, 3 or 4 (the page's level-1 heading is the Hero's). Pick by the page's outline, not by size."
+          "note": "The heading level for screen readers and search engines: 2, 3 or 4 (the page's level-1 heading is the Hero's). Pick by the page's outline, not by size.",
+          "since": "0.3.0"
         },
         "size": {
           "required": true,
@@ -2664,7 +2729,8 @@
             ]
           },
           "default": "large",
-          "note": "How big it looks, from the theme's type scale: small, medium, large or xlarge."
+          "note": "How big it looks, from the theme's type scale: small, medium, large or xlarge.",
+          "since": "0.3.0"
         },
         "align": {
           "required": true,
@@ -2679,7 +2745,8 @@
             ]
           },
           "default": "left",
-          "note": "Alignment inside its place: left, center or right."
+          "note": "Alignment inside its place: left, center or right.",
+          "since": "0.3.0"
         },
         "tone": {
           "required": true,
@@ -2694,11 +2761,13 @@
             ]
           },
           "default": "default",
-          "note": "Its colour from the theme: default, accent or muted."
+          "note": "Its colour from the theme: default, accent or muted.",
+          "since": "0.3.0"
         }
       }
     },
     "RichText": {
+      "since": "0.3.0",
       "label": "Rich text",
       "maxPerPage": 10,
       "topLevelOnly": false,
@@ -2743,7 +2812,7 @@
                 "maxItems": 20,
                 "type": "array",
                 "items": {
-                  "oneOf": [
+                  "anyOf": [
                     {
                       "type": "object",
                       "properties": {
@@ -2764,13 +2833,13 @@
                               "text": {
                                 "type": "string",
                                 "minLength": 1,
-                                "maxLength": 500
+                                "maxLength": 2000
                               },
                               "marks": {
                                 "maxItems": 3,
                                 "type": "array",
                                 "items": {
-                                  "oneOf": [
+                                  "anyOf": [
                                     {
                                       "type": "object",
                                       "properties": {
@@ -2822,7 +2891,7 @@
                                                 {
                                                   "type": "string",
                                                   "maxLength": 300,
-                                                  "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                  "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z][A-Za-z0-9-]*(:[0-9]{1,5})?([/?#][A-Za-z0-9._~!&()*+,;=:@%\\/?#\\[\\]-]*)?$"
                                                 }
                                               ]
                                             }
@@ -2840,7 +2909,8 @@
                                       "additionalProperties": false
                                     }
                                   ]
-                                }
+                                },
+                                "uniqueItems": true
                               }
                             },
                             "required": [
@@ -2890,13 +2960,13 @@
                               "text": {
                                 "type": "string",
                                 "minLength": 1,
-                                "maxLength": 500
+                                "maxLength": 2000
                               },
                               "marks": {
                                 "maxItems": 3,
                                 "type": "array",
                                 "items": {
-                                  "oneOf": [
+                                  "anyOf": [
                                     {
                                       "type": "object",
                                       "properties": {
@@ -2948,7 +3018,7 @@
                                                 {
                                                   "type": "string",
                                                   "maxLength": 300,
-                                                  "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                  "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z][A-Za-z0-9-]*(:[0-9]{1,5})?([/?#][A-Za-z0-9._~!&()*+,;=:@%\\/?#\\[\\]-]*)?$"
                                                 }
                                               ]
                                             }
@@ -2966,7 +3036,8 @@
                                       "additionalProperties": false
                                     }
                                   ]
-                                }
+                                },
+                                "uniqueItems": true
                               }
                             },
                             "required": [
@@ -3025,13 +3096,13 @@
                                           "text": {
                                             "type": "string",
                                             "minLength": 1,
-                                            "maxLength": 500
+                                            "maxLength": 2000
                                           },
                                           "marks": {
                                             "maxItems": 3,
                                             "type": "array",
                                             "items": {
-                                              "oneOf": [
+                                              "anyOf": [
                                                 {
                                                   "type": "object",
                                                   "properties": {
@@ -3083,7 +3154,7 @@
                                                             {
                                                               "type": "string",
                                                               "maxLength": 300,
-                                                              "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                              "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z][A-Za-z0-9-]*(:[0-9]{1,5})?([/?#][A-Za-z0-9._~!&()*+,;=:@%\\/?#\\[\\]-]*)?$"
                                                             }
                                                           ]
                                                         }
@@ -3101,7 +3172,8 @@
                                                   "additionalProperties": false
                                                 }
                                               ]
-                                            }
+                                            },
+                                            "uniqueItems": true
                                           }
                                         },
                                         "required": [
@@ -3175,13 +3247,13 @@
                                           "text": {
                                             "type": "string",
                                             "minLength": 1,
-                                            "maxLength": 500
+                                            "maxLength": 2000
                                           },
                                           "marks": {
                                             "maxItems": 3,
                                             "type": "array",
                                             "items": {
-                                              "oneOf": [
+                                              "anyOf": [
                                                 {
                                                   "type": "object",
                                                   "properties": {
@@ -3233,7 +3305,7 @@
                                                             {
                                                               "type": "string",
                                                               "maxLength": 300,
-                                                              "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                              "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z][A-Za-z0-9-]*(:[0-9]{1,5})?([/?#][A-Za-z0-9._~!&()*+,;=:@%\\/?#\\[\\]-]*)?$"
                                                             }
                                                           ]
                                                         }
@@ -3251,7 +3323,8 @@
                                                   "additionalProperties": false
                                                 }
                                               ]
-                                            }
+                                            },
+                                            "uniqueItems": true
                                           }
                                         },
                                         "required": [
@@ -3307,7 +3380,8 @@
               }
             ]
           },
-          "note": "Formatted text as a node tree (see the catalog's `richText`): paragraphs, headings 2–4, bullet and numbered lists, bold, italic and links to vetted targets. Never HTML."
+          "note": "Formatted text as a node tree (see the catalog's `richText`): paragraphs, headings 2–4, bullet and numbered lists, bold, italic and links to vetted targets. Never HTML.",
+          "since": "0.3.0"
         },
         "align": {
           "required": true,
@@ -3322,7 +3396,8 @@
             ]
           },
           "default": "left",
-          "note": "Alignment inside its place: left, center or right."
+          "note": "Alignment inside its place: left, center or right.",
+          "since": "0.3.0"
         },
         "size": {
           "required": true,
@@ -3337,11 +3412,13 @@
             ]
           },
           "default": "normal",
-          "note": "Text size from the theme: small, normal or large."
+          "note": "Text size from the theme: small, normal or large.",
+          "since": "0.3.0"
         }
       }
     },
     "Image": {
+      "since": "0.3.0",
       "label": "Image",
       "maxPerPage": 16,
       "topLevelOnly": false,
@@ -3361,7 +3438,7 @@
               {
                 "type": "string",
                 "maxLength": 500,
-                "pattern": "^(\\/[^/]|https:\\/\\/)"
+                "pattern": "^(\\/[A-Za-z0-9._~-][A-Za-z0-9._~%\\/-]*|https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:[0-9]{1,5})?(\\/[A-Za-z0-9._~!&*+,=:@%\\/-]*)?(\\?[A-Za-z0-9._~!&*+,=:@%\\/?-]*)?)$"
               },
               {
                 "type": "null"
@@ -3369,7 +3446,8 @@
             ]
           },
           "default": null,
-          "note": "The picture: an uploaded file (/…) or an https:// link; null shows a placeholder."
+          "note": "The picture: an uploaded file (/…) or an https:// link of the vetted 0.3.0 picture pattern (no quotes, brackets, parentheses or spaces); null shows a placeholder.",
+          "since": "0.3.0"
         },
         "alt": {
           "required": true,
@@ -3380,7 +3458,20 @@
             "maxLength": 150
           },
           "default": "",
-          "note": "What the picture shows, in a few words, for screen readers and search engines. Required once a picture is set: a picture without it doesn't save."
+          "note": "What the picture shows, in a few words, for screen readers and search engines. Required once a picture is set (a picture without it doesn't save), unless decorative is true.",
+          "since": "0.3.0"
+        },
+        "decorative": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "owner",
+          "schema": {
+            "type": "boolean"
+          },
+          "default": false,
+          "note": "true: the picture is decoration only, shown with an empty alt, so alt isn't needed. false (the default): alt is required once a picture is set.",
+          "since": "0.3.0"
         },
         "caption": {
           "required": true,
@@ -3391,7 +3482,8 @@
             "maxLength": 120
           },
           "default": "",
-          "note": "Short line under the picture. Empty hides it."
+          "note": "Short line under the picture. Empty hides it.",
+          "since": "0.3.0"
         },
         "aspectRatio": {
           "required": true,
@@ -3409,7 +3501,8 @@
             ]
           },
           "default": "original",
-          "note": "The picture's shape: original, 1:1, 4:3, 3:2, 16:9 or 3:4. Anything but original crops it."
+          "note": "The picture's shape: original, 1:1, 4:3, 3:2, 16:9 or 3:4. Anything but original crops it.",
+          "since": "0.3.0"
         },
         "focus": {
           "required": true,
@@ -3426,7 +3519,8 @@
             ]
           },
           "default": "center",
-          "note": "Which part stays in view when the shape crops it: center, top, bottom, left or right."
+          "note": "Which part stays in view when the shape crops it: center, top, bottom, left or right.",
+          "since": "0.3.0"
         },
         "radius": {
           "required": true,
@@ -3442,11 +3536,13 @@
             ]
           },
           "default": "medium",
-          "note": "Corner rounding from the theme's radius scale: none, small, medium or large."
+          "note": "Corner rounding from the theme's radius scale: none, small, medium or large.",
+          "since": "0.3.0"
         }
       }
     },
     "Buttons": {
+      "since": "0.3.0",
       "label": "Buttons",
       "maxPerPage": 8,
       "topLevelOnly": false,
@@ -3499,7 +3595,7 @@
                     {
                       "type": "string",
                       "maxLength": 300,
-                      "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                      "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z][A-Za-z0-9-]*(:[0-9]{1,5})?([/?#][A-Za-z0-9._~!&()*+,;=:@%\\/?#\\[\\]-]*)?$"
                     }
                   ]
                 },
@@ -3517,7 +3613,8 @@
                 "label",
                 "link",
                 "style"
-              ]
+              ],
+              "additionalProperties": false
             }
           },
           "default": [
@@ -3527,7 +3624,8 @@
               "style": "primary"
             }
           ],
-          "note": "1–3 buttons, each with a label (required), a link and a style (primary, secondary, outline or text). Link: Where it goes: shop, visit, call, email or directions (as the Hero buttons), or an https:// address of the vetted shape. Nothing else saves."
+          "note": "1–3 buttons, each {label, link, style} and nothing else: a label (required), a link and a style (primary, secondary, outline or text). Link: Where it goes: shop, visit, call, email or directions (as the Hero buttons), or an https:// address of the vetted shape. Nothing else saves.",
+          "since": "0.3.0"
         },
         "size": {
           "required": true,
@@ -3542,7 +3640,8 @@
             ]
           },
           "default": "medium",
-          "note": "Button size: small, medium or large."
+          "note": "Button size: small, medium or large.",
+          "since": "0.3.0"
         },
         "align": {
           "required": true,
@@ -3557,11 +3656,13 @@
             ]
           },
           "default": "left",
-          "note": "Alignment inside its place: left, center or right."
+          "note": "Alignment inside its place: left, center or right.",
+          "since": "0.3.0"
         }
       }
     },
     "Icon": {
+      "since": "0.3.0",
       "label": "Icon",
       "maxPerPage": 16,
       "topLevelOnly": false,
@@ -3610,7 +3711,8 @@
             ]
           },
           "default": "star",
-          "note": "An icon from the fixed set (the same keys as Services); the site draws its own icon for each key."
+          "note": "An icon from the fixed set (the same keys as Services); the site draws its own icon for each key.",
+          "since": "0.3.0"
         },
         "size": {
           "required": true,
@@ -3625,7 +3727,8 @@
             ]
           },
           "default": "medium",
-          "note": "small, medium or large."
+          "note": "small, medium or large.",
+          "since": "0.3.0"
         },
         "tone": {
           "required": true,
@@ -3640,7 +3743,8 @@
             ]
           },
           "default": "accent",
-          "note": "Its colour from the theme: default, accent or muted."
+          "note": "Its colour from the theme: default, accent or muted.",
+          "since": "0.3.0"
         },
         "background": {
           "required": true,
@@ -3655,7 +3759,8 @@
             ]
           },
           "default": "circle",
-          "note": "A shape behind the icon: none, circle or rounded."
+          "note": "A shape behind the icon: none, circle or rounded.",
+          "since": "0.3.0"
         },
         "label": {
           "required": true,
@@ -3666,7 +3771,8 @@
             "maxLength": 60
           },
           "default": "",
-          "note": "What the icon means, for screen readers. Empty: decorative (the words next to it say it)."
+          "note": "What the icon means, for screen readers. Empty: decorative (the words next to it say it).",
+          "since": "0.3.0"
         },
         "align": {
           "required": true,
@@ -3681,11 +3787,13 @@
             ]
           },
           "default": "center",
-          "note": "Alignment inside its place: left, center or right."
+          "note": "Alignment inside its place: left, center or right.",
+          "since": "0.3.0"
         }
       }
     },
     "Spacer": {
+      "since": "0.3.0",
       "label": "Spacer",
       "maxPerPage": 12,
       "topLevelOnly": false,
@@ -3713,11 +3821,13 @@
             ]
           },
           "default": "medium",
-          "note": "Empty space from the theme's spacing scale: small, medium, large or xlarge."
+          "note": "Empty space from the theme's spacing scale: small, medium, large or xlarge.",
+          "since": "0.3.0"
         }
       }
     },
     "Divider": {
+      "since": "0.3.0",
       "label": "Divider",
       "maxPerPage": 12,
       "topLevelOnly": false,
@@ -3746,7 +3856,8 @@
             ]
           },
           "default": "solid",
-          "note": "The line: solid, dashed or dotted."
+          "note": "The line: solid, dashed or dotted.",
+          "since": "0.3.0"
         },
         "width": {
           "required": true,
@@ -3761,7 +3872,8 @@
             ]
           },
           "default": "full",
-          "note": "How far it runs: short, half or full."
+          "note": "How far it runs: short, half or full.",
+          "since": "0.3.0"
         },
         "tone": {
           "required": true,
@@ -3775,11 +3887,13 @@
             ]
           },
           "default": "muted",
-          "note": "Its colour from the theme: muted or accent."
+          "note": "Its colour from the theme: muted or accent.",
+          "since": "0.3.0"
         }
       }
     },
     "ImageBanner": {
+      "since": "0.3.0",
       "label": "Image banner",
       "maxPerPage": 3,
       "topLevelOnly": false,
@@ -3799,7 +3913,7 @@
               {
                 "type": "string",
                 "maxLength": 500,
-                "pattern": "^(\\/[^/]|https:\\/\\/)"
+                "pattern": "^(\\/[A-Za-z0-9._~-][A-Za-z0-9._~%\\/-]*|https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:[0-9]{1,5})?(\\/[A-Za-z0-9._~!&*+,=:@%\\/-]*)?(\\?[A-Za-z0-9._~!&*+,=:@%\\/?-]*)?)$"
               },
               {
                 "type": "null"
@@ -3807,7 +3921,8 @@
             ]
           },
           "default": null,
-          "note": "The banner picture behind the text: an uploaded file or an https:// link; null shows a placeholder."
+          "note": "The banner picture behind the text: an uploaded file (/…) or an https:// link of the vetted 0.3.0 picture pattern (no quotes, brackets, parentheses or spaces); null shows a placeholder.",
+          "since": "0.3.0"
         },
         "imageAlt": {
           "required": true,
@@ -3818,7 +3933,8 @@
             "maxLength": 150
           },
           "default": "",
-          "note": "What the picture shows, for screen readers. Empty means decorative (the text over it says what matters)."
+          "note": "What the picture shows, for screen readers. Empty means decorative (the text over it says what matters).",
+          "since": "0.3.0"
         },
         "eyebrow": {
           "required": true,
@@ -3829,7 +3945,8 @@
             "maxLength": 60
           },
           "default": "",
-          "note": "Small label above the heading. Empty hides it."
+          "note": "Small label above the heading. Empty hides it.",
+          "since": "0.3.0"
         },
         "heading": {
           "required": true,
@@ -3841,7 +3958,8 @@
             "maxLength": 80
           },
           "default": "A short, clear headline.",
-          "note": "The banner's headline (required)."
+          "note": "The banner's headline (required).",
+          "since": "0.3.0"
         },
         "body": {
           "required": true,
@@ -3852,7 +3970,8 @@
             "maxLength": 200
           },
           "default": "One line that makes people want to look closer.",
-          "note": "One or two lines under the headline. Empty hides it."
+          "note": "One or two lines under the headline. Empty hides it.",
+          "since": "0.3.0"
         },
         "buttonLabel": {
           "required": true,
@@ -3863,7 +3982,8 @@
             "maxLength": 40
           },
           "default": "See products",
-          "note": "Text of the button. Empty hides the button."
+          "note": "Text of the button. Empty hides the button.",
+          "since": "0.3.0"
         },
         "buttonLink": {
           "required": true,
@@ -3884,12 +4004,13 @@
               {
                 "type": "string",
                 "maxLength": 300,
-                "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z][A-Za-z0-9-]*(:[0-9]{1,5})?([/?#][A-Za-z0-9._~!&()*+,;=:@%\\/?#\\[\\]-]*)?$"
               }
             ]
           },
           "default": "shop",
-          "note": "Where it goes: shop, visit, call, email or directions (as the Hero buttons), or an https:// address of the vetted shape. Nothing else saves."
+          "note": "Where it goes: shop, visit, call, email or directions (as the Hero buttons), or an https:// address of the vetted shape. Nothing else saves.",
+          "since": "0.3.0"
         },
         "overlay": {
           "required": true,
@@ -3904,7 +4025,8 @@
             ]
           },
           "default": "dark",
-          "note": "The tint between the picture and the text, so the text stays readable: dark, light or accent."
+          "note": "The tint between the picture and the text, so the text stays readable: dark, light or accent.",
+          "since": "0.3.0"
         },
         "textPosition": {
           "required": true,
@@ -3921,7 +4043,8 @@
             ]
           },
           "default": "center",
-          "note": "Where the text sits on the picture: center, left, right, bottom-left or bottom-center."
+          "note": "Where the text sits on the picture: center, left, right, bottom-left or bottom-center.",
+          "since": "0.3.0"
         },
         "height": {
           "required": true,
@@ -3936,11 +4059,13 @@
             ]
           },
           "default": "medium",
-          "note": "The banner's height: small, medium or large."
+          "note": "The banner's height: small, medium or large.",
+          "since": "0.3.0"
         }
       }
     },
     "LogoStrip": {
+      "since": "0.3.0",
       "label": "Logo strip",
       "maxPerPage": 2,
       "topLevelOnly": false,
@@ -3959,7 +4084,8 @@
             "maxLength": 60
           },
           "default": "",
-          "note": "Small heading over the logos. Empty hides it."
+          "note": "Small heading over the logos. Empty hides it.",
+          "since": "0.3.0"
         },
         "logos": {
           "required": true,
@@ -3978,7 +4104,7 @@
                     {
                       "type": "string",
                       "maxLength": 500,
-                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                      "pattern": "^(\\/[A-Za-z0-9._~-][A-Za-z0-9._~%\\/-]*|https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:[0-9]{1,5})?(\\/[A-Za-z0-9._~!&*+,=:@%\\/-]*)?(\\?[A-Za-z0-9._~!&*+,=:@%\\/?-]*)?)$"
                     },
                     {
                       "type": "null"
@@ -3993,7 +4119,8 @@
               "required": [
                 "imageUrl",
                 "alt"
-              ]
+              ],
+              "additionalProperties": false
             }
           },
           "default": [
@@ -4006,7 +4133,8 @@
               "alt": ""
             }
           ],
-          "note": "2–12 logos of brands the business carries or works with, each an uploaded picture (null shows a placeholder) with its alt: the brand's name, required once the picture is set. Only the owner picks them."
+          "note": "2–12 logos of brands the business carries or works with, each {imageUrl, alt} and nothing else: a picture (an uploaded file (/…) or an https:// link of the vetted 0.3.0 picture pattern (no quotes, brackets, parentheses or spaces); null shows a placeholder) and its alt, the brand's name, required once the picture is set. Only the owner picks them and names them.",
+          "since": "0.3.0"
         },
         "style": {
           "required": true,
@@ -4020,7 +4148,8 @@
             ]
           },
           "default": "mono",
-          "note": "color keeps each logo's colours; mono shows them all in one theme colour."
+          "note": "color keeps each logo's colours; mono shows them all in one theme colour.",
+          "since": "0.3.0"
         },
         "size": {
           "required": true,
@@ -4035,11 +4164,13 @@
             ]
           },
           "default": "medium",
-          "note": "Logo size: small, medium or large."
+          "note": "Logo size: small, medium or large.",
+          "since": "0.3.0"
         }
       }
     },
     "Quote": {
+      "since": "0.3.0",
       "label": "Quote",
       "maxPerPage": 6,
       "topLevelOnly": false,
@@ -4060,7 +4191,8 @@
             "maxLength": 300
           },
           "default": "Replace this with words someone really said.",
-          "note": "Someone's real words (required). Only the owner writes them."
+          "note": "Someone's real words (required). Only the owner writes them.",
+          "since": "0.3.0"
         },
         "author": {
           "required": true,
@@ -4072,7 +4204,8 @@
             "maxLength": 60
           },
           "default": "Their name",
-          "note": "Who said it. Empty hides it. Only the owner sets it."
+          "note": "Who said it. Empty hides it. Only the owner sets it.",
+          "since": "0.3.0"
         },
         "role": {
           "required": true,
@@ -4084,7 +4217,8 @@
             "maxLength": 60
           },
           "default": "",
-          "note": "Who they are, e.g. Founder. Empty hides it. Only the owner sets it."
+          "note": "Who they are, e.g. Founder. Empty hides it. Only the owner sets it.",
+          "since": "0.3.0"
         },
         "style": {
           "required": true,
@@ -4099,7 +4233,8 @@
             ]
           },
           "default": "large",
-          "note": "plain, large (a big pull quote) or card."
+          "note": "plain, large (a big pull quote) or card.",
+          "since": "0.3.0"
         },
         "align": {
           "required": true,
@@ -4114,11 +4249,13 @@
             ]
           },
           "default": "center",
-          "note": "Alignment inside its place: left, center or right."
+          "note": "Alignment inside its place: left, center or right.",
+          "since": "0.3.0"
         }
       }
     },
     "Video": {
+      "since": "0.3.0",
       "label": "Video",
       "maxPerPage": 4,
       "topLevelOnly": false,
@@ -4142,12 +4279,13 @@
               {
                 "type": "string",
                 "maxLength": 300,
-                "pattern": "^https:\\/\\/(((www|m)\\.)?youtube\\.com\\/(watch\\?v=|embed\\/|shorts\\/)|www\\.youtube-nocookie\\.com\\/embed\\/|youtu\\.be\\/)[A-Za-z0-9_-]{11}([?&](si|t|start)=[A-Za-z0-9_-]{1,40}){0,3}$|^https:\\/\\/((www\\.)?vimeo\\.com\\/\\d{6,12}(\\/[0-9a-f]{6,20})?|player\\.vimeo\\.com\\/video\\/\\d{6,12}(\\?h=[0-9a-f]{6,20})?)$"
+                "pattern": "^https:\\/\\/(((www|m)\\.)?youtube\\.com\\/(watch\\?v=|embed\\/|shorts\\/|live\\/)|(www\\.)?youtube-nocookie\\.com\\/embed\\/|youtu\\.be\\/)[A-Za-z0-9_-]{11}([?&][A-Za-z_]{1,20}=[A-Za-z0-9_.%-]{0,200}){0,8}$|^https:\\/\\/((www\\.)?vimeo\\.com\\/[0-9]{6,12}(\\/[0-9a-f]{6,20})?|player\\.vimeo\\.com\\/video\\/[0-9]{6,12})([?&][A-Za-z_]{1,20}=[A-Za-z0-9_.%-]{0,100}){0,8}$"
               }
             ]
           },
           "default": "",
-          "note": "A YouTube or Vimeo video address (watch, youtu.be, shorts, embed or vimeo.com); empty shows a placeholder in the editor and nothing on the site. The site builds the player; no other address saves."
+          "note": "A YouTube or Vimeo video address (watch, youtu.be, shorts, live, embed, vimeo.com or player.vimeo.com, with up to 8 parameters); empty shows a placeholder in the editor and nothing on the site. The site builds the player from the video id and keeps only t/start (YouTube) and h (Vimeo); no other address saves.",
+          "since": "0.3.0"
         },
         "title": {
           "required": true,
@@ -4159,7 +4297,8 @@
             "maxLength": 100
           },
           "default": "Video",
-          "note": "The video player's name for screen readers (required), e.g. How we roast our coffee."
+          "note": "The video player's name for screen readers (required), e.g. How we roast our coffee.",
+          "since": "0.3.0"
         },
         "aspectRatio": {
           "required": true,
@@ -4175,7 +4314,8 @@
             ]
           },
           "default": "16:9",
-          "note": "The player's shape: 16:9, 4:3, 1:1 or 9:16 (phone videos)."
+          "note": "The player's shape: 16:9, 4:3, 1:1 or 9:16 (phone videos).",
+          "since": "0.3.0"
         },
         "caption": {
           "required": true,
@@ -4186,11 +4326,13 @@
             "maxLength": 120
           },
           "default": "",
-          "note": "Short line under the video. Empty hides it."
+          "note": "Short line under the video. Empty hides it.",
+          "since": "0.3.0"
         }
       }
     },
     "Map": {
+      "since": "0.3.0",
       "label": "Map",
       "maxPerPage": 1,
       "topLevelOnly": false,
@@ -4219,7 +4361,8 @@
             ]
           },
           "default": "",
-          "note": "The address from Google Maps › Share › Embed a map (https://www.google.com/maps/embed?pb=…); empty shows a placeholder in the editor and nothing on the site. No other address saves."
+          "note": "The address from Google Maps › Share › Embed a map (https://www.google.com/maps/embed?pb=…); empty shows a placeholder in the editor and nothing on the site. No other address saves: Google My Maps embeds (/maps/d/embed) are refused.",
+          "since": "0.3.0"
         },
         "title": {
           "required": true,
@@ -4231,7 +4374,8 @@
             "maxLength": 100
           },
           "default": "Map showing where to find us",
-          "note": "The map's name for screen readers (required)."
+          "note": "The map's name for screen readers (required).",
+          "since": "0.3.0"
         },
         "height": {
           "required": true,
@@ -4246,12 +4390,14 @@
             ]
           },
           "default": "medium",
-          "note": "The map's height: small, medium or large."
+          "note": "The map's height: small, medium or large.",
+          "since": "0.3.0"
         }
       }
     }
   },
   "richText": {
+    "since": "0.3.0",
     "usedBy": [
       "RichText.body"
     ],
@@ -4275,7 +4421,14 @@
       4
     ],
     "maxTextLength": 2000,
+    "lengthUnit": "utf16",
+    "marksOncePerRun": true,
     "note": "Rich text is a restricted node tree in the TipTap/ProseMirror JSON shape (a subset of it), never HTML. A doc holds paragraphs, headings (attrs.level 2–4) and bullet or numbered lists; a list holds listItems, each holding paragraphs; paragraphs and headings hold text runs, each with optional marks: bold, italic, link (attrs.href: a CtaAction target or a vetted https:// address). Objects are strict: any other node, mark or key (class, style, target…) is refused. The site builds the elements itself.",
+    "notes": {
+      "maxTextLength": "The sum, over every text node of one RichText.body (paragraphs, headings and list items), of its text length in UTF-16 code units: JavaScript's length, Java's String.length(), Python's len(s.encode(\"utf-16-le\")) // 2. At most 2000. JSON Schema's own maxLength counts code points, so a reader must count this one itself. One run may be as long as the whole tree, because ProseMirror merges neighbouring runs with the same marks.",
+      "marksOncePerRun": "A text run carries each mark type at most once: never two links, never bold twice (ProseMirror refuses such a run). The schema's uniqueItems only catches two equal marks; check the types.",
+      "examples": "Conformance trees: every reader accepts the valid ones and refuses the others; rule says which check refuses it (schema, maxTextLength or marksOncePerRun)."
+    },
     "schema": {
       "type": "object",
       "properties": {
@@ -4288,7 +4441,7 @@
           "maxItems": 20,
           "type": "array",
           "items": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "object",
                 "properties": {
@@ -4309,13 +4462,13 @@
                         "text": {
                           "type": "string",
                           "minLength": 1,
-                          "maxLength": 500
+                          "maxLength": 2000
                         },
                         "marks": {
                           "maxItems": 3,
                           "type": "array",
                           "items": {
-                            "oneOf": [
+                            "anyOf": [
                               {
                                 "type": "object",
                                 "properties": {
@@ -4367,7 +4520,7 @@
                                           {
                                             "type": "string",
                                             "maxLength": 300,
-                                            "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                            "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z][A-Za-z0-9-]*(:[0-9]{1,5})?([/?#][A-Za-z0-9._~!&()*+,;=:@%\\/?#\\[\\]-]*)?$"
                                           }
                                         ]
                                       }
@@ -4385,7 +4538,8 @@
                                 "additionalProperties": false
                               }
                             ]
-                          }
+                          },
+                          "uniqueItems": true
                         }
                       },
                       "required": [
@@ -4435,13 +4589,13 @@
                         "text": {
                           "type": "string",
                           "minLength": 1,
-                          "maxLength": 500
+                          "maxLength": 2000
                         },
                         "marks": {
                           "maxItems": 3,
                           "type": "array",
                           "items": {
-                            "oneOf": [
+                            "anyOf": [
                               {
                                 "type": "object",
                                 "properties": {
@@ -4493,7 +4647,7 @@
                                           {
                                             "type": "string",
                                             "maxLength": 300,
-                                            "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                            "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z][A-Za-z0-9-]*(:[0-9]{1,5})?([/?#][A-Za-z0-9._~!&()*+,;=:@%\\/?#\\[\\]-]*)?$"
                                           }
                                         ]
                                       }
@@ -4511,7 +4665,8 @@
                                 "additionalProperties": false
                               }
                             ]
-                          }
+                          },
+                          "uniqueItems": true
                         }
                       },
                       "required": [
@@ -4570,13 +4725,13 @@
                                     "text": {
                                       "type": "string",
                                       "minLength": 1,
-                                      "maxLength": 500
+                                      "maxLength": 2000
                                     },
                                     "marks": {
                                       "maxItems": 3,
                                       "type": "array",
                                       "items": {
-                                        "oneOf": [
+                                        "anyOf": [
                                           {
                                             "type": "object",
                                             "properties": {
@@ -4628,7 +4783,7 @@
                                                       {
                                                         "type": "string",
                                                         "maxLength": 300,
-                                                        "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                        "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z][A-Za-z0-9-]*(:[0-9]{1,5})?([/?#][A-Za-z0-9._~!&()*+,;=:@%\\/?#\\[\\]-]*)?$"
                                                       }
                                                     ]
                                                   }
@@ -4646,7 +4801,8 @@
                                             "additionalProperties": false
                                           }
                                         ]
-                                      }
+                                      },
+                                      "uniqueItems": true
                                     }
                                   },
                                   "required": [
@@ -4720,13 +4876,13 @@
                                     "text": {
                                       "type": "string",
                                       "minLength": 1,
-                                      "maxLength": 500
+                                      "maxLength": 2000
                                     },
                                     "marks": {
                                       "maxItems": 3,
                                       "type": "array",
                                       "items": {
-                                        "oneOf": [
+                                        "anyOf": [
                                           {
                                             "type": "object",
                                             "properties": {
@@ -4778,7 +4934,7 @@
                                                       {
                                                         "type": "string",
                                                         "maxLength": 300,
-                                                        "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                        "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z][A-Za-z0-9-]*(:[0-9]{1,5})?([/?#][A-Za-z0-9._~!&()*+,;=:@%\\/?#\\[\\]-]*)?$"
                                                       }
                                                     ]
                                                   }
@@ -4796,7 +4952,8 @@
                                             "additionalProperties": false
                                           }
                                         ]
-                                      }
+                                      },
+                                      "uniqueItems": true
                                     }
                                   },
                                   "required": [
@@ -4837,10 +4994,231 @@
         "content"
       ],
       "additionalProperties": false
-    }
+    },
+    "examples": [
+      {
+        "name": "one plain paragraph of 1500 characters",
+        "valid": true,
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "two neighbouring runs with the same mark (ProseMirror merges them into one run of 1200)",
+        "valid": true,
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "marks": [
+                    {
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                  "marks": [
+                    {
+                      "type": "bold"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "2000 UTF-16 code units with emoji (999 emoji of 2 units and 2 letters)",
+        "valid": true,
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀ok"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "2001 UTF-16 code units with emoji over two paragraphs (each run is fine; the tree is one unit too long)",
+        "valid": false,
+        "rule": "maxTextLength",
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀!"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "a run with two link marks",
+        "valid": false,
+        "rule": "marksOncePerRun",
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "x",
+                  "marks": [
+                    {
+                      "type": "link",
+                      "attrs": {
+                        "href": "https://a.example.com"
+                      }
+                    },
+                    {
+                      "type": "link",
+                      "attrs": {
+                        "href": "https://b.example.com"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "a run with bold twice",
+        "valid": false,
+        "rule": "marksOncePerRun",
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "x",
+                  "marks": [
+                    {
+                      "type": "bold"
+                    },
+                    {
+                      "type": "bold"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "a data: link",
+        "valid": false,
+        "rule": "schema",
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "x",
+                  "marks": [
+                    {
+                      "type": "link",
+                      "attrs": {
+                        "href": "data:text/html,x"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "a style key on a paragraph",
+        "valid": false,
+        "rule": "schema",
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "x"
+                }
+              ],
+              "attrs": {
+                "style": "color:red"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "an html node",
+        "valid": false,
+        "rule": "schema",
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "html",
+              "content": "<script>alert(1)</script>"
+            }
+          ]
+        }
+      }
+    ]
   },
   "images": {
-    "note": "Where each picture gets its alt text. required: a set picture (not null) with an empty alt doesn't save. prop: an alt prop the owner or WebBlock AI fills; empty means decorative or not written yet. fallback: no alt prop; the site uses this text. decorative: always alt=\"\". \"logos[].alt\" is the alt of each item of logos; block root is the page root.",
+    "note": "Where each picture gets its alt text. required: a set picture (not null) with an empty alt doesn't save, unless decorativeProp is true. prop: an alt prop next to the picture; missing or empty uses the first non-empty fallback prop, as the site did before 0.3.0. optional: an alt prop; empty means decorative. fallback: no alt prop; the site uses this text. decorative: always alt=\"\". \"logos[].alt\" is the alt of each item of logos; block root is the page root.",
     "rules": [
       {
         "block": "root",
@@ -4852,7 +5230,10 @@
         "block": "Hero",
         "image": "imageUrl",
         "alt": "imageAlt",
-        "kind": "prop"
+        "kind": "prop",
+        "fallback": [
+          "heading"
+        ]
       },
       {
         "block": "Hero",
@@ -4864,7 +5245,10 @@
         "block": "Text",
         "image": "imageUrl",
         "alt": "imageAlt",
-        "kind": "prop"
+        "kind": "prop",
+        "fallback": [
+          "heading"
+        ]
       },
       {
         "block": "ProductCards",
@@ -4882,13 +5266,21 @@
         "block": "About",
         "image": "imageUrl",
         "alt": "imageAlt",
-        "kind": "prop"
+        "kind": "prop",
+        "fallback": [
+          "caption",
+          "heading"
+        ]
       },
       {
         "block": "About",
         "image": "secondImageUrl",
         "alt": "secondImageAlt",
-        "kind": "prop"
+        "kind": "prop",
+        "fallback": [
+          "caption",
+          "heading"
+        ]
       },
       {
         "block": "Testimonials",
@@ -4912,13 +5304,14 @@
         "block": "Image",
         "image": "imageUrl",
         "alt": "alt",
-        "kind": "required"
+        "kind": "required",
+        "decorativeProp": "decorative"
       },
       {
         "block": "ImageBanner",
         "image": "imageUrl",
         "alt": "imageAlt",
-        "kind": "prop"
+        "kind": "optional"
       },
       {
         "block": "LogoStrip",
@@ -4927,5 +5320,150 @@
         "kind": "required"
       }
     ]
+  },
+  "patterns": {
+    "note": "The value patterns new in 0.3.0, each with the props using it and strings every reader must accept and refuse with a whole-string match (ECMA-262; Python re.fullmatch, Java Matcher.matches()). The props' own schemas carry the same pattern; an empty string or a CtaAction keyword, where allowed, is another branch of the prop's schema.",
+    "link": {
+      "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*\\.[A-Za-z][A-Za-z0-9-]*(:[0-9]{1,5})?([/?#][A-Za-z0-9._~!&()*+,;=:@%\\/?#\\[\\]-]*)?$",
+      "usedBy": [
+        "Buttons.items[].link",
+        "ImageBanner.buttonLink",
+        "richText link mark attrs.href"
+      ],
+      "accept": [
+        "https://facebook.com/shop",
+        "https://t.me/riversideroasters",
+        "https://shop.example.com.kh/menu?x=1#top",
+        "https://a.co:8443/p",
+        "https://en.wikipedia.org/wiki/Coffee_(drink)",
+        "https://xn--fsq.example.com/"
+      ],
+      "refuse": [
+        "http://example.com",
+        "javascript:alert(1)",
+        "data:text/html,x",
+        "mailto:a@b.co",
+        "/admin",
+        "#menu",
+        "//evil.example",
+        "https://",
+        "https://localhost/x",
+        "https://example.123/x",
+        "https://[::1]/x",
+        "https://user:pw@evil.example/",
+        "https://evil.example\\@good.example",
+        "https://a.com/\"onmouseover=x",
+        "https://a.com/'x",
+        "https://a.com/<script>",
+        "https://a b.com",
+        "https://example.com\n",
+        "https://evil.example/\u00a0",
+        "https://evil.example/\u2028",
+        "https://evil.example/\u200b",
+        "https://evil.example/\u202e",
+        "https://evil.example/\u0000"
+      ]
+    },
+    "image": {
+      "pattern": "^(\\/[A-Za-z0-9._~-][A-Za-z0-9._~%\\/-]*|https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:[0-9]{1,5})?(\\/[A-Za-z0-9._~!&*+,=:@%\\/-]*)?(\\?[A-Za-z0-9._~!&*+,=:@%\\/?-]*)?)$",
+      "usedBy": [
+        "Section.backgroundImageUrl",
+        "Image.imageUrl",
+        "ImageBanner.imageUrl",
+        "LogoStrip.logos[].imageUrl"
+      ],
+      "accept": [
+        "/media/hero-iced-latte.webp",
+        "/mock/templates/clean-mono/hero-headphones-white.webp",
+        "https://media.webblock.example/9f8e7d6c-1b2a-4c3d-8e9f-0a1b2c3d4e5f/media/0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d.webp",
+        "https://cdn.example.com/a/b%20c.png?v=2"
+      ],
+      "refuse": [
+        "https://x.example/a.png);position:fixed;inset:0;background:url(https://evil.example/x.png",
+        "//evil.example/a.png",
+        "/\\evil.example/a.png",
+        "/\tevil.example/a.png",
+        "https://x.example/a.png'><script>alert(1)</script>",
+        "https://x.example/a.png\"",
+        "https://",
+        "https://x.example/a.png\n",
+        "https://x.example/a.png\u00a0",
+        "http://x.example/a.png",
+        "javascript:alert(1)",
+        "data:image/png;base64,AA"
+      ]
+    },
+    "video": {
+      "pattern": "^https:\\/\\/(((www|m)\\.)?youtube\\.com\\/(watch\\?v=|embed\\/|shorts\\/|live\\/)|(www\\.)?youtube-nocookie\\.com\\/embed\\/|youtu\\.be\\/)[A-Za-z0-9_-]{11}([?&][A-Za-z_]{1,20}=[A-Za-z0-9_.%-]{0,200}){0,8}$|^https:\\/\\/((www\\.)?vimeo\\.com\\/[0-9]{6,12}(\\/[0-9a-f]{6,20})?|player\\.vimeo\\.com\\/video\\/[0-9]{6,12})([?&][A-Za-z_]{1,20}=[A-Za-z0-9_.%-]{0,100}){0,8}$",
+      "usedBy": [
+        "Video.url"
+      ],
+      "accept": [
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s",
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUFaGVsbG8%3D",
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL0123456789abc&ab_channel=Shop",
+        "https://youtu.be/dQw4w9WgXcQ?si=AbC_d-123",
+        "https://youtu.be/dQw4w9WgXcQ?feature=shared",
+        "https://youtube.com/shorts/dQw4w9WgXcQ?feature=share",
+        "https://www.youtube.com/live/dQw4w9WgXcQ?si=AbC_d-123",
+        "https://www.youtube.com/embed/dQw4w9WgXcQ?start=30&autoplay=1",
+        "https://youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        "https://vimeo.com/76979871",
+        "https://vimeo.com/76979871?share=copy",
+        "https://vimeo.com/76979871/abcdef1234",
+        "https://player.vimeo.com/video/76979871?h=abcdef1234&badge=0&autopause=0&player_id=0&app_id=58479"
+      ],
+      "refuse": [
+        "http://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "https://evil.example/?youtube.com/watch?v=dQw4w9WgXcQ",
+        "https://www.youtube.com.evil.example/watch?v=dQw4w9WgXcQ",
+        "https://www.youtube.com/watch?v=short",
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ\"><script>",
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ\n",
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ\u00a0",
+        "https://vimeo.com/abc",
+        "https://vimeo.com/١٢٣٤٥٦٧"
+      ]
+    },
+    "map": {
+      "pattern": "^https:\\/\\/www\\.google\\.com\\/maps\\/embed\\?pb=[A-Za-z0-9!._%:+-]{1,1800}$",
+      "usedBy": [
+        "Map.url"
+      ],
+      "accept": [
+        "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3908.77!2d104.92!3d11.55!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3109513dc76a6be3%3A0x9c010ee85ab525bb!2sPhnom%20Penh!5e0!3m2!1sen!2skh!4v1700000000000!5m2!1sen!2skh"
+      ],
+      "refuse": [
+        "https://www.google.com/maps/d/embed?mid=1AbCdEf",
+        "https://maps.google.com/maps?q=x&output=embed",
+        "https://www.google.com/maps/place/Phnom+Penh",
+        "https://www.google.com.evil.example/maps/embed?pb=1",
+        "https://www.google.com/maps/embed?pb=x\"onload=",
+        "https://www.google.com/maps/embed?pb=x\n"
+      ]
+    },
+    "anchorId": {
+      "pattern": "^([a-z][a-z0-9-]{1,39})?$",
+      "usedBy": [
+        "Section.anchorId"
+      ],
+      "accept": [
+        "",
+        "our-story",
+        "menu",
+        "a1"
+      ],
+      "refuse": [
+        "Menu",
+        "1menu",
+        "a",
+        "menu items",
+        "#menu",
+        "menu\n",
+        "menu\u00a0",
+        "mеnu"
+      ]
+    }
   }
 }

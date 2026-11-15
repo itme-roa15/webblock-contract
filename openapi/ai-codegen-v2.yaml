@@ -651,7 +651,8 @@ components:
     BlockRef:
       description: |
         One block of the page's draft, as the editor's Puck data holds it: `props.id` and the block `type` (a block
-        type of the editor catalog, puck/catalog-<version>.json).
+        type of the editor catalog, puck/catalog-<version>.json). Since catalog 0.3.0 (DRAFT) the block may sit at any
+        depth, inside a container's slot.
       type: object
       additionalProperties: false
       required: [id, type]
@@ -850,6 +851,20 @@ components:
         rejectionCode: { type: [string, "null"] }
         items:
           type: array
+          description: |
+            The operations, applied in `order`. Catalog 0.3.0 additions (DRAFT, proposed by webui, waits for ai_codegen;
+            additive, so a 0.2.0 change set reads the same):
+            - `componentId` names a block at any depth: block ids are unique across the whole tree (catalog
+              `page.uniqueBlockIds`), slots included. The same holds for the "@" `BlockRef` ids.
+            - ADD and MOVE carry a `ChangeItemPosition`. A position with only `index` is the top level, as before.
+            - An ADD may carry a `ref`, which a later item's `position.parentId` names within the same change set; the
+              server maps it to the block's generated id. A ref is never stored on the page.
+            - Every write keeps the catalog's rules for the target slot: `allow`/`disallow`, `activeWhen`,
+              `minItems`/`maxItems`, `page.maxDepth`, `topLevelOnly` and both budgets. A change set that breaks one is
+              refused whole.
+            - REMOVE of a container removes its whole subtree.
+            - There is no WRAP: wrapping blocks in a Section or Columns is an ADD of the container followed by MOVEs
+              into its slot.
           items:
             type: object
             properties:
@@ -857,10 +872,39 @@ components:
               operation: { type: string, enum: [ADD, UPDATE, REMOVE, MOVE] }
               componentId: { type: [string, "null"] }
               componentType: { type: [string, "null"] }
-              position: { type: [object, "null"] }
+              position:
+                oneOf: [{ $ref: "#/components/schemas/ChangeItemPosition" }, { type: "null" }]
+              ref:
+                type: [string, "null"]
+                pattern: "^[a-z][a-z0-9-]{0,39}$"
+                description: |
+                  Additive, catalog 0.3.0 (DRAFT). Only on ADD: a name for the block being added, unique within the
+                  change set, so later items can place blocks into it (`position.parentId: <ref>`) before it has an id.
               propsPatch: { type: [object, "null"] }
         createdAt: { type: string, format: date-time }
         decidedAt: { type: [string, "null"], format: date-time }
+    ChangeItemPosition:
+      description: |
+        DRAFT (catalog 0.3.0), proposed by webui, waits for ai_codegen. Where an ADD puts its block, or a MOVE moves one:
+        the parent (null for the page's own content list, the top level), the parent's slot, and the index in it.
+        Additive: `{index}` alone is still a top-level position, as in catalog 0.1.0 and 0.2.0.
+      type: object
+      additionalProperties: false
+      required: [index]
+      properties:
+        parentId:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+          description: |
+            The container's block id (catalog `page.blockId`), or the `ref` of a container added earlier in the same
+            change set. Null or absent: the top level.
+        slot:
+          type: [string, "null"]
+          maxLength: 40
+          description: |
+            A key of the parent's catalog `slots` (e.g. `content`, `column2`). Null or absent exactly when parentId is.
+        index: { type: integer, minimum: 0, description: "Position in the list, 0 first; at most its current length." }
     ChangeSetPage:
       type: object
       additionalProperties: false
