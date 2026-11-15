@@ -603,20 +603,26 @@ components:
           minimum: 1
           description: The draft's edit revision the save produced. While the page is still at it, this was the latest change.
         items:
+          description: |
+            At most 100: AI Codegen refuses a proposed change set of more than 100 operations as an invalid proposal
+            (the reply says nothing on the page was changed).
           type: array
           maxItems: 100
           items: { $ref: "#/components/schemas/AppliedChange" }
     AppliedChange:
       description: |
         One applied operation. `componentId` is the block's `props.id`, or `root` for the page's own settings
-        (root.props, an UPDATE only, `componentType` null). `position` is where the block went (ADD, MOVE) in the
-        shape the change set used: today `{index}` in the page's top-level blocks; a later catalog with containers
-        names its own nested shape.
+        (root.props, an UPDATE only, `componentType` null). `position` is where the block actually went (ADD,
+        MOVE): AI Codegen stores the effective position at apply time (an index past the end lands at the end, and
+        is stored as the index it got), on ChangeSet.items too. Its shape is the change set's: today `{index}` in
+        the page's top-level blocks; a later catalog with containers names its own nested shape, and `position` and
+        `previous.position` then share it (REMOVE's `previous.props` of a container then includes its slot lists, so
+        the removed subtree stays in the history).
       type: object
       additionalProperties: false
       required: [order, operation, componentId, componentType]
       properties:
-        order: { type: integer, minimum: 0 }
+        order: { type: integer, minimum: 1, description: "ChangeSet.items' `order`: 1-based, in apply order." }
         operation: { type: string, enum: [ADD, UPDATE, REMOVE, MOVE] }
         componentId: { type: string, minLength: 1, maxLength: 100 }
         componentType:
@@ -627,8 +633,9 @@ components:
         propsPatch:
           type: [object, "null"]
           description: |
-            ADD: the new block's props. UPDATE: the new values of exactly the props it changed (a list prop is its
-            whole new list). Null for REMOVE and MOVE.
+            ADD: the new block's props, without `id` (that is `componentId`). UPDATE: the new values of exactly the
+            props it changed (a list prop is its whole new list); a prop whose value didn't change is never in it
+            (dropped when the change is proposed). Null for REMOVE and MOVE.
         previous:
           description: |
             Optional: the values before this operation, as AI Codegen read them from the draft it applied the change
