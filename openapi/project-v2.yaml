@@ -818,7 +818,8 @@ paths:
         of that type over the limit; a repeated block id the second block holding it, with `.id`; a repeated or
         reserved anchor the Section's `anchorId` (the second, when repeated); `zones` is `zones` ("first" and "second"
         in document order: depth first, a container before its slots). Since 0.3.0 `root.facebookUrl` and
-        `root.instagramUrl` take no blocked host either (`root.facebookUrl`, `VALUE_INVALID`).
+        `root.instagramUrl` take no blocked host either, nor an authority holding `@`, `%`, a backslash or a non-ASCII
+        character (README "No WhatsApp", the social links' host rule; `root.facebookUrl`, `VALUE_INVALID`).
 
         ProductCards and AllProducts name the products they show in `productIds`. An entry that is not a product of
         this website (one its product routes answer for it: in its catalog, not archived) is field

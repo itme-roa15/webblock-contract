@@ -266,8 +266,8 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
   - looser: the `CtaAction` enum of `Hero.primaryAction`, `Hero.secondaryAction` and `CallToAction.buttonAction`
     gains `telegram` (every older value still saves; see "Telegram" below);
   - stricter, the one strictness 0.3.0 adds to old props: `root.facebookUrl` and `root.instagramUrl` are in
-    `page.links.appliesTo`, so for a page checked against 0.3.0 no reader takes a blocked host (WhatsApp) there (see
-    "No WhatsApp" below). Their schema is unchanged.
+    `page.links.appliesTo`, so for a page checked against 0.3.0 no reader takes a blocked host (WhatsApp) there, nor
+    an address whose host readers could read differently (see "No WhatsApp" below). Their schema is unchanged.
 
   The web UI's tests compare 0.3.0 with this repository's 0.2.0 file, exempting only those three `CtaAction`
   schemas.
@@ -387,12 +387,19 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
       hrefs, `root.telegramUrl`, and since 0.3.0 the 0.2.0 social links `root.facebookUrl` and `root.instagramUrl`
       (field `root.facebookUrl`, code `VALUE_INVALID`). The 0.3.0 editor already refused a blocked host in those on
       save, so a page holding one saves again only once the owner changes the link; AI Codegen never writes one.
-    - The social links keep their looser 0.2.0 pattern, which lets userinfo, `%` and non-ASCII through, so their host
-      is the WHATWG host (JavaScript `new URL(v).hostname`: userinfo and port dropped, percent-decoded, IDNA-mapped):
-      `https://user@wa.me/x`, `https://wa%2Eme/x` and the fullwidth `https://ｗａ.ｍｅ/x` are all `wa.me`. A reader
-      without a WHATWG parser (Python, Java) refuses, as `VALUE_INVALID`, a social link whose authority (between
-      `https://` and the first `/`, `?` or `#`) holds `@`, `%`, a backslash or a non-ASCII character; no real Facebook
-      or Instagram address does.
+    - No grandfathering: on a page that already stores such a social link, every 0.3.0 save is refused at
+      `root.facebookUrl` (or `root.instagramUrl`), the assistant's change sets included, whatever they change. AI
+      Codegen's chat reply for a refusal at `root.facebookUrl` or `root.instagramUrl` (from its own check or from
+      Project) tells the owner to change that link in the editor's page settings, and /check reports it.
+    - **The social links' host rule** (the conservative rule, the same in every reader, the editor included). The
+      social links keep their looser 0.2.0 pattern, which lets userinfo, `%`, a backslash and non-ASCII into the
+      authority (between `https://` and the first `/`, `?` or `#`), where URL parsers read different hosts (WHATWG
+      reads `https://user@wa.me/x`, `https://wa%2Eme/x` and the fullwidth `https://ｗａ.ｍｅ/x` all as `wa.me`; Java's
+      `URI` and Python's `urlsplit` do not). So every reader refuses, as `VALUE_INVALID`, a `root.facebookUrl` or
+      `root.instagramUrl` whose authority holds `@`, `%`, a backslash or a non-ASCII character
+      (`https://user@www.facebook.com/x` too: no real Facebook or Instagram address has one), and cuts the host of
+      the rest as for a 0.3.0 link. No reader uses a URL parser's host. In the web UI it is `hasUnclearAuthority` in
+      `link-rules.ts`.
     - Refused: `https://wa.me/85512345678`, `https://WA.ME/85512345678`,
       `https://api.whatsapp.com/send?phone=85512345678&text=Hello`, `https://chat.whatsapp.com/x`,
       `https://www.whatsapp.com/`, `https://web.whatsapp.net/x`, `https://wa.link/abc123`. They match the link
@@ -408,9 +415,10 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
     - The `telegram` CtaAction, labelled "Message us on Telegram" (`page.links.ctaActions`), goes to `telegramUrl`;
       when that is empty, to `https://t.me/<root.telegram>` from the older username prop, else to `#visit` (as `call`
       and `email` do without a phone or an email).
-    - Widening the CtaAction enum is the one change 0.3.0 makes to 0.1.0/0.2.0 props (`Hero.primaryAction`,
+    - Widening the CtaAction enum is the one LOOSER change 0.3.0 makes to 0.1.0/0.2.0 props (`Hero.primaryAction`,
       `Hero.secondaryAction`, `CallToAction.buttonAction`). Every older value still saves; those props' notes predate
-      the new value.
+      the new value. The one stricter change is No WhatsApp in `root.facebookUrl` and `root.instagramUrl` (see
+      Additive).
     - A `telegram` action on a page without `telegramUrl` is a /check finding (rollout step 0).
     - Renderer: a Telegram link (the Footer's and a `telegram` button's) shows a Telegram icon and opens in a new tab
       with `target="_blank" rel="noopener noreferrer"`, in the web UI's designs and in AI Codegen's site template.
@@ -504,7 +512,8 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
 - **How a page moves to 0.3.0:** exactly as for 0.2.0, on its next save from a 0.3.0 client, with the same optional
   `componentCatalogVersion` on both page saves.
   - The 0.3.0 editor sends `"0.3.0"`; a 0.1.0 or 0.2.0 page is a valid 0.3.0 page, so it moves up unchanged,
-    unless its Facebook or Instagram link is a WhatsApp address (the one stricter rule above): the owner changes it.
+    unless its Facebook or Instagram link is a WhatsApp address or breaks the social links' host rule (the one
+    stricter change above): the owner changes it.
   - Forward only: a version older than the stored one is `400 VALIDATION_FAILED`. A restore keeps the stored version.
     Pages never saved again stay at their version and keep working.
   - An editor that loads a page whose `componentCatalogVersion` is newer than its own opens it read-only and asks
@@ -519,7 +528,9 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
      that is already on the page, never a blocked host). It also gets the rich text placeholders (see WebBlock AI
      skills, Placeholders).
      - /cta and /check know the `telegram` action; /check reports a `telegram` action on a page without
-       `telegramUrl`. (The portal's business profile gaining a Telegram field is a later Project item, not in 0.3.0.)
+       `telegramUrl`, and a Facebook or Instagram link that is a WhatsApp address (change it in the editor's page
+       settings: the page no longer saves until then). (The portal's business profile gaining a Telegram field is a
+       later Project item, not in 0.3.0.)
      - With "@" on a container, its descendants count as in scope: for the "only the @ blocks" rule and in the eval
        check.
      - The skills index's `catalog` must be the newest catalog AI Codegen edits with. AI Codegen pins it in step 1 and
@@ -540,9 +551,10 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
      - Its site template applies Products to show (below) per request: each source, a deleted or hidden pick dropping
        out and an unknown category's empty state, with tests on its test database.
      - Its operation check enforces the 0.3.0 keywords, the rich text length (UTF-16) and `marksOncePerRun`, the
-       required alts, the blocked hosts on `page.links.appliesTo` (the social links included, with the WHATWG host
-       rule above), the tree rules on the final tree and the nested positions as specified, so it never proposes what
-       Project refuses.
+       required alts, the blocked hosts on `page.links.appliesTo` (the social links included, with their host rule
+       above), the tree rules on the final tree and the nested positions as specified, so it never proposes what
+       Project refuses. Its chat reply for a refusal at `root.facebookUrl` or `root.instagramUrl` tells the owner to
+       change that link in the editor's page settings (No WhatsApp, no grandfathering).
      - The same check never writes `productIds`, sets `source` only as point 2 allows, and refuses a `category` or
        `defaultCategory` that is not a category of the website's catalog (until Project sends `categories`: any value
        but that block's own current one, as below). Its loader takes `patterns.productId`.
@@ -560,7 +572,8 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
      website's product id, and save a draft that still holds the id of a product deleted since. Its tests must answer
      `400` to at least a Buttons link `javascript:alert(1)`, a Map url `https://evil.example/`, a rich text href
      `data:text/html,x`, a Buttons link `https://wa.me/85512345678`, a rich text href
-     `https://api.whatsapp.com/send?phone=85512345678` and a `root.facebookUrl` `https://wa.me/85512345678`. They must
+     `https://api.whatsapp.com/send?phone=85512345678`, a `root.facebookUrl` `https://wa.me/85512345678` and a
+     `root.instagramUrl` `https://user@www.instagram.com/x` (the social links' host rule). They must
      agree with every `patterns` string, every `page.links.examples` string and every `richText.examples` tree.
   3. **The editor and the templates:**
      - 3a. the 0.3.0 web editor is live (it sends `"0.3.0"` and pins the step-0 skills index), with the product
