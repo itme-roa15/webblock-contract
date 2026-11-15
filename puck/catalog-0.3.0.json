@@ -150,6 +150,7 @@
       "document": "A page document holds root, content and zones. Blocks nest through slots only, so zones (Puck's DropZones, which no block uses) is absent or {}.",
       "patterns": "A pattern matches the whole string under ECMA-262 rules ($ is the end of input): Python readers use re.fullmatch, Java readers Matcher.matches() or networknt's ECMA-262 regex. The 0.3.0 patterns use ASCII classes only, so the result is the same in every engine. `patterns` lists strings every reader must accept and refuse.",
       "liveData": "ProductCards, AllProducts, About and VisitUs show live data (the Owner Portal's products and business facts), which the sites fill in only at the top level: no slot takes them.",
+      "productsToShow": "ProductCards and AllProducts store which products they show (source all, category or picked; category; productIds), never products: the site and the editor read the website's catalog per request and apply it. picked shows the productIds in their order; a picked product that was deleted or isn't published drops out; an unknown category shows no products. A missing prop means its default, today's behaviour. Project refuses a productIds entry new in the save that isn't a product of this website (field content[i].<Type>.productIds[j]). Their products and categories props are copies kept as stored for older readers.",
       "blockLimit": "Blocks on the page in all, counting every block inside a container at every depth (40). Before 0.3.0 the top level was the only level.",
       "topLevelLimit": "Blocks in the page's own content list, the top level (16).",
       "maxDepth": "How deep blocks nest: a top-level block is depth 1, a block in its slot depth 2, a block in a slot of that one depth 3. Nothing sits deeper than 3, so a container at depth 3 stays empty.",
@@ -981,6 +982,52 @@
           },
           "default": [],
           "note": "Up to 12 featured products. The owner's products, copied from the Owner Portal catalog. Never invented or edited here; the live site shows the catalog's."
+        },
+        "source": {
+          "required": false,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "all",
+              "category",
+              "picked"
+            ]
+          },
+          "default": "all",
+          "note": "Products to show (added in 0.3.0): all, the whole catalog as before 0.3.0 (the default; missing means all); category, only the products of `category`; picked, only the products in `productIds`, in that order. The page stores only this choice, never products: the site and the editor read the catalog per request and apply it. A product that was deleted or isn't published drops out.",
+          "since": "0.3.0"
+        },
+        "category": {
+          "required": false,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "",
+          "note": "The category whose products the block shows with source category (added in 0.3.0; ignored otherwise): a category name of the website's catalog, which the editor and AI Codegen check (Project only logs an unknown one). An unknown or empty one shows no products, the block's empty state. Missing means \"\".",
+          "since": "0.3.0"
+        },
+        "productIds": {
+          "required": false,
+          "nullable": false,
+          "ai": "none",
+          "flag": "owner",
+          "schema": {
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "uniqueItems": true
+          },
+          "default": [],
+          "note": "The products the block shows with source picked (added in 0.3.0; kept but ignored otherwise): up to 12 ids of the website's own catalog, no repeats, in the owner's order, which is the order shown. The owner picks them in the editor; WebBlock AI never writes them. Project refuses an id new in the save that isn't a product of this website; a product deleted or hidden later drops out. Missing means [].",
+          "since": "0.3.0"
         }
       }
     },
@@ -1162,6 +1209,64 @@
           },
           "default": 6,
           "note": "Products per page of the grid (2–24); a setting, not wording."
+        },
+        "source": {
+          "required": false,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "all",
+              "category",
+              "picked"
+            ]
+          },
+          "default": "all",
+          "note": "Products to show (added in 0.3.0): all, the whole catalog as before 0.3.0 (the default; missing means all); category, only the products of `category`; picked, only the products in `productIds`, in that order. The page stores only this choice, never products: the site and the editor read the catalog per request and apply it. A product that was deleted or isn't published drops out. With category the block shows no category tabs; with picked its tabs are the picked products' categories.",
+          "since": "0.3.0"
+        },
+        "category": {
+          "required": false,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "",
+          "note": "The category whose products the block shows with source category (added in 0.3.0; ignored otherwise): a category name of the website's catalog, which the editor and AI Codegen check (Project only logs an unknown one). An unknown or empty one shows no products, the block's empty state. Missing means \"\".",
+          "since": "0.3.0"
+        },
+        "productIds": {
+          "required": false,
+          "nullable": false,
+          "ai": "none",
+          "flag": "owner",
+          "schema": {
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "uniqueItems": true
+          },
+          "default": [],
+          "note": "The products the block shows with source picked (added in 0.3.0; kept but ignored otherwise): up to 12 ids of the website's own catalog, no repeats, in the owner's order, which is the order shown. The owner picks them in the editor; WebBlock AI never writes them. Project refuses an id new in the save that isn't a product of this website; a product deleted or hidden later drops out. Missing means [].",
+          "since": "0.3.0"
+        },
+        "defaultCategory": {
+          "required": false,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "",
+          "note": "The category tab the block opens on (added in 0.3.0): a category name of the website's catalog, or \"\" for the All tab (the default; missing means \"\"). An unknown one opens on the All tab. Ignored with source category (no tabs); with picked it applies only when it is one of the picked products' categories.",
+          "since": "0.3.0"
         }
       }
     },
@@ -5596,6 +5701,38 @@
         "https://t.me/riversideroasters\n",
         "https://t.me/riversideroasters\u00a0",
         "t.me/riversideroasters"
+      ]
+    },
+    "productId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "usedBy": [
+        "ProductCards.productIds[]",
+        "AllProducts.productIds[]"
+      ],
+      "accept": [
+        "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "9f8e7d6c-1b2a-4c3d-8e9f-0a1b2c3d4e5f",
+        "01937c3e-5a2b-7c4d-8e9f-0a1b2c3d4e5f"
+      ],
+      "refuse": [
+        "",
+        "0A1B2C3D-4E5F-4A6B-8C7D-9E0F1A2B3C4D",
+        "0a1b2c3d4e5f4a6b8c7d9e0f1a2b3c4d",
+        "{0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d}",
+        "urn:uuid:0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4",
+        "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d5",
+        "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4g",
+        "Iced latte",
+        " 0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d\n",
+        "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d\u00a0",
+        "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d\u2028",
+        "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d\u200b",
+        "\u202e0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d\u0000",
+        "٠١٢٣٤٥٦٧-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "0а1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
       ]
     }
   }

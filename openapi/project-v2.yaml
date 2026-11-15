@@ -207,6 +207,10 @@ x-internal-routes:
             updatedAt: {type: string, format: date-time}
       errors:
         - '400 VALIDATION_FAILED (bad body) or PUCK_TREE_INVALID (the draft breaks the component catalog; field errors).'
+        - >-
+          400 VALIDATION_FAILED (catalog 0.3.0 DRAFT, Products to show): a ProductCards or AllProducts `productIds` entry
+          that is not a product of this website, field `content[i].<Type>.productIds[j]`, as on the owner's
+          PUT /projects/{projectId}/page.
         - '404 PROJECT_NOT_FOUND.'
         - '409 STALE_EDIT_REVISION: the draft moved on; 409 IDEMPOTENCY_KEY_REUSED: a used changeSetId with another body.'
         - '422 PROJECT_READ_ONLY: the website is suspended or deleted.'
@@ -773,6 +777,15 @@ paths:
         `If-Match` the save is taken as is (last write wins): the UI's `savePageData` sends no revision, and AI
         Codegen's chat edits arrive through Project's internal route with their own revision. A stale `If-Match`
         answers 412. `expectedEditRevision` in the body is accepted as an alternative to `If-Match`.
+
+        Catalog 0.3.0 product blocks (DRAFT; README "Editor component catalog", 0.3.0, "Products to show (data
+        binding)"): ProductCards and AllProducts name the products they show in `productIds`. An entry that is not a
+        product of this website (one its product routes answer for it: in its catalog, not archived) is 400
+        VALIDATION_FAILED with a field error naming `content[i].<Type>.productIds[j]` (code `VALUE_INVALID`), for
+        example `content[3].ProductCards.productIds[1]`. An unknown id and another website's product get the same
+        answer. Only ids that no product block of the stored draft already holds are checked (DEFAULT pending
+        coordinator), so a product deleted since never blocks a save. An unknown `category` or `defaultCategory` is
+        only logged. The internal draft save (`PUT /internal/v1/projects/{projectId}/page/draft`) answers the same.
       x-phase: 2
       x-replaces: ["PUT /api/v1/ui/projects/{projectId}/page", "PUT /api/v1/projects/{projectId}/page"]
       parameters:
