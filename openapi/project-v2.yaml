@@ -403,8 +403,9 @@ paths:
         with Payment, E2E phase A). v1 answers 422 for all five. Sending the same body again for a website that
         already exists answers 200 with it (no second website). `details.logoUrl` is the wizard's logo as a
         `data:image/...;base64,...` URL (the UI reads the chosen file into one) or null. It is checked before anything
-        is created, as a media upload: PNG or JPEG read from the bytes (never the declared type), at most 5 MiB
-        (400 VALIDATION_FAILED for anything else, 413, 415). It becomes the website's first media asset and, once the
+        is created, as a media upload: PNG or JPEG read from the bytes (never the declared type), at most the
+        website's image size limit (2 MiB by default, never more than 5 MiB) (400 VALIDATION_FAILED for anything else,
+        413, 415). It becomes the website's first media asset and, once the
         catalog has registered the website, its business logo. The body may be up to 6 MiB. `category` and
         `thumbnailUrl` are ignored (the server owns them).
       x-phase: 2
@@ -893,7 +894,7 @@ paths:
     post:
       tags: [media]
       operationId: uploadMedia
-      summary: Uploads an image (PNG or JPEG, at most 5 MiB) to the website's library.
+      summary: Uploads an image (PNG or JPEG, at most the website's image size limit, 2 MiB by default, never more than 5 MiB) to the website's library.
       description: |
         The type is read from the file's bytes, never from the client's content type or file name. The website owner's
         plan limits its photos (the library images the owner uploaded, `origin` UPLOAD): Project reads `photosLimit`
