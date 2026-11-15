@@ -80,7 +80,7 @@ x-needs-from-project:
         - "404 PROJECT_NOT_FOUND: no such project, or it is deleted."
         - "409 STALE_EDIT_REVISION: the draft is no longer at expectedEditRevision. AI Codegen then rejects its change set, and the chat reply says nothing was changed and why."
         - "409 IDEMPOTENCY_KEY_REUSED: a different body under a changeSetId already used."
-        - "400 VALIDATION_FAILED: the body is malformed. 400 PUCK_TREE_INVALID: the draft breaks the component catalog's rules (field errors in errors)."
+        - "400 VALIDATION_FAILED: the body is malformed; or, from catalog 0.3.0, the draft breaks the component catalog, with field codes VALUE_INVALID / PUCK_TREE_INVALID (README \"Refusals in 0.3.0\"). 400 PUCK_TREE_INVALID: a page checked against 0.1.0 or 0.2.0 breaks the component catalog's rules (field errors in errors)."
         - "422 PROJECT_READ_ONLY: the website is suspended or deleted, as for the owner's own save."
 servers:
   - url: /api/ai-codegen/v2
@@ -503,6 +503,9 @@ paths:
         answers the change set with `appliedEditRevision`; `DISCARDED` drops it. 409 when it is no longer `PROPOSED` or
         the page changed since it was proposed (`rejectionCode` `STALE_EDIT_REVISION`); 422 when Project refuses the
         page (`PROJECT_READ_ONLY`, `PUCK_TREE_INVALID`); 503 when Project is down (it stays `PROPOSED`, retry).
+        From catalog 0.3.0 Project refuses a page that breaks the catalog with 400 `VALIDATION_FAILED` whose field
+        errors carry the codes `VALUE_INVALID` / `PUCK_TREE_INVALID` (README "Refusals in 0.3.0"); the change set then
+        still stores `rejectionCode` `PUCK_TREE_INVALID` (422) and the chat replies as for a catalog refusal.
       x-replaces: "PATCH /v1/change-sets/{change_set_id}"
       requestBody:
         required: true

@@ -206,10 +206,11 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
 |---|---|---|
 | 0.1.0 | Hero, Text, ProductCards, AllProducts, About, VisitUs, Footer | 12 blocks a page, the Footer last |
 | 0.2.0 | 0.1.0's seven, unchanged, plus Testimonials, FAQ, Gallery, CallToAction, Services, Stats (content only: no products, no new data, images through the existing media upload) | 16 blocks a page, the Footer last |
-| 0.3.0 (DRAFT for review) | 0.2.0's thirteen, unchanged (only new optional alt props on Hero, Text and About), plus the containers Section, Columns, Grid, Card and the design blocks Heading, RichText, Image, Buttons, Icon, Spacer, Divider, ImageBanner, LogoStrip, Quote, Video, Map; root gains optional `seoTitle`, `seoDescription` | 40 blocks a page at every depth, 16 at the top level, depth 3, Hero and Footer top level only, the Footer last, live-data blocks (ProductCards, AllProducts, About, VisitUs) in no slot, block ids unique across the tree, `zones` empty; 0.3.0 blocks and props strict; no WhatsApp links (`page.links.blockedHosts`); the `telegram` CtaAction and root `telegramUrl`; ProductCards and AllProducts choose which catalog products they show (`source`, `category`, `productIds`, AllProducts `defaultCategory`), and Project checks the ids |
+| 0.3.0 (DRAFT for review) | 0.2.0's thirteen, unchanged except new optional props (alts, Products to show), the `telegram` CtaAction value and no WhatsApp in the root's social links, plus the containers Section, Columns, Grid, Card and the design blocks Heading, RichText, Image, Buttons, Icon, Spacer, Divider, ImageBanner, LogoStrip, Quote, Video, Map; root gains optional `seoTitle`, `seoDescription` | 40 blocks a page at every depth, 16 at the top level, depth 3, Hero and Footer top level only, the Footer last, live-data blocks (ProductCards, AllProducts, About, VisitUs) in no slot, block ids unique across the tree, `zones` empty; 0.3.0 blocks and props strict; no WhatsApp links (`page.links.blockedHosts`); the `telegram` CtaAction and root `telegramUrl`; ProductCards and AllProducts choose which catalog products they show (`source`, `category`, `productIds`, AllProducts `defaultCategory`), and Project checks the ids |
 
 - **A newer 0.x only adds.** Every block, prop and value rule of the older version is the same in the newer one,
-  and its page rules are the same or looser. So every page valid under 0.1.0 is valid under 0.2.0. A version that
+  and its page rules are the same or looser. So every page valid under 0.1.0 is valid under 0.2.0. (0.3.0 names its
+  few exceptions below: unique block ids, `zones` empty, and no WhatsApp in the root's social links.) A version that
   breaks this needs its own migration plan, and must not be numbered 1.0.0: AI Codegen already uses "1.0.0" for its
   own generated-site catalog.
 - **Version order** is numeric major.minor.patch ("0.10.0" is newer than "0.9.0"). A version a reader can't parse
@@ -260,8 +261,16 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
   and `addDefaults` byte for byte; the root's 0.2.0 props too. New on old blocks are only optional props (`required:
   false`): `Hero.imageAlt`, `Text.imageAlt`, `About.imageAlt`, `About.secondImageAlt`, root `seoTitle`,
   `seoDescription` and `telegramUrl`, and the "Products to show" props of ProductCards and AllProducts (`source`,
-  `category`, `productIds`, AllProducts `defaultCategory`; see "Products to show (data binding)" below). The web UI's
-  tests compare 0.3.0 with this repository's 0.2.0 file.
+  `category`, `productIds`, AllProducts `defaultCategory`; see "Products to show (data binding)" below). Two changes
+  to old props are the exceptions:
+  - looser: the `CtaAction` enum of `Hero.primaryAction`, `Hero.secondaryAction` and `CallToAction.buttonAction`
+    gains `telegram` (every older value still saves; see "Telegram" below);
+  - stricter, the one strictness 0.3.0 adds to old props: `root.facebookUrl` and `root.instagramUrl` are in
+    `page.links.appliesTo`, so for a page checked against 0.3.0 no reader takes a blocked host (WhatsApp) there (see
+    "No WhatsApp" below). Their schema is unchanged.
+
+  The web UI's tests compare 0.3.0 with this repository's 0.2.0 file, exempting only those three `CtaAction`
+  schemas.
 - **Strict from 0.3.0.** `page.strictSince` is `"0.3.0"`, and every block, prop and slot added in 0.3.0 carries
   `"since": "0.3.0"` (the new blocks, all their props and slots, and the props above). For those:
   - Project refuses with `400 VALIDATION_FAILED` (code `VALUE_INVALID`, field as in "Refusals in 0.3.0" below) any
@@ -284,8 +293,18 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
   structure (depth, a slot's `allow`/`disallow`, `minItems`/`maxItems` and `activeWhen`, `topLevelOnly` and the Footer
   last, the budgets, a repeated block id, `zones`). For example: `content[3].ProductCards.productIds[1]`
   `VALUE_INVALID` (another website's product), `content[2].Columns.column1[0].Buttons.items[1].link` `VALUE_INVALID`
-  (`https://wa.me/85512345678`), and `content[1].Section.content[0].ProductCards` `PUCK_TREE_INVALID` (live data in a
-  slot).
+  (`https://wa.me/85512345678`), `root.facebookUrl` `VALUE_INVALID` (`https://wa.me/85512345678`), and
+  `content[1].Section.content[0].ProductCards` `PUCK_TREE_INVALID` (live data in a slot).
+  - Both page saves answer it the same way (`PUT /api/project/v2/projects/{projectId}/page` and the internal
+    `PUT /internal/v1/projects/{projectId}/page/draft`). No 0.3.0 catalog refusal has another top-level code:
+    `VALUE_INVALID` and `PUCK_TREE_INVALID` are only the entries' `code`.
+  - Where there is no single prop: a rich text rule (its schema, `maxTextLength`, `marksOncePerRun`, a link in it)
+    names the body, `content[i].RichText.body` (or its nested path); a budget (`blockLimit`, `topLevelLimit`) names
+    `content`; `maxPerPage` names the first block of that type over the limit; a repeated block id names the second
+    block holding it, with `.id` (`content[4].Text.id`); a repeated or reserved `anchorId` names the Section's
+    `anchorId` (the second one, when repeated); the Footer not last names the Footer; depth names the block too deep;
+    `zones` is `zones`. "First" and "second" count in document order: depth first, a container before its slots, its
+    slots in the catalog's order.
 - **Containers and slots.** Section, Columns, Grid and Card hold blocks in slot props (Puck slots): each slot is a
   prop whose value is a list of blocks, `{type, props}` exactly as at the top level. Slot props are listed under the
   component's `slots`, not under `props`. Each slot has:
@@ -296,10 +315,10 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
   - What fits: a Section takes any block but Hero, Footer, Section and the live-data blocks; a column takes the small
     blocks (Heading, RichText, Text, Image, Buttons, Icon, Spacer, Divider, Quote), Video, Map and Card; a Grid takes
     Card, Image, Quote, Icon, Heading, RichText, Text, Buttons and Video; a Card takes the small blocks.
-  - **Live data stays at the top level** (DEFAULT pending coordinator). ProductCards, AllProducts, About and VisitUs
-    show the Owner Portal's products, categories and business facts, which both renderers fill in only at the top
-    level. No slot takes them (they are in Section's `disallow`; the other slots' lists leave them out), so no
-    renderer changes. Opening them to slots later is additive.
+  - **Live data stays at the top level** (decided as-is by the coordinator, 15 November 2026). ProductCards,
+    AllProducts, About and VisitUs show the Owner Portal's products, categories and business facts, which both renderers
+    fill in only at the top level. No slot takes them (they are in Section's `disallow`; the other slots' lists leave
+    them out), so no renderer changes. Opening them to slots later is additive.
 - **Depth and budgets.** A top-level block is depth 1, a block in its slot depth 2, one more level depth 3;
   `page.maxDepth` is 3, so a container at depth 3 (a Card in Columns in a Section) stays empty. `page.blockLimit` is
   40 and counts blocks at every depth; `page.topLevelLimit` is 16 (0.2.0's `blockLimit`). Each `maxPerPage` counts
@@ -317,8 +336,10 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
   it is unique on the page and never one of `page.anchors.reserved`: `top`, `shop`, `visit`, `about`, `all-products`,
   the site's own in-page link targets. It is `setting` for the assistant: other pages and posts may link to it.
   - Every other id the site emits must contain a character the anchorId pattern can't produce. The later build
-    renames three that don't yet, in the web UI's designs and AI Codegen's site template: `warm-bold-mobile-nav`,
-    `jackets-badge-circle` and `site-contact-title` (to, for example, `warm_bold_mobile_nav`).
+    renames the four that don't yet, in the web UI's designs and AI Codegen's site template: `warm-bold-mobile-nav`
+    to `warm_bold_mobile_nav`, `jackets-badge-circle` to `jackets_badge_circle`, `site-contact-title<useId>` to
+    `site_contact_title<useId>`, and the AllProducts search box `<AllProducts id>-search` to `<AllProducts id>_search`
+    (everyday-store, sweet-pastel).
 - **Rich text** (`RichText.body`) is a restricted node tree in the TipTap/ProseMirror JSON shape, never HTML.
   - Nodes: `doc`, `paragraph`, `heading` (`attrs.level` 2–4), `bulletList`, `orderedList`, `listItem` (paragraphs
     only, so no nested lists), `text`. Marks: `bold`, `italic`, `link` (`attrs.href` is a link target, below).
@@ -358,13 +379,20 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
   - **No WhatsApp** (the owner's decision of 15 November 2026). `page.links.blockedHosts` is `wa.me`, `whatsapp.com`,
     `whatsapp.net` and `wa.link`, with `hostMatch: "suffix"`: a link is refused when its host, lower-cased and without
     a trailing dot, equals an entry or ends in `.` + an entry.
-    - The host is what a WHATWG URL parser reads (JavaScript `new URL(v).hostname`, Python `urlsplit(v).hostname`,
-      Java `URI.getHost()`). For a 0.3.0 link it is simply the text between `https://` and the first `:`, `/`, `?` or
-      `#`, since the link pattern allows no userinfo, backslash or percent sign there.
+    - For a 0.3.0 link the host is the text between `https://` and the first `:`, `/`, `?` or `#` (the link pattern
+      allows no userinfo, backslash or percent sign there). Readers cut the string that way themselves; never
+      Java's `URI.getHost()`, which answers null for a label that ends in a hyphen (`https://chat-.whatsapp.com/x`,
+      which the link pattern accepts and `page.links.examples.blocked` lists), nor Python's `urlsplit`.
     - Every reader enforces it on `page.links.appliesTo`: `Buttons.items[].link`, `ImageBanner.buttonLink`, rich text
-      hrefs and `root.telegramUrl`. The editor's save check also enforces it on the 0.2.0 social links
-      (`page.links.editorAlsoChecks`: `root.facebookUrl`, `root.instagramUrl`), so a page holding such a link no
-      longer saves from the 0.3.0 editor until the link is changed.
+      hrefs, `root.telegramUrl`, and since 0.3.0 the 0.2.0 social links `root.facebookUrl` and `root.instagramUrl`
+      (field `root.facebookUrl`, code `VALUE_INVALID`). The 0.3.0 editor already refused a blocked host in those on
+      save, so a page holding one saves again only once the owner changes the link; AI Codegen never writes one.
+    - The social links keep their looser 0.2.0 pattern, which lets userinfo, `%` and non-ASCII through, so their host
+      is the WHATWG host (JavaScript `new URL(v).hostname`: userinfo and port dropped, percent-decoded, IDNA-mapped):
+      `https://user@wa.me/x`, `https://wa%2Eme/x` and the fullwidth `https://ｗａ.ｍｅ/x` are all `wa.me`. A reader
+      without a WHATWG parser (Python, Java) refuses, as `VALUE_INVALID`, a social link whose authority (between
+      `https://` and the first `/`, `?` or `#`) holds `@`, `%`, a backslash or a non-ASCII character; no real Facebook
+      or Instagram address does.
     - Refused: `https://wa.me/85512345678`, `https://WA.ME/85512345678`,
       `https://api.whatsapp.com/send?phone=85512345678&text=Hello`, `https://chat.whatsapp.com/x`,
       `https://www.whatsapp.com/`, `https://web.whatsapp.net/x`, `https://wa.link/abc123`. They match the link
@@ -412,19 +440,20 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
 - **Pictures and alt text.** `images.rules` lists every picture prop with where its alt text comes from:
   - `required`: Image `alt` (unless its `decorative` boolean is true) and LogoStrip `logos[].alt`. A set picture
     with an empty alt doesn't save.
-  - `prop`: the alt props 0.3.0 adds next to older pictures, with a `fallback` (DEFAULT pending coordinator): Hero
-    and Text `imageAlt` fall back to `heading`, About `imageAlt` and `secondImageAlt` to `caption`, else `heading`.
-    Missing or empty uses the first non-empty fallback, as the site did before 0.3.0, so no old page loses alt text.
+  - `prop`: the alt props 0.3.0 adds next to older pictures, with a `fallback` (decided as-is by the coordinator, 15
+    November 2026): Hero and Text `imageAlt` fall back to `heading`, About `imageAlt` and `secondImageAlt` to `caption`,
+    else `heading`. Missing or empty uses the first non-empty fallback, as the site did before 0.3.0, so no old page
+    loses alt text.
   - `optional`: ImageBanner `imageAlt`; empty means decorative (the text over it says what matters).
   - `fallback`: no alt prop; the site uses that text (Hero side images' `label`, products' `name`, Gallery `caption`,
     the root logo's `businessName`).
   - `decorative`: always `alt=""` (Testimonials photos, the Section background).
-  - Decorative is only ever an explicit choice: `Image.decorative` (DEFAULT pending coordinator, from the
-    coordinator's Q5), or ImageBanner's empty alt.
-- **SEO** (owed from 0.2.0; DEFAULT pending coordinator). The root's `seoTitle` (≤ 60) and `seoDescription`
-  (≤ 160) are the page's title and search snippet. Precedence for the title: `root.props.seoTitle` when not empty,
-  then Project's page `seoTitle` column, then the business name. The description follows the same order (root prop,
-  then the page's `seoDescription` column, else none).
+  - Decorative is only ever an explicit choice: `Image.decorative` (from the coordinator's Q5; decided as-is
+    by the coordinator, 15 November 2026), or ImageBanner's empty alt.
+- **SEO** (owed from 0.2.0; decided as-is by the coordinator, 15 November 2026). The root's `seoTitle` (≤ 60) and
+  `seoDescription` (≤ 160) are the page's title and search snippet. Precedence for the title: `root.props.seoTitle` when
+  not empty, then Project's page `seoTitle` column, then the business name. The description follows the same order (root
+  prop, then the page's `seoDescription` column, else none).
 - **0.3.0's AI policy:**
   - WebBlock AI may add the containers (empty, from `addDefaults`, then blocks into their slots) and Heading,
     RichText, Buttons, Icon, Spacer and Divider. It never adds Image, ImageBanner, LogoStrip, Video (`media`),
@@ -474,7 +503,8 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
       never a ref.
 - **How a page moves to 0.3.0:** exactly as for 0.2.0, on its next save from a 0.3.0 client, with the same optional
   `componentCatalogVersion` on both page saves.
-  - The 0.3.0 editor sends `"0.3.0"`; a 0.1.0 or 0.2.0 page is a valid 0.3.0 page, so it moves up unchanged.
+  - The 0.3.0 editor sends `"0.3.0"`; a 0.1.0 or 0.2.0 page is a valid 0.3.0 page, so it moves up unchanged,
+    unless its Facebook or Instagram link is a WhatsApp address (the one stricter rule above): the owner changes it.
   - Forward only: a version older than the stored one is `400 VALIDATION_FAILED`. A restore keeps the stored version.
     Pages never saved again stay at their version and keep working.
   - An editor that loads a page whose `componentCatalogVersion` is newer than its own opens it read-only and asks
@@ -496,34 +526,41 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
        the web UI in step 3a.
      - Products to show (below): /products explains the three sources and sets `source`, `category` and
        `defaultCategory` within point 2 (for `picked` it sends the owner to the editor's picker); /check reports a
-       picked product that no longer exists, an unknown `category` or `defaultCategory`, and a product block that shows
-       no products.
+       picked product that no longer exists (from `catalog.goneProductIds`), an unknown `category` or
+       `defaultCategory`, and a product block that shows no products.
   1. **AI Codegen.**
      - Its catalog loader reads `since`, `slots`, `topLevelOnly`, the new `page` keys (`strictSince`, `blockId`,
        `document`, `links`, `topLevelLimit`, `maxDepth`, `uniqueBlockIds`, `anchors`) and the new top-level keys
        `richText`, `images` and `patterns`. It takes the schema keywords `additionalProperties` and `uniqueItems`; a
        loader that refuses unknown keys or keywords must be widened first.
      - Its site template renders the new blocks and nested slots (with equality tests), the new alt props with their
-       fallbacks, the SEO precedence above, pictures in CSS only as escaped `url("…")`, the three renamed ids, and
+       fallbacks, the SEO precedence above, pictures in CSS only as escaped `url("…")`, the four renamed ids, and
        Telegram links (the Footer's and the `telegram` action's, with the fallback above) with a Telegram icon, opening
        in a new tab with `target="_blank" rel="noopener noreferrer"`.
      - Its site template applies Products to show (below) per request: each source, a deleted or hidden pick dropping
        out and an unknown category's empty state, with tests on its test database.
      - Its operation check enforces the 0.3.0 keywords, the rich text length (UTF-16) and `marksOncePerRun`, the
-       required alts, the blocked hosts on `page.links.appliesTo`, the tree rules on the final tree and the nested
-       positions as specified, so it never proposes what Project refuses.
+       required alts, the blocked hosts on `page.links.appliesTo` (the social links included, with the WHATWG host
+       rule above), the tree rules on the final tree and the nested positions as specified, so it never proposes what
+       Project refuses.
      - The same check never writes `productIds`, sets `source` only as point 2 allows, and refuses a `category` or
-       `defaultCategory` that is not a category of the website's catalog. Its loader takes `patterns.productId`.
+       `defaultCategory` that is not a category of the website's catalog (until Project sends `categories`: any value
+       but that block's own current one, as below). Its loader takes `patterns.productId`.
+     - It gives the skills, with the page, `catalog`: `{"categories", "goneProductIds"}` as Project's internal
+       `GET /internal/v1/projects/{projectId}/page` answers them (each left out while Project doesn't send it). It
+       never gives a product list.
   2. **Project** pins 0.3.0 and checks the whole tree: slots and what they allow, `activeWhen`, depth, both budgets,
      `maxPerPage` at every depth, `topLevelOnly`, unique ids, anchors, `zones` empty, the rich text length and
-     `marksOncePerRun`, the required alts, and the blocked hosts on `page.links.appliesTo`. It enforces every keyword
-     of `since` props (above), `root.telegramUrl`'s pattern and `productIds` (pattern, at most 12, no repeats)
-     included, and checks that `productIds` name products of the website (Products to show, point 1). Every refusal
-     has the field and code of "Refusals in 0.3.0". Its tests answer `400` naming the field to an unknown id and to
-     another website's product id, and save a draft that still holds the id of a product deleted since. Its tests must
-     answer `400` to at least a Buttons
-     link `javascript:alert(1)`, a Map url `https://evil.example/`, a rich text href `data:text/html,x`, a Buttons link
-     `https://wa.me/85512345678` and a rich text href `https://api.whatsapp.com/send?phone=85512345678`. They must
+     `marksOncePerRun`, the required alts, and the blocked hosts on `page.links.appliesTo` (the social links included,
+     with the host rule above). It enforces every keyword of `since` props (above), `root.telegramUrl`'s pattern and
+     `productIds` (pattern, at most 12, no repeats) included, and checks that `productIds` name products of the website
+     (Products to show, point 1). Every refusal has the field and code of "Refusals in 0.3.0". Its internal
+     `GET /internal/v1/projects/{projectId}/page` answers `categories` and `goneProductIds` (best-effort: each is left
+     out when the catalog does not answer). Its tests answer `400` naming the field to an unknown id and to another
+     website's product id, and save a draft that still holds the id of a product deleted since. Its tests must answer
+     `400` to at least a Buttons link `javascript:alert(1)`, a Map url `https://evil.example/`, a rich text href
+     `data:text/html,x`, a Buttons link `https://wa.me/85512345678`, a rich text href
+     `https://api.whatsapp.com/send?phone=85512345678` and a `root.facebookUrl` `https://wa.me/85512345678`. They must
      agree with every `patterns` string, every `page.links.examples` string and every `richText.examples` tree.
   3. **The editor and the templates:**
      - 3a. the 0.3.0 web editor is live (it sends `"0.3.0"` and pins the step-0 skills index), with the product
@@ -596,10 +633,17 @@ Owner Portal's catalog to fill that choice.
   - An unknown id and another website's product get the same answer, so nothing leaks. Only ids new in the save are
     checked, and a restore checks none (point 1).
   - An unknown `category` or `defaultCategory` is only logged (the block id and the prop, not the value).
-- **Where AI Codegen gets the category names** (coordinator, 15 November): Project's internal
-  `GET /internal/v1/projects/{projectId}/page` also answers `categories`, the website's category names in the catalog's
-  order (additive; no new route). Until Project sends it, AI Codegen accepts only the value already on the block or
-  one of the page's `AllProducts.categories` copy.
+- **Where AI Codegen gets the category names and the gone picks** (coordinator, 15 November): Project's internal
+  `GET /internal/v1/projects/{projectId}/page` also answers, both additive and optional (no new route):
+  - `categories`: the website's category names, in the catalog's order;
+  - `goneProductIds`: the `productIds` held by the draft's ProductCards and AllProducts blocks that are not (any
+    longer) products of this website (point 1's meaning), each once, in document order.
+
+  AI Codegen passes them to the skills as `catalog`, `{"categories", "goneProductIds"}`, and never a product list;
+  /check's "picked product that no longer exists" reads `goneProductIds`. Until Project sends `categories`, the
+  assistant may set `category` or `defaultCategory` only to that block's own current value: never a value copied from
+  another block, and never a sample category such as the template names in the page's `AllProducts.categories` copy,
+  which a real website's catalog does not hold.
 - **Tests** (each reader, at its rollout step): each source on both renderers (the site template's test database and
   the editor's fake backend); a deleted or hidden pick drops out; an unknown category shows the empty state; an empty
   catalog greys the options out; Project refuses an unknown id and a foreign one, naming the field; every reader agrees
