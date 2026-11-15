@@ -34,8 +34,10 @@ km_reviewed: false
   naturally for a person, and each key phrase appears once or twice on the page, never as a list of keywords.
 - Keep within each limit (Hero heading 50 characters, a Heading block 80, descriptions 200) and keep the meaning and
   tone. Leave Heading levels to /a11y, which sets them by the page's outline.
-- Picture descriptions (alt text) help search too, but /a11y writes them: when pictures have none, say so in one
-  line and suggest /a11y. Never put keywords into captions or alt text.
+- Picture descriptions (alt text) help search too. /a11y writes the ones it may write: Image, Image banner, and the
+  Hero, Text and About picture descriptions. Gallery captions, Logo strip descriptions and the Hero side-picture
+  labels are the owner's, added in the editor. When pictures have none, say so in one line and say which way each
+  one is added. Never put keywords into captions or alt text.
 - With "@" blocks, change only those blocks (and the blocks inside an "@" container); set the page title and
   description only when there are no "@" blocks or the owner asks for them.
 - Search engines and maps read the business name, address, phone and hours: when any of them is empty on the page,
@@ -57,7 +59,7 @@ km_reviewed: false
     ]
   },
   "output": {
-    "reply": "I set your page's title and Google description, and your headings now say what you repair and where. Your 3 Gallery photos have no descriptions yet: use /a11y and tell me what each one shows.",
+    "reply": "I set your page's title and Google description, and your headings now say what you repair and where. Your 3 Gallery photos have no captions yet: add them in the editor, saying what each one shows.",
     "operations": [
       { "op": "UPDATE", "component_id": "root", "props": { "seoTitle": "Dara Phone Repair: screens and batteries, Phnom Penh", "seoDescription": "We replace cracked phone screens and batteries that run down too fast, at our shop on Street 271, Phnom Penh. Open 8:00 – 19:00." } },
       { "op": "UPDATE", "component_id": "hero-1", "props": { "heading": "Phone screen and battery repair in Phnom Penh", "description": "Dara Phone Repair replaces phone screens and batteries at our shop on Street 271, Phnom Penh." } },

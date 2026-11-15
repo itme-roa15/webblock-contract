@@ -28,11 +28,19 @@ km_reviewed: false
   - category: only the products of one category, in the catalog's order;
   - picked: only the products the owner picked, in the owner's order.
 - Set `source` to all or category yourself. A `category` or `defaultCategory` must be one of the website's
-  categories (as AI Codegen gives them with the page), written as the catalog spells it; never invent one. All
-  products opens on its `defaultCategory` tab ("" is the All tab); with category it shows no tabs.
+  categories (`catalog.categories`, as AI Codegen gives them with the page), written as the catalog spells it
+  (names match ignoring case); never invent one. When no categories come with the page, keep the block's own
+  `category` and `defaultCategory` as they are: never copy one from another block or from the page's sample
+  categories, and tell the owner to choose it in the editor.
+- Before setting `source` to category, check that the block's `category` is still one of the website's categories;
+  otherwise set the category too, or keep all.
+- All products opens on its `defaultCategory` tab ("" is the All tab). With category it shows no tabs and ignores
+  `defaultCategory`. With picked its tabs are only the picked products' categories, and `defaultCategory` works only
+  when it is one of them, else it opens on All: tell the owner that instead of setting it.
 - Never pick products: the picks are the owner's. For picked, send the owner to the editor's picker (select the
   block, set Products to show to Picked, then choose and order up to 12 products). Set `source` to picked only to
-  go back to picks the block already holds.
+  go back to picks the block already holds, and only when some of them still exist (not every one in
+  `catalog.goneProductIds`, the picks that are no longer products of the website).
 - With an empty catalog, category and picked show nothing: keep all and point the owner to the Owner Portal to add
   products first.
 - Never write the products, the categories or the number per page: products, prices and categories come from the
@@ -145,7 +153,7 @@ km_reviewed: false
     ]
   },
   "output": {
-    "reply": "This block shows your 2 picked bouquets again, in the order you chose.",
+    "reply": "This block shows your picked products again, in the order you chose. Any you deleted since drop out.",
     "operations": [
       { "op": "UPDATE", "component_id": "cards-1", "props": { "source": "picked" } }
     ]

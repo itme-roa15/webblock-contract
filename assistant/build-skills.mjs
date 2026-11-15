@@ -147,32 +147,47 @@ const allows = (rule) => (rule.allow === "any"
 const textRuns = (node) => (node?.type === "text" ? [node] : (Array.isArray(node?.content) ? node.content.flatMap(textRuns) : []));
 const isDoc = (value) => value !== null && typeof value === "object" && value.type === "doc";
 
-/** The links a written value holds (page.links.appliesTo): Buttons items, the ImageBanner button, rich text hrefs. */
+/**
+ * The links a written value holds (page.links.appliesTo): Buttons items, the ImageBanner button, rich text hrefs, and
+ * the root's links that appliesTo names (telegramUrl, and the 0.2.0 social links facebookUrl and instagramUrl).
+ */
 function linksOf(type, prop, value) {
   if (type === "Buttons" && prop === "items" && Array.isArray(value)) return value.map((item) => item?.link);
   if (type === "ImageBanner" && prop === "buttonLink") return [value];
   if (type === "RichText" && prop === "body") {
     return textRuns(value).flatMap((run) => (run.marks ?? []).filter((m) => m?.type === "link").map((m) => m.attrs?.href));
   }
-  if (type === "root" && prop === "telegramUrl") return [value];
+  if (type === "root" && catalog.page.links.appliesTo.includes(`root.${prop}`)) return [value];
   return [];
 }
+/** The host as a browser reads it (WHATWG URL), as the editor checks it: the social links' looser 0.2.0 pattern lets
+ * userinfo, percent signs and non-ASCII through (README "No WhatsApp"). For a 0.3.0 link it is the same host. */
 const blocked = (link) => {
   if (typeof link !== "string" || !link.startsWith("https://")) return false;
-  const host = link.slice("https://".length).split(/[:/?#]/)[0].toLowerCase().replace(/\.$/, "");
+  let host;
+  try {
+    host = new URL(link).hostname.toLowerCase().replace(/\.$/, "");
+  } catch {
+    return false;
+  }
   return catalog.page.links.blockedHosts.some((entry) => host === entry || host.endsWith(`.${entry}`));
 };
+/** The whole https:// addresses a text holds (a trailing full stop, comma or the like is not part of one). */
+const addressesIn = (text) => (String(text).match(/https:\/\/[^\s"'<>()[\]{}]+/g) ?? []).map((a) => a.replace(/[.,;:!?]+$/, ""));
+/** Every string of a JSON value, at any depth. */
+const stringsIn = (value) => (typeof value === "string" ? [value]
+  : value && typeof value === "object" ? Object.values(value).flatMap(stringsIn) : []);
 
 /** Checks on a value the example writes, beyond its schema: links, rich text rules, the products binding. */
 function checkWritten(where, example, type, prop, value, current) {
-  const said = `${example.message}\n${JSON.stringify(example.page ?? {})}`;
+  const said = new Set([example.message, ...stringsIn(example.page ?? {})].flatMap(addressesIn));
   const links = linksOf(type, prop, value);
   if ([...links, ...(/Action$/.test(prop) ? [value] : [])].includes("telegram") && !example.page?.root?.props?.telegramUrl) {
     fail(where, `${type}.${prop} uses the telegram action on a page without root.telegramUrl (ask the owner for their Telegram link)`);
   }
   for (const link of links) {
     if (blocked(link)) fail(where, `${type}.${prop} links to a blocked host (page.links.blockedHosts): ${link}`);
-    else if (typeof link === "string" && link.startsWith("https://") && !said.includes(link)) {
+    else if (typeof link === "string" && link.startsWith("https://") && !said.has(link)) {
       fail(where, `${type}.${prop} links to ${link}, which neither the message nor the page holds (never invent an address)`);
     }
   }
@@ -190,22 +205,36 @@ function checkWritten(where, example, type, prop, value, current) {
     }
     if ((prop === "category" || prop === "defaultCategory") && value) {
       const known = websiteCategories(example);
-      if (!known.has(String(value).toLowerCase())) fail(where, `${type}.${prop} "${value}" is not a category of the website's catalog`);
+      if (known && !known.has(String(value).toLowerCase())) fail(where, `${type}.${prop} "${value}" is not a category of the website's catalog`);
+      if (!known && String(value).toLowerCase() !== String(current[prop] ?? "").toLowerCase()) {
+        fail(where, `${type}.${prop} "${value}": without the website's categories (catalog.categories) only the block's own current value is allowed, never a copy from another block or a sample category`);
+      }
     }
   }
 }
 
-/** The website's categories, lower-cased: the example's `catalog.categories` (what AI Codegen gives with the page),
- * else what the page already names (the AllProducts categories copy, the product blocks' category and defaultCategory). */
+/** The website's categories, lower-cased (names match ignoring case): the example's `catalog.categories`, what AI
+ * Codegen gives with the page. null when it gives none (README "Where AI Codegen gets the category names"). */
 function websiteCategories(example) {
-  if (Array.isArray(example.catalog?.categories)) return new Set(example.catalog.categories.map((c) => String(c).toLowerCase()));
-  const named = new Set();
-  for (const { block } of blocksIn(example.page?.content)) {
-    if (!PRODUCT_BLOCKS.includes(block.type)) continue;
-    for (const c of block.props?.categories ?? []) if (c?.name) named.add(String(c.name).toLowerCase());
-    for (const k of ["category", "defaultCategory"]) if (block.props?.[k]) named.add(String(block.props[k]).toLowerCase());
+  return Array.isArray(example.catalog?.categories) ? new Set(example.catalog.categories.map((c) => String(c).toLowerCase())) : null;
+}
+
+/** A product block after an UPDATE that sets what it shows: it must still show products (README "Products to show"). */
+function checkShows(where, example, id, type, current, written) {
+  if (current.source === "category") {
+    const known = websiteCategories(example);
+    if (!current.category) fail(where, `${id} would show no products: source "category" needs a category`);
+    else if (known && !known.has(String(current.category).toLowerCase())) {
+      fail(where, `${id} would show no products: its category "${current.category}" is not a category of the website's catalog`);
+    }
+    if (type === "AllProducts" && "defaultCategory" in written && written.defaultCategory) {
+      fail(where, `${id}: with source "category" All products shows no tabs and ignores defaultCategory`);
+    }
   }
-  return named;
+  const gone = example.catalog?.goneProductIds;
+  if (current.source === "picked" && Array.isArray(gone) && (current.productIds ?? []).every((pid) => gone.includes(pid))) {
+    fail(where, `${id} would show no products: every pick is in catalog.goneProductIds (send the owner to the picker)`);
+  }
 }
 
 /** The catalog's tree rules on a page (README 0.3.0: checked once, on the final tree of a change set). */
@@ -250,8 +279,12 @@ function checkTree(where, page) {
   if (new Set(anchors).size !== anchors.length || anchors.some((a) => rules.anchors.reserved.includes(a))) fail(where, "anchorIds must be unique and not reserved");
 }
 
-/** Where an ADD or MOVE puts its block: the target list and index (README 0.3.0, nested operations). */
-function target(where, op, work, refs, moving) {
+/**
+ * Where an ADD or MOVE puts its block: the target list and index (README 0.3.0, nested operations). With "@" blocks
+ * (and no touchesMore) the target is an "@" block or one inside it, or a block added earlier in the set: never the
+ * top level or another container.
+ */
+function target(where, op, work, refs, moving, scope, example) {
   if (op.position !== undefined && op.index !== undefined) return fail(where, `${op.op}: give the index inside "position", not both`), null;
   const position = op.position ?? (op.index !== undefined ? { index: op.index } : op.op === "ADD" ? {} : null);
   if (!position || typeof position !== "object" || Object.keys(position).some((k) => !["parentId", "slot", "index"].includes(k))) {
@@ -259,10 +292,15 @@ function target(where, op, work, refs, moving) {
   }
   let list = work.content;
   const parentId = position.parentId ?? null;
+  const outOfScope = scope.size > 0 && !example.touchesMore;
   if (parentId === null) {
     if (position.slot != null) return fail(where, `${op.op}: a top-level position has no slot`), null;
+    if (outOfScope) fail(where, `${op.op} puts a block at the top level, outside the @ blocks (set "touchesMore": true when the request asks for more)`);
   } else {
     const id = refs.get(parentId) ?? parentId;
+    if (outOfScope && !scope.has(id) && ![...refs.values()].includes(id)) {
+      fail(where, `${op.op} puts a block into ${parentId}, which is not an @ block or inside one (set "touchesMore": true when the request asks for more)`);
+    }
     if (moving && (id === moving.props.id || descendants(moving).includes(id))) return fail(where, "MOVE into the moved block's own subtree"), null;
     const at = find(work, id);
     if (!at) return fail(where, `${op.op}: no container ${parentId} (a ref must be named by an earlier ADD)`), null;
@@ -281,9 +319,13 @@ function checkExample(file, skill, example, n) {
   }
   for (const key of Object.keys(example)) if (!EXAMPLE_KEYS.includes(key)) fail(where, `unknown key ${key}`);
   if (example.catalog !== undefined) {
-    const { categories = [], products = [] } = example.catalog ?? {};
-    if (!categories.every((c) => typeof c === "string") || !products.every((p) => valid(catalog.patterns.productId, p?.id) && typeof p?.name === "string")) {
-      fail(where, 'catalog is {"categories": [names], "products": [{"id", "name", "category"}]}');
+    // What AI Codegen gives with the page, from Project's internal page read (README "Products to show").
+    const given = example.catalog;
+    const { categories = [], goneProductIds = [] } = given ?? {};
+    if (!given || typeof given !== "object" || Object.keys(given).some((k) => !["categories", "goneProductIds"].includes(k))
+      || !Array.isArray(categories) || !categories.every((c) => typeof c === "string")
+      || !Array.isArray(goneProductIds) || !goneProductIds.every((pid) => valid(catalog.patterns.productId, pid))) {
+      fail(where, 'catalog is {"categories": [names], "goneProductIds": [product ids]}');
     }
   }
   const page = example.page ?? { root: { props: {} }, content: [] };
@@ -324,8 +366,8 @@ function checkExample(file, skill, example, n) {
         else checkWritten(where, example, type, prop, value, current);
       }
       Object.assign(current, op.props ?? {});
-      if (PRODUCT_BLOCKS.includes(type) && current.source === "category" && !current.category) {
-        fail(where, `${id} would show no products: source "category" needs a category`);
+      if (PRODUCT_BLOCKS.includes(type) && ["source", "category", "defaultCategory"].some((k) => k in (op.props ?? {}))) {
+        checkShows(where, example, id, type, current, op.props);
       }
     } else if (op.op === "ADD") {
       const type = op.component_type;
@@ -350,7 +392,7 @@ function checkExample(file, skill, example, n) {
       if (op.ref !== undefined && (typeof op.ref !== "string" || !REF.test(op.ref) || refs.has(op.ref) || find(work, op.ref) || find(page, op.ref))) {
         fail(where, `ADD ref ${JSON.stringify(op.ref)} must be a new short name (${REF.source})`);
       }
-      const place = target(where, op, work, refs, null);
+      const place = target(where, op, work, refs, null, scope, example);
       if (!place) continue;
       const newId = `added-${++added}`;
       if (typeof op.ref === "string") refs.set(op.ref, newId);
@@ -363,7 +405,7 @@ function checkExample(file, skill, example, n) {
       if (!components[at.block.type].aiOperations.includes(op.op)) fail(where, `${op.op} is not allowed on ${at.block.type}`);
       at.list.splice(at.index, 1);
       if (op.op === "MOVE") {
-        const place = target(where, op, work, refs, at.block);
+        const place = target(where, op, work, refs, at.block, scope, example);
         if (place) place.list.splice(place.index, 0, at.block);
       }
     }

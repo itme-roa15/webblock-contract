@@ -54,6 +54,7 @@ km_reviewed: false
 {
   "message": "/add FAQ after @VisitUs. We deliver in Phnom Penh only, with our own driver, and we take ABA and cash.",
   "refs": [{ "id": "visit-1", "type": "VisitUs" }],
+  "touchesMore": true,
   "page": {
     "root": { "props": { "businessName": "Mekong Mango", "templateId": "everyday-store", "address": "St. 63, Phnom Penh" } },
     "content": [
@@ -96,6 +97,7 @@ km_reviewed: false
 {
   "message": "/add two columns after @About: on the left \"How to order\" with our steps, on the right a Call us button and a Telegram button. To order: choose your cake, call or message us two days ahead, and pick it up at our shop.",
   "refs": [{ "id": "about-1", "type": "About" }],
+  "touchesMore": true,
   "page": {
     "root": { "props": { "businessName": "Little Lotus Cakes", "address": "Street 155, Toul Tom Poung, Phnom Penh", "phones": [{ "number": "012 155 155" }], "telegramUrl": "https://t.me/littlelotuscakes" } },
     "content": [

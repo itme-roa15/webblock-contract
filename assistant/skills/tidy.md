@@ -22,8 +22,9 @@ km_reviewed: false
 
 - Change only how blocks sit, on the "@" blocks (and the blocks inside an "@" container) or on the whole page, at
   every depth: align, spacing and columns of the blocks, and the containers' own gap, padding, width, vertical
-  alignment, stacking on phones, a Columns ratio and a Grid's columns. Never change wording, order, the theme or
-  which blocks a container holds: wrapping and unwrapping blocks is /design's.
+  alignment, stacking on phones, a Columns ratio and a Grid's columns. Never change wording, order or the theme, and
+  never wrap, unwrap or move blocks between containers: that is /design's. The one change to what a container holds
+  is removing an empty block or an empty container (below).
 - Spacing: "normal" everywhere unless a block has a reason to differ (the Hero or a closing Call to action may be
   "roomy"); never mix "tight" and "roomy" on neighbouring blocks. One gap for every Columns and Grid on the page
   (usually "medium"), and the same padding for Sections next to each other.

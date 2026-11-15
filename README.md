@@ -722,14 +722,22 @@ the rules every skill follows. `assistant/skills-<version>.json` is the index bu
     `position {parentId, slot, index}` (an ADD may name its block with `ref`), checked as "Nested operations" says:
     each item structurally as it is applied, the tree rules once on the final page (slots' `allow`, `activeWhen`
     and counts, depth, `topLevelOnly`, both budgets, `maxPerPage` at every depth, unique ids, the Footer last,
-    required alts). With "@" on a container, its descendants count as "@" blocks.
+    required alts). With "@" on a container, its descendants count as "@" blocks. With refs (and no
+    `touchesMore`), an ADD or MOVE puts its block only into an "@" block or one inside it, or into a block added
+    earlier in the set: never at the top level or into another container.
   - Value checks beyond the schema: lengths in UTF-16 units; the rich text length and `marksOncePerRun`; no
-    blocked host; an `https://` link only when the message or the page holds it; the `telegram` action only on a
-    page with `root.telegramUrl`; no slot in an UPDATE; on ADD an `ai: none` prop only with its `addDefaults` value.
+    blocked host (the WHATWG host, as the editor reads it) in any prop `page.links.appliesTo` names, the root's
+    Facebook, Instagram and Telegram links included; an `https://` link only when the message or the page holds that
+    whole address (not a part of a longer one); the `telegram` action only on a page with `root.telegramUrl`; no slot
+    in an UPDATE; on ADD an `ai: none` prop only with its `addDefaults` value.
   - Products to show: `source: "picked"` only on a block whose `productIds` is already non-empty, never
-    `productIds`, and a `category` or `defaultCategory` only from the website's categories: the example's optional
-    `catalog` (`{"categories", "products": [{"id", "name", "category"}]}`, what AI Codegen gives with the page), else
-    what the page names. `touchesMore: true` lets an example touch blocks beyond its refs.
+    `productIds`, and a `category` or `defaultCategory` only from the website's categories. The example's optional
+    `catalog` is what AI Codegen gives with the page: `{"categories", "goneProductIds"}`, from Project's internal
+    page read, never a product list. Without `catalog.categories`, only the block's own current value is accepted
+    (never a copy from another block or a sample category). After an UPDATE that sets what a product block shows,
+    it must still show products: with `category`, a category of the catalog; with `picked`, not every pick in
+    `goneProductIds`; and no `defaultCategory` written on an All products block on `category`.
+  - `touchesMore: true` lets an example touch blocks beyond its refs.
 - **Routing (AI Codegen):** `SendAiMessage.command` picks the skill by `name`; else the "@" blocks' types (`blocks`);
   else a keyword match on `triggers`. At most two skills join the base prompt; the reply's `AiMessage.skill` names
   the one used.

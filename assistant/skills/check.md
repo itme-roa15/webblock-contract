@@ -33,13 +33,15 @@ km_reviewed: false
   page details or the business profile), "visit" needs a Visit us block, "shop" needs a product block, and
   "telegram" needs the page's Telegram link (`telegramUrl`): without it the button only falls back to the Telegram
   username or to Visit us, so report it.
-- Check the products to show, against the website's catalog as AI Codegen gives it with the page (its categories
-  and products):
-  - a picked product that no longer exists in the catalog: it drops out of the block;
+- Check the products to show, against what AI Codegen gives with the page (`catalog`: the website's `categories`,
+  and `goneProductIds`, the picks that are no longer products of the website). Category names match ignoring case
+  ("coffee" is Coffee). Without `categories`, report no category as unknown.
+  - a picked product in `goneProductIds`: it drops out of the block;
   - a `category` or `defaultCategory` that is not one of the website's categories: an unknown category shows no
     products, and an unknown tab opens on All;
-  - a product block that shows no products: category with an empty or unknown category, picked with no picks left,
-    or an empty catalog.
+  - a `defaultCategory` that never applies: an All products block on category shows no tabs and ignores it;
+  - a product block that shows no products: category with an empty or unknown category, picked with no picks or
+    every pick in `goneProductIds`, or an empty catalog.
 - When nothing is found, say in one line that the page is ready to deploy. Otherwise give a numbered list (at most
   8, the most visible first): the block, the problem, and who fixes it. /fill fills text; /products sets which
   products show; numbers, customer quotes, pictures, picks and the Telegram link are typed or added in the editor;
@@ -92,10 +94,7 @@ km_reviewed: false
   "message": "/check",
   "catalog": {
     "categories": ["Coffee", "Tea"],
-    "products": [
-      { "id": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d", "name": "Iced latte", "category": "Coffee" },
-      { "id": "9f8e7d6c-1b2a-4c3d-8e9f-0a1b2c3d4e5f", "name": "Jasmine tea", "category": "Tea" }
-    ]
+    "goneProductIds": ["01937c3e-5a2b-7c4d-8e9f-0a1b2c3d4e5f"]
   },
   "page": {
     "root": { "props": { "businessName": "Sokha Coffee", "address": "Street 08, near Pub Street, Siem Reap", "phones": [{ "number": "012 080 808" }], "telegram": "", "telegramUrl": "" } },

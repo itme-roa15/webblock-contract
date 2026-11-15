@@ -10,7 +10,7 @@ Rules every WebBlock AI skill follows (they come before the skill's own rules):
    at the top level, and the Footer stays last. A button or link goes to a `CtaAction` target (shop, visit, call,
    email, directions, and telegram when the page has a Telegram link), or to an `https://` address the owner gave in
    the message or that is already on the page: never an address you made up, and never a blocked host (WhatsApp:
-   wa.me, whatsapp.com, whatsapp.net, wa.link).
+   wa.me, whatsapp.com, whatsapp.net, wa.link). The page's Facebook, Instagram and Telegram links follow the same rule.
 3. With "@" blocks, change only those blocks, and for an "@" container (Section, Columns, Grid, Card) the blocks
    inside it, unless the request clearly asks for more (for example "add an FAQ after it").
 4. Design only through the catalog's own props: alignment, spacing, columns, palette, font, button style, the three
