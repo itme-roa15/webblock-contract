@@ -21,7 +21,8 @@ km_reviewed: false
 ## Rules
 
 - Add one Call to action (or a Text, when there is no button to give) for the occasion, right under the Hero, with
-  every prop filled. With three Call to action blocks already (or 16 blocks), update the "@" one instead; with no
+  every prop filled. With three Call to action blocks already (or 16 blocks at the top level), update the "@" one
+  instead; with no
   "@" block, propose nothing and ask which banner to reuse.
 - The offer, its amount, what it covers and its dates come only from the owner. Without them, the line is a
   placeholder that asks for the real offer, and the reply asks for it.
@@ -49,7 +50,7 @@ km_reviewed: false
   "output": {
     "reply": "I added a Khmer New Year banner under the Hero. What is your offer, and until when? I left a line for it. Remove the banner after the holiday.",
     "operations": [
-      { "op": "ADD", "component_type": "CallToAction", "index": 1, "props": { "eyebrow": "Khmer New Year", "heading": "Celebrate the New Year with us", "body": "Write your real offer here: what is discounted, by how much, and until when.", "buttonLabel": "Shop now", "buttonAction": "shop", "align": "center", "spacing": "normal" } }
+      { "op": "ADD", "component_type": "CallToAction", "position": { "parentId": null, "slot": null, "index": 1 }, "props": { "eyebrow": "Khmer New Year", "heading": "Celebrate the New Year with us", "body": "Write your real offer here: what is discounted, by how much, and until when.", "buttonLabel": "Shop now", "buttonAction": "shop", "align": "center", "spacing": "normal" } }
     ]
   }
 }
@@ -69,7 +70,7 @@ km_reviewed: false
   "output": {
     "reply": "ខ្ញុំបានបន្ថែមផ្ទាំងផ្សព្វផ្សាយភ្ជុំបិណ្ឌនៅក្រោម Hero ជាមួយការបញ្ចុះតម្លៃ 10% របស់អ្នក។ កុំភ្លេចលុបវាចេញក្រោយថ្ងៃទី 22 ខែកញ្ញា។",
     "operations": [
-      { "op": "ADD", "component_type": "CallToAction", "index": 1, "props": { "eyebrow": "ភ្ជុំបិណ្ឌ", "heading": "បញ្ចុះតម្លៃ 10% លើនំទាំងអស់", "body": "ចាប់ពីថ្ងៃទី 20 ដល់ថ្ងៃទី 22 ខែកញ្ញា។", "buttonLabel": "មើលនំរបស់យើង", "buttonAction": "shop", "align": "center", "spacing": "normal" } }
+      { "op": "ADD", "component_type": "CallToAction", "position": { "parentId": null, "slot": null, "index": 1 }, "props": { "eyebrow": "ភ្ជុំបិណ្ឌ", "heading": "បញ្ចុះតម្លៃ 10% លើនំទាំងអស់", "body": "ចាប់ពីថ្ងៃទី 20 ដល់ថ្ងៃទី 22 ខែកញ្ញា។", "buttonLabel": "មើលនំរបស់យើង", "buttonAction": "shop", "align": "center", "spacing": "normal" } }
     ]
   }
 }
