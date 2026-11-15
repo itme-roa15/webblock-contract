@@ -50,7 +50,7 @@ km_reviewed: false
   "output": {
     "reply": "I added an FAQ block before the Footer with 5 questions. Tell me whether you deliver and how customers can pay, and I'll fill in those two answers.",
     "operations": [
-      { "op": "ADD", "component_type": "FAQ", "index": 3, "props": { "eyebrow": "", "heading": "Questions and answers", "align": "left", "spacing": "normal", "items": [
+      { "op": "ADD", "component_type": "FAQ", "position": { "parentId": null, "slot": null, "index": 3 }, "props": { "eyebrow": "", "heading": "Questions and answers", "align": "left", "spacing": "normal", "items": [
         { "question": "When are you open?", "answer": "Monday to Sunday, 7:00 – 19:00." },
         { "question": "Where is your shop?", "answer": "St. 315, Toul Kork, Phnom Penh." },
         { "question": "Can I order a birthday cake?", "answer": "Yes, we make birthday cakes to order. Call us at 012 888 315 at least 2 days ahead." },

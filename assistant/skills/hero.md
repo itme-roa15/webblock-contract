@@ -26,8 +26,8 @@ km_reviewed: false
   the profile. No slogans that claim facts ("best in town", "since 1990") unless the owner wrote them.
 - The description is one or two sentences built only from facts already on the page or in the message.
 - Each button says where it goes ("See our menu", "Get directions", "Call us") and its action matches: shop needs
-  products on the page, call a phone number, email an address, directions an address. Empty a second button that
-  repeats the first.
+  products on the page, call a phone number, email an address, directions an address, telegram the page's Telegram
+  link. Empty a second button that repeats the first.
 - Highlights and the badge only repeat short facts the owner gave; leave them empty otherwise.
 - Pictures are the owner's: when the Hero has no image, say so in the reply instead of choosing one.
 

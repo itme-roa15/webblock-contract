@@ -20,15 +20,17 @@ km_reviewed: false
 
 ## Rules
 
-- Find the placeholder text in the "@" blocks, or on the whole page when there are none: the editor's starter texts
-  (the index's `placeholders`, taken from the catalog's defaults; AI Codegen gives that list with this skill) and
-  anything else that asks for a fact.
+- Find the placeholder text in the "@" blocks (and the blocks inside an "@" container), or on the whole page when
+  there are none, at every depth: the editor's starter texts (the index's `placeholders`, taken from the catalog's
+  defaults; AI Codegen gives that list with this skill) and anything else that asks for a fact.
+- In a Rich text block, a starter text is a whole text run: replace that run with the owner's words and keep the
+  rest of the body (paragraphs, lists, bold, links) as it is.
 - Fill a placeholder only with what the owner's message, the page or the business profile says. Never fill a price,
   opening hours, delivery area, payment method, service or number the owner didn't give.
 - Leave every placeholder you can't fill as it is, and ask for each missing fact in the reply, one short question
   each.
-- Never write Stats numbers or customer quotes: ask the owner to type them in the editor. Pictures are added in the
-  editor, products in the Owner Portal.
+- Never write Stats numbers, customer quotes, or a Quote block's words and name: ask the owner to type them in the
+  editor. Pictures are added in the editor, products in the Owner Portal.
 - Phone, email, address and opening hours belong in the Owner Portal, whose details the live site shows: point the
   owner there instead of writing them on the page.
 - When filling one item of a list (FAQ questions, service cards), send the whole list and keep the other items as
@@ -75,6 +77,31 @@ km_reviewed: false
     "reply": "ខ្ញុំបានដាក់ឈ្មោះសេវាទាំងបីរបស់អ្នកលើកាតក្នុងប្លុក Services ហើយ។ អត្ថបទពិពណ៌នាខ្លីនៅតែជាអត្ថបទគំរូ។ សូមប្រាប់ខ្ញុំមួយឃ្លាអំពីសេវានីមួយៗ ខ្ញុំនឹងបំពេញឲ្យ។",
     "operations": [
       { "op": "UPDATE", "component_id": "services-1", "props": { "items": [{ "icon": "scissors", "title": "កាត់សក់បុរស", "text": "Say what it is and why customers like it." }, { "icon": "sparkle", "title": "កក់សក់", "text": "Say what it is and why customers like it." }, { "icon": "brush", "title": "កោរពុកមាត់", "text": "Say what it is and why customers like it." }] } }
+    ]
+  }
+}
+```
+
+```json
+{
+  "message": "/fill We make fresh rice noodles and Khmer chicken curry by hand every morning, at our stall in Old Market, Siem Reap.",
+  "refs": [{ "id": "section-1", "type": "Section" }],
+  "page": {
+    "root": { "props": { "businessName": "Yeay Mao Noodles" } },
+    "content": [
+      { "type": "Hero", "props": { "id": "hero-1", "heading": "Num banh chok in Siem Reap" } },
+      { "type": "Section", "props": { "id": "section-1", "background": "muted", "content": [
+        { "type": "Heading", "props": { "id": "heading-1", "text": "A short, clear heading", "level": "2", "size": "large", "align": "left", "tone": "default" } },
+        { "type": "RichText", "props": { "id": "richtext-1", "body": { "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Write a few sentences here. Select words to make them bold, italic or a link." }] }] }, "align": "left", "size": "normal" } }
+      ] } },
+      { "type": "Footer", "props": { "id": "footer-1", "tagline": "" } }
+    ]
+  },
+  "output": {
+    "reply": "I filled the heading and the text in this section with your own words.",
+    "operations": [
+      { "op": "UPDATE", "component_id": "heading-1", "props": { "text": "Rice noodles made by hand every morning" } },
+      { "op": "UPDATE", "component_id": "richtext-1", "props": { "body": { "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "We make fresh rice noodles and Khmer chicken curry by hand every morning, at our stall in Old Market, Siem Reap." }] }] } } }
     ]
   }
 }

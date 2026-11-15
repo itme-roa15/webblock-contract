@@ -718,6 +718,28 @@ the rules every skill follows. `assistant/skills-<version>.json` is the index bu
   `page`, and the model's `output` (`reply` and `operations`, as AI Codegen's assistant answers). The build checks
   every example against the editor catalog named in the index: props exist, values keep their rules, `ai: none`
   props are never written, ADD only where `aiOperations` allows it and complete, and with refs only those blocks.
+  - Since skills 0.2.0 (catalog 0.3.0) an example's page may nest blocks in slots, and ADD and MOVE carry
+    `position {parentId, slot, index}` (an ADD may name its block with `ref`), checked as "Nested operations" says:
+    each item structurally as it is applied, the tree rules once on the final page (slots' `allow`, `activeWhen`
+    and counts, depth, `topLevelOnly`, both budgets, `maxPerPage` at every depth, unique ids, the Footer last,
+    required alts). With "@" on a container, its descendants count as "@" blocks. With refs (and no
+    `touchesMore`), an ADD or MOVE puts its block only into an "@" block or one inside it, or into a block added
+    earlier in the set: never at the top level or into another container. A MOVE may also put its block back into
+    the list it came from (an "@" block reordered among its siblings, at the top level or in its own parent).
+  - Value checks beyond the schema: lengths in UTF-16 units; the rich text length and `marksOncePerRun`; no
+    blocked host (the host cut by hand, as "No WhatsApp" says) in any prop `page.links.appliesTo` names, the root's
+    Facebook, Instagram and Telegram links included, and the social links' host rule on the root's Facebook and
+    Instagram links; an `https://` link only when the message or the page holds that whole address (not a part of a
+    longer one); the `telegram` action only on a page with `root.telegramUrl`; no slot in an UPDATE; on ADD an
+    `ai: none` prop only with its `addDefaults` value.
+  - Products to show: `source: "picked"` only on a block whose `productIds` is already non-empty, never
+    `productIds`, and a `category` or `defaultCategory` only from the website's categories. The example's optional
+    `catalog` is what AI Codegen gives with the page: `{"categories", "goneProductIds"}`, from Project's internal
+    page read, never a product list. Without `catalog.categories`, only the block's own current value is accepted
+    (never a copy from another block or a sample category). After an UPDATE that sets what a product block shows,
+    it must still show products: with `category`, a category of the catalog; with `picked`, not every pick in
+    `goneProductIds`; and no `defaultCategory` written on an All products block on `category`.
+  - `touchesMore: true` lets an example touch blocks beyond its refs.
 - **Routing (AI Codegen):** `SendAiMessage.command` picks the skill by `name`; else the "@" blocks' types (`blocks`);
   else a keyword match on `triggers`. At most two skills join the base prompt; the reply's `AiMessage.skill` names
   the one used.
@@ -730,12 +752,16 @@ the rules every skill follows. `assistant/skills-<version>.json` is the index bu
   catalog, or a skill rule that quotes a starter text, fails the build.
   - **Rich text starter texts (catalog 0.3.0).** For a prop whose default is a rich text doc (`RichText.body`), the
     index lists one `{prop: "RichText.body", text}` per text run of the default. A block still holds starter text when
-    any text run in its tree equals a listed text. This waits for the skills index built on catalog 0.3.0 (rollout
-    step 0). `build-skills.mjs` (which keeps only string defaults today) and the web UI's `block-defaults.ts`
-    (`starterTexts`, `placeholderBlocks`) walk the doc's runs in the same change that moves the 0.3.0 starter texts
-    into `PLACEHOLDER_PROPS`: `Heading.text`, `RichText.body`, `ImageBanner.heading`, `ImageBanner.body`,
-    `Quote.quote` and `Quote.author`.
+    any text run in its tree equals a listed text. Since skills 0.2.0 (rollout step 0), `build-skills.mjs` walks the
+    doc's runs, and `PLACEHOLDER_PROPS` holds the 0.3.0 starter texts: `Heading.text`, `RichText.body`,
+    `ImageBanner.heading`, `ImageBanner.body`, `Quote.quote` and `Quote.author`. The web UI's `block-defaults.ts`
+    (`starterTexts`, `placeholderBlocks`) walks them the same way when it pins skills 0.2.0 (step 3a).
 - A released version never changes; new or changed skills are the next version.
+  - `skills-0.1.0.json`: catalog 0.2.0, released 15 November 2026, kept as released.
+  - `skills-0.2.0.json`: catalog 0.3.0 (rollout step 0): page title and description (/seo), alt text and heading
+    levels (/a11y), containers and the new addable blocks (/add, /design, /ideas, /tidy), rich text placeholders,
+    the `telegram` action (/cta, /check), a WhatsApp Facebook or Instagram link (/check) and Products to show
+    (/products, /check). The build writes only this one.
 
 ## How to ask for a change
 

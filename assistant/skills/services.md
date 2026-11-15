@@ -77,7 +77,7 @@ km_reviewed: false
   "output": {
     "reply": "I added a Services block after About with your 3 services. Tell me the delivery fee or how early to order if you want those shown.",
     "operations": [
-      { "op": "ADD", "component_type": "Services", "index": 2, "props": { "eyebrow": "", "heading": "What we offer", "columns": "3", "align": "left", "spacing": "normal", "items": [
+      { "op": "ADD", "component_type": "Services", "position": { "parentId": null, "slot": null, "index": 2 }, "props": { "eyebrow": "", "heading": "What we offer", "columns": "3", "align": "left", "spacing": "normal", "items": [
         { "icon": "cake", "title": "Birthday cakes", "text": "Birthday cakes made to order." },
         { "icon": "gift", "title": "Cupcake gift boxes", "text": "Boxes of cupcakes to give as a gift." },
         { "icon": "delivery", "title": "Delivery", "text": "We deliver in Phnom Penh." }
