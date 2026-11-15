@@ -893,7 +893,7 @@ paths:
     post:
       tags: [media]
       operationId: uploadMedia
-      summary: Uploads an image (PNG or JPEG, at most 2 MiB) to the website's library.
+      summary: Uploads an image (PNG or JPEG, at most 5 MiB) to the website's library.
       description: |
         The type is read from the file's bytes, never from the client's content type or file name. The website owner's
         plan limits its photos (the library images the owner uploaded, `origin` UPLOAD): Project reads `photosLimit`
