@@ -596,6 +596,10 @@ Owner Portal's catalog to fill that choice.
   - An unknown id and another website's product get the same answer, so nothing leaks. Only ids new in the save are
     checked, and a restore checks none (point 1).
   - An unknown `category` or `defaultCategory` is only logged (the block id and the prop, not the value).
+- **Where AI Codegen gets the category names** (coordinator, 15 November): Project's internal
+  `GET /internal/v1/projects/{projectId}/page` also answers `categories`, the website's category names in the catalog's
+  order (additive; no new route). Until Project sends it, AI Codegen accepts only the value already on the block or
+  one of the page's `AllProducts.categories` copy.
 - **Tests** (each reader, at its rollout step): each source on both renderers (the site template's test database and
   the editor's fake backend); a deleted or hidden pick drops out; an unknown category shows the empty state; an empty
   catalog greys the options out; Project refuses an unknown id and a foreign one, naming the field; every reader agrees

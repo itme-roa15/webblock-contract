@@ -174,6 +174,14 @@ x-internal-routes:
             editRevision: {type: integer, description: The revision v2's page ETag carries.}
             draft: {type: object, description: The Puck document of the home page (v2 PageData).}
             updatedAt: {type: string, format: date-time}
+            categories:
+              type: array
+              items: {type: string}
+              description: >-
+                Catalog 0.3.0 (README "Products to show (data binding)"): the website's product category names, in the
+                catalog's order, so AI Codegen can refuse a `category` or `defaultCategory` that is not one of them.
+                Additive and optional: a caller treats it as absent until Project sends it. Coordinator's decision of
+                15 November 2026.
       errors:
         - '404 PROJECT_NOT_FOUND: unknown or deleted. A suspended website is still answered.'
     - route: PUT /internal/v1/projects/{projectId}/page/draft
