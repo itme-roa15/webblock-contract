@@ -264,14 +264,28 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
   tests compare 0.3.0 with this repository's 0.2.0 file.
 - **Strict from 0.3.0.** `page.strictSince` is `"0.3.0"`, and every block, prop and slot added in 0.3.0 carries
   `"since": "0.3.0"` (the new blocks, all their props and slots, and the props above). For those:
-  - Project refuses with `400 VALIDATION_FAILED` (field `content[...].<Type>.<prop>`) any value that fails ANY
-    keyword of its schema: `pattern`, `minLength`/`maxLength`, `minItems`/`maxItems`, `enum`, `const`, `type`,
-    `uniqueItems`, `additionalProperties`. It also refuses an unknown prop or item key on a 0.3.0 block (the 0.3.0 item
-    objects, `Buttons.items[]` and `LogoStrip.logos[]`, are `additionalProperties: false`; so is every rich text node).
+  - Project refuses with `400 VALIDATION_FAILED` (code `VALUE_INVALID`, field as in "Refusals in 0.3.0" below) any
+    value that fails ANY keyword of its schema: `pattern`, `minLength`/`maxLength`, `minItems`/`maxItems`, `enum`,
+    `const`, `type`, `uniqueItems`, `additionalProperties`. It also refuses an unknown prop or item key on a 0.3.0
+    block (the 0.3.0 item objects, `Buttons.items[]` and `LogoStrip.logos[]`, are `additionalProperties: false`; so is
+    every rich text node).
   - No stored page can break these rules: nothing held a 0.3.0 block or prop before.
   - The log-only leniency of 14 November (keywords logged, unknown props let through) stays only for props without
     `since` (0.1.0 and 0.2.0), whose stored values are older than the editor's checks.
   - AI Codegen checks the same before it proposes a change set, so the assistant never offers a value Project refuses.
+- **Refusals in 0.3.0** (the coordinator's decision of 15 November 2026). Project refuses a page checked against 0.3.0
+  with `400 VALIDATION_FAILED`, and every entry of `errors` is spelled one way, extending what its catalog check
+  answers today (`content[0].Hero.align`, `VALUE_INVALID`). `field` walks the tree: `content[i].<Type>.<prop>` for a
+  top-level block, one `.<slot>[j].<Type>` more per level for a nested one
+  (`content[i].<Type>.<slot>[j].<Type>.<prop>`), a list item's index after its prop, and `root.<prop>` for the page's
+  settings. A structural refusal names the block or slot concerned the same way, never `puckTree` plus a JSON pointer.
+  `code` is `VALUE_INVALID` for a value (any schema keyword or pattern, the rich text rules, a required alt, a link
+  rule or blocked host, a `productIds` entry that is not a product of this website) and `PUCK_TREE_INVALID` for the
+  structure (depth, a slot's `allow`/`disallow`, `minItems`/`maxItems` and `activeWhen`, `topLevelOnly` and the Footer
+  last, the budgets, a repeated block id, `zones`). For example: `content[3].ProductCards.productIds[1]`
+  `VALUE_INVALID` (another website's product), `content[2].Columns.column1[0].Buttons.items[1].link` `VALUE_INVALID`
+  (`https://wa.me/85512345678`), and `content[1].Section.content[0].ProductCards` `PUCK_TREE_INVALID` (live data in a
+  slot).
 - **Containers and slots.** Section, Columns, Grid and Card hold blocks in slot props (Puck slots): each slot is a
   prop whose value is a list of blocks, `{type, props}` exactly as at the top level. Slot props are listed under the
   component's `slots`, not under `props`. Each slot has:
@@ -420,8 +434,8 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
     `Image.imageUrl`, `ImageBanner.imageUrl`, `LogoStrip.logos`, `Video.url`, `Section.backgroundImageUrl` are `media`;
     `Section.anchorId` is `setting`. Style props are the assistant's (/layout, /style).
   - **Products to show.** `productIds` is `owner`: the assistant never invents or picks products. It may set
-    `source`, `category` and `defaultCategory` within the rules of "Products to show (data binding)" below (open
-    point 2).
+    `source`, `category` and `defaultCategory` within the rules of "Products to show (data binding)" below
+    (point 2).
   - **Which alts it can write.** It may write only `Image.alt`, `ImageBanner.imageAlt`, the `prop`-kind alts (Hero,
     Text and About `imageAlt`, About `secondImageAlt`) and the root's `seoTitle` and `seoDescription`. LogoStrip
     `logos[].alt`, Gallery captions and Hero side-image labels sit inside `media` lists: they are the owner's, and
@@ -481,7 +495,7 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
      - The skills index's `catalog` must be the newest catalog AI Codegen edits with. AI Codegen pins it in step 1 and
        the web UI in step 3a.
      - Products to show (below): /products explains the three sources and sets `source`, `category` and
-       `defaultCategory` within open point 2 (for `picked` it sends the owner to the editor's picker); /check reports a
+       `defaultCategory` within point 2 (for `picked` it sends the owner to the editor's picker); /check reports a
        picked product that no longer exists, an unknown `category` or `defaultCategory`, and a product block that shows
        no products.
   1. **AI Codegen.**
@@ -498,15 +512,16 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
      - Its operation check enforces the 0.3.0 keywords, the rich text length (UTF-16) and `marksOncePerRun`, the
        required alts, the blocked hosts on `page.links.appliesTo`, the tree rules on the final tree and the nested
        positions as specified, so it never proposes what Project refuses.
-     - The same check never writes `productIds`, sets `source` only as open point 2 allows, and refuses a `category` or
+     - The same check never writes `productIds`, sets `source` only as point 2 allows, and refuses a `category` or
        `defaultCategory` that is not a category of the website's catalog. Its loader takes `patterns.productId`.
   2. **Project** pins 0.3.0 and checks the whole tree: slots and what they allow, `activeWhen`, depth, both budgets,
      `maxPerPage` at every depth, `topLevelOnly`, unique ids, anchors, `zones` empty, the rich text length and
      `marksOncePerRun`, the required alts, and the blocked hosts on `page.links.appliesTo`. It enforces every keyword
      of `since` props (above), `root.telegramUrl`'s pattern and `productIds` (pattern, at most 12, no repeats)
-     included, and checks that `productIds` name products of the website (Products to show, open point 1); its tests
-     answer `400` naming the field to an unknown id and to another website's product id, and save a draft that still
-     holds the id of a product deleted since. Its tests must answer `400` to at least a Buttons
+     included, and checks that `productIds` name products of the website (Products to show, point 1). Every refusal
+     has the field and code of "Refusals in 0.3.0". Its tests answer `400` naming the field to an unknown id and to
+     another website's product id, and save a draft that still holds the id of a product deleted since. Its tests must
+     answer `400` to at least a Buttons
      link `javascript:alert(1)`, a Map url `https://evil.example/`, a rich text href `data:text/html,x`, a Buttons link
      `https://wa.me/85512345678` and a rich text href `https://api.whatsapp.com/send?phone=85512345678`. They must
      agree with every `patterns` string, every `page.links.examples` string and every `richText.examples` tree.
@@ -518,8 +533,9 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
 
 ##### Products to show (data binding)
 
-DRAFT, the owner's design of 15 November 2026: a product block says WHICH of the website's catalog products it shows,
-and the editor reads the Owner Portal's catalog to fill that choice.
+Part of the 0.3.0 draft: the owner's design of 15 November 2026, with the coordinator's decisions of the same day
+(points 1–6 below). A product block says WHICH of the website's catalog products it shows, and the editor reads the
+Owner Portal's catalog to fill that choice.
 
 - **The props.** ProductCards and AllProducts gain three optional props, AllProducts a fourth. Like every 0.3.0 prop on
   an older block they are `required: false`, carry `"since": "0.3.0"` and are strict (every keyword enforced, `null`
@@ -546,12 +562,12 @@ and the editor reads the Owner Portal's catalog to fill that choice.
     is the tab the block opens on, checked like `category`. An unknown one opens on the All tab.
 - **The page stores only the choice, never product copies.** The 0.1.0/0.2.0 copy props (`ProductCards.products`,
   `AllProducts.products` and `AllProducts.categories`) stay exactly as they are, with their rules and notes, for older
-  readers. A 0.3.0 renderer that can read the catalog never shows them. Whether the editor writes into them: open
-  point 4.
+  readers. A 0.3.0 renderer that can read the catalog never shows them. The editor never fills or clears them
+  (point 4).
 - **Both renderers read the catalog per request and apply the choice.** The site template (AI Codegen) reads its shared
   catalog database. The editor (canvas, preview, draft page) reads Project v2 through its server actions. Then:
   - `all`: today's behaviour, unchanged.
-  - `category`: only that category's products, in the catalog's order (how a name matches: open point 5).
+  - `category`: only that category's products, in the catalog's order (names match ignoring case, point 5).
   - `picked`: exactly the products in `productIds`, in the stored order. A picked product that was deleted, or is
     hidden (in the catalog but not published: the site shows published products only), simply drops out, and the
     others keep their order. A hidden price does not hide a product.
@@ -574,47 +590,48 @@ and the editor reads the Owner Portal's catalog to fill that choice.
 - **Project ENFORCES `productIds`** on both page saves (`PUT /api/project/v2/projects/{projectId}/page` and
   `PUT /internal/v1/projects/{projectId}/page/draft`, see `openapi/project-v2.yaml`).
   - An id that is not a product of this website is `400 VALIDATION_FAILED`, with a field error naming
-    `content[i].<Type>.productIds[j]`, e.g. `content[3].ProductCards.productIds[1]`. A product of this website is one
-    Project's product routes answer for it: in its catalog and not archived.
-  - An unknown id and another website's product get the same answer, so nothing leaks. Which ids are checked: open
-    point 1. The field's spelling and code: open point 6.
+    `content[i].<Type>.productIds[j]` and code `VALUE_INVALID` ("Refusals in 0.3.0", point 6), e.g.
+    `content[3].ProductCards.productIds[1]`. A product of this website is one Project's product routes answer for it:
+    in its catalog and not archived.
+  - An unknown id and another website's product get the same answer, so nothing leaks. Only ids new in the save are
+    checked, and a restore checks none (point 1).
   - An unknown `category` or `defaultCategory` is only logged (the block id and the prop, not the value).
 - **Tests** (each reader, at its rollout step): each source on both renderers (the site template's test database and
   the editor's fake backend); a deleted or hidden pick drops out; an unknown category shows the empty state; an empty
   catalog greys the options out; Project refuses an unknown id and a foreign one, naming the field; every reader agrees
   with `patterns.productId`.
-- **Open points**, each with a DEFAULT pending coordinator:
-  1. **Ids already stored whose product was later deleted.** DEFAULT pending coordinator: Project checks only the ids
-     NEW in this save against the website's products. An id is new when no ProductCards or AllProducts block of the
-     stored draft holds it.
+- **Decisions** (the draft's open points, decided by the coordinator on 15 November 2026):
+  1. **Ids already stored whose product was later deleted.** Decided 15 Nov: Project checks only the ids NEW in this
+     save against the website's products. An id is new when no ProductCards or AllProducts block of the stored draft
+     holds it.
      - An id already in the stored draft is kept unchecked, so deleting a product never blocks the owner's or the
        assistant's next save. The renderers drop it; the editor and /check report it.
      - A restore (PATCH) checks no ids: the version was valid when it went live.
-     - The alternative, checking every id on every save, would refuse every later save after a product is deleted,
+     - Checking every id on every save was turned down: it would refuse every later save after a product is deleted,
        even the assistant's unrelated changes, until the owner removes the pick.
-  2. **What the assistant may do with `source`.** DEFAULT pending coordinator: it may set `source` to `all` or
-     `category`, and to `picked` only while the block's `productIds` is already non-empty (going back to the owner's
-     own picks). It never writes `productIds`. AI Codegen's operation check enforces this before it proposes a change
-     set, and refuses a `category` or `defaultCategory` that is not a category of the catalog. For `picked`, /products
-     sends the owner to the editor's picker.
-  3. **AllProducts with `category` or `picked`.** DEFAULT pending coordinator: with `category` the block shows no
-     category tabs (search and pages only) and ignores `defaultCategory`. With `picked` its tabs are only the picked
-     products' categories, in the catalog's category order; `defaultCategory` applies only when it is one of them, else
-     the All tab. `pageSize` applies as today.
-  4. **Whether the editor still copies products into the old copy props.** DEFAULT pending coordinator: no. The editor
-     writes only the choice. It never fills `products` or `categories` from the catalog (today it already only shows
-     the catalog on the canvas) and never clears them: what a page holds (the template's sample products) stays as
-     stored. Older readers keep what they had, and AI Codegen's first deploy still seeds an empty catalog from
-     `ProductCards.products`, as today.
-  5. **How a category name matches, and what "hidden" means.** DEFAULT pending coordinator: names match ignoring case
-     (Project's category names are unique ignoring case, and its category routes take a name that way). Hidden means
-     in the catalog but not published; Project v2's `Product` has no such field, so until it gets one the editor shows
-     every product Project lists and only the site drops unpublished ones.
-  6. **The refusal's field spelling and code.** DEFAULT pending coordinator: `field` is
-     `content[i].<Type>.productIds[j]`, as the 0.3.0 rules above write tree refusals, with `code` `VALUE_INVALID`
-     (Project's code for a value that names nothing of this website, as on a product's `imageUrl`). Project's tree
-     check reports its schema problems today as `puckTree` plus a JSON pointer with `PUCK_TREE_INVALID`. If the
-     coordinator prefers that spelling for every 0.3.0 refusal, this one follows it.
+  2. **What the assistant may do with `source`.** Decided 15 Nov: it may set `source` to `all` or `category`, and to
+     `picked` only while the block's `productIds` is already non-empty (going back to the owner's own picks). It never
+     writes `productIds`. AI Codegen's operation check enforces this before it proposes a change set, and refuses a
+     `category` or `defaultCategory` that is not a category of the catalog. For `picked`, /products sends the owner to
+     the editor's picker.
+  3. **AllProducts with `category` or `picked`.** Decided 15 Nov: with `category` the block shows no category tabs
+     (search and pages only) and ignores `defaultCategory`. With `picked` its tabs are only the picked products'
+     categories, in the catalog's category order; `defaultCategory` applies only when it is one of them, else the All
+     tab. `pageSize` applies as today.
+  4. **Whether the editor still copies products into the old copy props.** Decided 15 Nov: no, the old copy props stay.
+     The editor writes only the choice. It never fills `products` or `categories` from the catalog (today it already
+     only shows the catalog on the canvas) and never clears them: what a page holds (the template's sample products)
+     stays as stored. Older readers keep what they had.
+     - Note: the platform never seeds template products, so AI Codegen's first-deploy seed of an empty catalog from
+       `ProductCards.products` applies to standalone GitHub deploys only.
+  5. **How a category name matches, and what "hidden" means.** Decided 15 Nov: names match ignoring case (Project's
+     category names are unique ignoring case, and its category routes take a name that way). Hidden means in the
+     catalog but not published; Project v2's `Product` has no such field, so until it gets one the editor shows every
+     product Project lists and only the site drops unpublished ones.
+  6. **The refusal's field spelling and code.** Decided 15 Nov: one spelling for every 0.3.0 refusal, "Refusals in
+     0.3.0" above. Here: field `content[i].<Type>.productIds[j]`, code `VALUE_INVALID` (Project's code for a value that
+     names nothing of this website, as on a product's `imageUrl`), the same for an unknown id and another website's
+     product.
 
 ## WebBlock AI skills
 

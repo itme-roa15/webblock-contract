@@ -208,9 +208,13 @@ x-internal-routes:
       errors:
         - '400 VALIDATION_FAILED (bad body) or PUCK_TREE_INVALID (the draft breaks the component catalog; field errors).'
         - >-
-          400 VALIDATION_FAILED (catalog 0.3.0 DRAFT, Products to show): a ProductCards or AllProducts `productIds` entry
-          that is not a product of this website, field `content[i].<Type>.productIds[j]`, as on the owner's
-          PUT /projects/{projectId}/page.
+          400 VALIDATION_FAILED (catalog 0.3.0 DRAFT; README "Refusals in 0.3.0"): as on the owner's
+          PUT /projects/{projectId}/page, each field error names `content[i].<Type>.<prop>`, or
+          `content[i].<Type>.<slot>[j].<Type>.<prop>` for a nested block (e.g.
+          `content[2].Columns.column1[0].Buttons.items[1].link`), with code `VALUE_INVALID` for a value (a
+          ProductCards or AllProducts `productIds` entry that is not a product of this website included:
+          `content[i].<Type>.productIds[j]`) or `PUCK_TREE_INVALID` for the structure (depth, slot rules, placement,
+          budgets, repeated block ids, `zones`).
         - '404 PROJECT_NOT_FOUND.'
         - '409 STALE_EDIT_REVISION: the draft moved on; 409 IDEMPOTENCY_KEY_REUSED: a used changeSetId with another body.'
         - '422 PROJECT_READ_ONLY: the website is suspended or deleted.'
@@ -778,14 +782,23 @@ paths:
         Codegen's chat edits arrive through Project's internal route with their own revision. A stale `If-Match`
         answers 412. `expectedEditRevision` in the body is accepted as an alternative to `If-Match`.
 
-        Catalog 0.3.0 product blocks (DRAFT; README "Editor component catalog", 0.3.0, "Products to show (data
-        binding)"): ProductCards and AllProducts name the products they show in `productIds`. An entry that is not a
-        product of this website (one its product routes answer for it: in its catalog, not archived) is 400
-        VALIDATION_FAILED with a field error naming `content[i].<Type>.productIds[j]` (code `VALUE_INVALID`), for
-        example `content[3].ProductCards.productIds[1]`. An unknown id and another website's product get the same
-        answer. Only ids that no product block of the stored draft already holds are checked (DEFAULT pending
-        coordinator), so a product deleted since never blocks a save. An unknown `category` or `defaultCategory` is
-        only logged. The internal draft save (`PUT /internal/v1/projects/{projectId}/page/draft`) answers the same.
+        Catalog 0.3.0 (DRAFT; README "Editor component catalog", 0.3.0, "Refusals in 0.3.0" and "Products to show
+        (data binding)", decided 15 November 2026): a page checked against 0.3.0 is refused with 400 VALIDATION_FAILED,
+        and every `errors` entry is spelled one way. `field` is `content[i].<Type>.<prop>` for a top-level block and
+        `content[i].<Type>.<slot>[j].<Type>.<prop>` for a nested one (one `.<slot>[j].<Type>` per level), with a list
+        item's index after its prop, e.g. `content[2].Columns.column1[0].Buttons.items[1].link` for a WhatsApp link;
+        `root.<prop>` for the page's settings. `code` is `VALUE_INVALID` for a value (schema keyword, pattern, rich
+        text rule, required alt, link rule or blocked host, a product that is not this website's) and
+        `PUCK_TREE_INVALID` for the structure (depth, slot rules, `topLevelOnly` and the Footer last, budgets, repeated
+        block ids, `zones`), naming the block or slot the same way.
+
+        ProductCards and AllProducts name the products they show in `productIds`. An entry that is not a product of
+        this website (one its product routes answer for it: in its catalog, not archived) is field
+        `content[i].<Type>.productIds[j]`, code `VALUE_INVALID`, for example `content[3].ProductCards.productIds[1]`.
+        An unknown id and another website's product get the same answer. Only ids that no product block of the stored
+        draft already holds are checked, so a product deleted since never blocks a save; a restore checks none. An
+        unknown `category` or `defaultCategory` is only logged. The internal draft save
+        (`PUT /internal/v1/projects/{projectId}/page/draft`) answers the same.
       x-phase: 2
       x-replaces: ["PUT /api/v1/ui/projects/{projectId}/page", "PUT /api/v1/projects/{projectId}/page"]
       parameters:

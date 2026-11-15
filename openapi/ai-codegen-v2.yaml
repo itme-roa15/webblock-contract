@@ -614,10 +614,11 @@ components:
         One applied operation. `componentId` is the block's `props.id`, or `root` for the page's own settings
         (root.props, an UPDATE only, `componentType` null). `position` is where the block actually went (ADD,
         MOVE): AI Codegen stores the effective position at apply time (an index past the end lands at the end, and
-        is stored as the index it got), on ChangeSet.items too. Its shape is the change set's: today `{index}` in
-        the page's top-level blocks; a later catalog with containers names its own nested shape, and `position` and
-        `previous.position` then share it (REMOVE's `previous.props` of a container then includes its slot lists, so
-        the removed subtree stays in the history).
+        is stored as the index it got), on ChangeSet.items too. `position` and `previous.position` have the change
+        set's shape, `ChangeItemPosition` `{parentId, slot, index}`: `{index}` alone is a top-level position, as every
+        position stored before catalog 0.3.0 is, so those rows read the same. Since catalog 0.3.0 (DRAFT) a position
+        may name a container's slot. REMOVE's `previous.props` of a container includes its slot lists, so the removed
+        subtree stays in the history.
       type: object
       additionalProperties: false
       required: [order, operation, componentId, componentType]
@@ -629,7 +630,9 @@ components:
           type: [string, "null"]
           maxLength: 40
           description: The block's catalog type; null only for `root`.
-        position: { type: [object, "null"], description: "ADD and MOVE: where the block went. Null otherwise." }
+        position:
+          description: "ADD and MOVE: where the block went. Null otherwise."
+          oneOf: [{ $ref: "#/components/schemas/ChangeItemPosition" }, { type: "null" }]
         propsPatch:
           type: [object, "null"]
           description: |
@@ -647,7 +650,9 @@ components:
           additionalProperties: false
           properties:
             props: { type: object }
-            position: { type: object }
+            position:
+              description: "REMOVE and MOVE: where the block was, before this operation."
+              allOf: [{ $ref: "#/components/schemas/ChangeItemPosition" }]
     BlockRef:
       description: |
         One block of the page's draft, as the editor's Puck data holds it: `props.id` and the block `type` (a block
@@ -890,9 +895,10 @@ components:
         decidedAt: { type: [string, "null"], format: date-time }
     ChangeItemPosition:
       description: |
-        DRAFT (catalog 0.3.0), proposed by webui, waits for ai_codegen. Where an ADD puts its block, or a MOVE moves one:
-        the parent (null for the page's own content list, the top level), the parent's slot, and the index in it.
-        Additive: `{index}` alone is still a top-level position, as in catalog 0.1.0 and 0.2.0.
+        DRAFT (catalog 0.3.0), proposed by webui, accepted by ai_codegen with its changes of 15 November. Where an ADD
+        puts its block, or a MOVE moves one: the parent (null for the page's own content list, the top level), the
+        parent's slot, and the index in it. Additive: `{index}` alone is still a top-level position, as in catalog
+        0.1.0 and 0.2.0. The same shape is AppliedChange's `position` and `previous.position` (W11.4).
       type: object
       additionalProperties: false
       properties:
