@@ -572,6 +572,82 @@ components:
           properties:
             name: { type: string, description: The skill file's `name`, e.g. `shorten`. }
             title: { type: string, description: "The skill shown to the owner, e.g. `Copywriting`." }
+        changeSet:
+          description: |
+            Additive (W11.4, owner decision of 15 November 2026: keep "what WebBlock AI changed" in the history). Only
+            on an ASSISTANT reply whose change set reached the page (status APPLIED): the change set AI Codegen
+            applied to the draft for this reply, so the chat lists what changed under every reply, also after a
+            reload. Absent on USER messages, on a reply that changed nothing ("Nothing on your page was changed: …"),
+            and on a reply whose change set was not applied. The same on sendAiMessage's 201 and on listAiMessages.
+            Replies applied before W11.4 carry it too, without `previous` (their old values were not recorded).
+            A client lists the rows; the blocks may have left the page since (it then shows a row by
+            `componentType`). Undo is not offered from the history: only the editor that made the change, while it
+            is still the latest one, offers it.
+          allOf: [{ $ref: "#/components/schemas/AppliedChangeSet" }]
+    AppliedChangeSet:
+      description: |
+        A change set as AI Codegen applied it to the page's draft (W11.4): its items in the order they were applied,
+        and the draft's edit revisions before and after. Read-only history: it says what changed, it never changes
+        anything.
+      type: object
+      additionalProperties: false
+      required: [id, baseEditRevision, appliedEditRevision, items]
+      properties:
+        id: { type: string, format: uuid, description: "The change set's id (ChangeSet.id)." }
+        baseEditRevision:
+          type: integer
+          minimum: 0
+          description: The draft's edit revision the change set was applied against.
+        appliedEditRevision:
+          type: integer
+          minimum: 1
+          description: The draft's edit revision the save produced. While the page is still at it, this was the latest change.
+        items:
+          description: |
+            At most 100: AI Codegen refuses a proposed change set of more than 100 operations as an invalid proposal
+            (the reply says nothing on the page was changed).
+          type: array
+          maxItems: 100
+          items: { $ref: "#/components/schemas/AppliedChange" }
+    AppliedChange:
+      description: |
+        One applied operation. `componentId` is the block's `props.id`, or `root` for the page's own settings
+        (root.props, an UPDATE only, `componentType` null). `position` is where the block actually went (ADD,
+        MOVE): AI Codegen stores the effective position at apply time (an index past the end lands at the end, and
+        is stored as the index it got), on ChangeSet.items too. Its shape is the change set's: today `{index}` in
+        the page's top-level blocks; a later catalog with containers names its own nested shape, and `position` and
+        `previous.position` then share it (REMOVE's `previous.props` of a container then includes its slot lists, so
+        the removed subtree stays in the history).
+      type: object
+      additionalProperties: false
+      required: [order, operation, componentId, componentType]
+      properties:
+        order: { type: integer, minimum: 1, description: "ChangeSet.items' `order`: 1-based, in apply order." }
+        operation: { type: string, enum: [ADD, UPDATE, REMOVE, MOVE] }
+        componentId: { type: string, minLength: 1, maxLength: 100 }
+        componentType:
+          type: [string, "null"]
+          maxLength: 40
+          description: The block's catalog type; null only for `root`.
+        position: { type: [object, "null"], description: "ADD and MOVE: where the block went. Null otherwise." }
+        propsPatch:
+          type: [object, "null"]
+          description: |
+            ADD: the new block's props, without `id` (that is `componentId`). UPDATE: the new values of exactly the
+            props it changed (a list prop is its whole new list); a prop whose value didn't change is never in it
+            (dropped when the change is proposed). Null for REMOVE and MOVE.
+        previous:
+          description: |
+            Optional: the values before this operation, as AI Codegen read them from the draft it applied the change
+            set to, so the chat can show before and after. UPDATE: `props` with the same keys as `propsPatch` and
+            their old values (null for a prop the block didn't have). REMOVE: `props` (the removed block's props) and
+            `position` (where it was). MOVE: `position` (where it was). ADD: absent. Absent too on changes applied
+            before W11.4.
+          type: object
+          additionalProperties: false
+          properties:
+            props: { type: object }
+            position: { type: object }
     BlockRef:
       description: |
         One block of the page's draft, as the editor's Puck data holds it: `props.id` and the block `type` (a block
