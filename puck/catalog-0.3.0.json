@@ -1,0 +1,4931 @@
+{
+  "version": "0.3.0",
+  "source": {
+    "repo": "webblock-web-ui",
+    "files": [
+      "src/features/editor/schemas.ts",
+      "src/features/editor/block-limits.ts",
+      "src/features/editor/block-labels.ts",
+      "src/features/editor/block-defaults.ts",
+      "src/features/editor/block-notes.ts",
+      "src/features/editor/catalog.ts"
+    ]
+  },
+  "page": {
+    "blockLimit": 40,
+    "topLevelLimit": 16,
+    "maxDepth": 3,
+    "lastBlock": "Footer",
+    "blockTypes": [
+      "Hero",
+      "Text",
+      "ProductCards",
+      "AllProducts",
+      "About",
+      "VisitUs",
+      "Footer",
+      "Testimonials",
+      "FAQ",
+      "Gallery",
+      "CallToAction",
+      "Services",
+      "Stats",
+      "Section",
+      "Columns",
+      "Grid",
+      "Card",
+      "Heading",
+      "RichText",
+      "Image",
+      "Buttons",
+      "Icon",
+      "Spacer",
+      "Divider",
+      "ImageBanner",
+      "LogoStrip",
+      "Quote",
+      "Video",
+      "Map"
+    ],
+    "blockIdProp": "id",
+    "uniqueBlockIds": true,
+    "anchors": {
+      "block": "Section",
+      "prop": "anchorId",
+      "unique": true,
+      "reserved": [
+        "top",
+        "shop",
+        "visit"
+      ]
+    },
+    "notes": {
+      "blockLimit": "Blocks on the page in all, counting every block inside a container at every depth (40). Before 0.3.0 the top level was the only level.",
+      "topLevelLimit": "Blocks in the page's own content list, the top level (16).",
+      "maxDepth": "How deep blocks nest: a top-level block is depth 1, a block in its slot depth 2, a block in a slot of that one depth 3. Nothing sits deeper than 3, so a container at depth 3 stays empty.",
+      "maxPerPage": "Each component's maxPerPage counts its blocks at every depth, not only the top level.",
+      "lastBlock": "The Footer is the last block of the top level. Hero and Footer are topLevelOnly: never inside a container.",
+      "slots": "A container holds blocks in its slot props, each a list of blocks ({type, props}, as at the top level). A block in a slot must be allowed by it (allow \"any\": every type whose topLevelOnly is false, minus disallow), the slot holds minItems to maxItems blocks, and a slot with activeWhen holds blocks only while that prop has one of the listed values.",
+      "uniqueBlockIds": "Every block's props.id is unique across the whole tree, slots included.",
+      "anchors": "A Section's anchorId, when not empty, is unique on the page and never top, shop, visit (the site's own anchors).",
+      "links": "A 0.3.0 link (Buttons items[].link, ImageBanner buttonLink, a rich text link's href) is a CtaAction target or an https:// address of the vetted pattern; never javascript:, data:, http: or a relative path.",
+      "plainText": "Every string is plain text, shown as text: no prop takes HTML, CSS, a script or an iframe. The only embeds are Video (YouTube, Vimeo) and Map (Google Maps embed), which the site builds from an address of the vetted pattern."
+    }
+  },
+  "root": {
+    "props": {
+      "templateId": {
+        "required": true,
+        "nullable": false,
+        "ai": "none",
+        "flag": "setting",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "everyday-store",
+            "sweet-pastel",
+            "warm-bold",
+            "clean-mono",
+            "jackets",
+            "keyboards",
+            "iced-coffee",
+            "plates"
+          ]
+        },
+        "note": "The website's design. Chosen when the site is made; never changed by editing."
+      },
+      "businessName": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "note": "The business name in the header and footer (required)."
+      },
+      "statusText": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "note": "Badge in the header, e.g. Open now · until 18:00. Empty hides it."
+      },
+      "hours": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "note": "Short opening hours, e.g. 9:00 – 18:00. On the live site the Owner Portal's hours replace it."
+      },
+      "hoursDetail": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "note": "The full week's hours. On the live site the Owner Portal's hours replace it."
+      },
+      "address": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "note": "The shop's address, also used for directions. On the live site the Owner Portal's address replaces it."
+      },
+      "phones": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "maxItems": 3,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "string",
+                "pattern": "^[+()\\d\\s-]{6,20}$"
+              }
+            },
+            "required": [
+              "number"
+            ]
+          }
+        },
+        "note": "Up to 3 phone numbers. On the live site the Owner Portal's phone replaces them."
+      },
+      "email": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": ""
+            },
+            {
+              "type": "string",
+              "maxLength": 120,
+              "format": "email",
+              "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            }
+          ]
+        },
+        "note": "Contact email; empty hides it. On the live site the Owner Portal's email replaces it."
+      },
+      "telegram": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "pattern": "^@?[A-Za-z0-9_]{0,32}$"
+        },
+        "note": "Telegram username without @. Empty hides it."
+      },
+      "facebookUrl": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": ""
+            },
+            {
+              "type": "string",
+              "maxLength": 300,
+              "pattern": "^https:\\/\\/[^\\s/?#]+([/?#]\\S*)?$"
+            }
+          ]
+        },
+        "note": "Facebook page, https:// only. Empty hides it."
+      },
+      "instagramUrl": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": ""
+            },
+            {
+              "type": "string",
+              "maxLength": 300,
+              "pattern": "^https:\\/\\/[^\\s/?#]+([/?#]\\S*)?$"
+            }
+          ]
+        },
+        "note": "Instagram page, https:// only. Empty hides it."
+      },
+      "logoUrl": {
+        "required": false,
+        "nullable": true,
+        "ai": "none",
+        "flag": "media",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "note": "Round logo in the header, from the Owner Portal; null or missing shows the template's mark."
+      },
+      "currency": {
+        "required": true,
+        "nullable": false,
+        "ai": "none",
+        "flag": "setting",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "USD",
+            "KHR"
+          ]
+        },
+        "note": "Currency of the prices (USD or KHR). Set by the business, not by editing."
+      },
+      "palette": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "original",
+            "lavender",
+            "bakery",
+            "sage"
+          ]
+        },
+        "note": "Colour palette; original keeps the template's own colours."
+      },
+      "accentColor": {
+        "required": true,
+        "nullable": true,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": "Accent colour #rrggbb overriding the palette; null keeps it."
+      },
+      "backgroundColor": {
+        "required": true,
+        "nullable": true,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": "Background colour #rrggbb overriding the palette; null keeps it."
+      },
+      "textColor": {
+        "required": true,
+        "nullable": true,
+        "ai": "edit",
+        "schema": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": "Text colour #rrggbb overriding the palette; null keeps it."
+      },
+      "font": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "original",
+            "editorial",
+            "clean",
+            "rounded"
+          ]
+        },
+        "note": "Font pairing; original keeps the template's own."
+      },
+      "buttonStyle": {
+        "required": true,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "square",
+            "rounded",
+            "pill"
+          ]
+        },
+        "note": "Button corners: square, rounded or pill."
+      },
+      "seoTitle": {
+        "required": false,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "note": "The page's title in the browser tab and search results, up to 60 characters (added in 0.3.0). Optional: older pages leave it out; empty or missing uses the business name."
+      },
+      "seoDescription": {
+        "required": false,
+        "nullable": false,
+        "ai": "edit",
+        "schema": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "note": "The short description search results show under the title, up to 160 characters (added in 0.3.0). Optional: older pages leave it out; empty or missing leaves it out."
+      }
+    }
+  },
+  "components": {
+    "Hero": {
+      "label": "Hero",
+      "maxPerPage": 1,
+      "topLevelOnly": true,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "default": "A short, clear headline.",
+          "note": "The page's main headline (required)."
+        },
+        "description": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "default": "One or two sentences about what you offer and why people love it.",
+          "note": "One or two sentences under the headline."
+        },
+        "primaryLabel": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "See products",
+          "note": "Text of the main button. Empty hides it."
+        },
+        "primaryAction": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "shop",
+              "visit",
+              "call",
+              "email",
+              "directions"
+            ]
+          },
+          "default": "shop",
+          "note": "Where the button goes: shop (the products), visit (the Visit us block), call, email or directions (Google Maps). There is no free-form link."
+        },
+        "secondaryLabel": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "Contact us",
+          "note": "Text of the second button. Empty hides it."
+        },
+        "secondaryAction": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "shop",
+              "visit",
+              "call",
+              "email",
+              "directions"
+            ]
+          },
+          "default": "visit",
+          "note": "Where the button goes: shop (the products), visit (the Visit us block), call, email or directions (Google Maps). There is no free-form link."
+        },
+        "imageUrl": {
+          "required": true,
+          "nullable": true,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": null,
+          "note": "The main picture: an uploaded file (/…) or an https:// link; null shows the template's placeholder."
+        },
+        "imageAlt": {
+          "required": false,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 150
+          },
+          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; empty means decorative."
+        },
+        "sideImages": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "imageUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500,
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 30
+                }
+              },
+              "required": [
+                "imageUrl"
+              ]
+            }
+          },
+          "default": [],
+          "note": "Up to 4 extra pictures some templates show beside the main one, each with an optional short label."
+        },
+        "highlights": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "maxLength": 60
+                }
+              },
+              "required": [
+                "text"
+              ]
+            }
+          },
+          "default": [],
+          "note": "Up to 3 short facts some templates show as chips or a strip under the headline."
+        },
+        "badge": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "",
+          "note": "Short text in a round badge or tag (some templates). Empty hides it."
+        }
+      }
+    },
+    "Text": {
+      "label": "Text",
+      "maxPerPage": 5,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "eyebrow": "",
+        "heading": "",
+        "body": "",
+        "imageUrl": null,
+        "align": "left",
+        "spacing": "normal"
+      },
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "Tell your story",
+          "note": "Heading of the text block. Empty hides it."
+        },
+        "body": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "default": "Write a few sentences for your visitors. Keep it short and friendly.",
+          "note": "The paragraph."
+        },
+        "imageUrl": {
+          "required": false,
+          "nullable": true,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": "Optional picture beside the text (some templates); older pages leave it out."
+        },
+        "imageAlt": {
+          "required": false,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 150
+          },
+          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; empty means decorative."
+        }
+      }
+    },
+    "ProductCards": {
+      "label": "Product Cards",
+      "maxPerPage": 3,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "columns": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "2",
+              "3",
+              "4"
+            ]
+          },
+          "default": "3",
+          "note": "Columns of the grid on a wide screen; phones always show fewer."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "Popular this week",
+          "note": "Heading over the product cards."
+        },
+        "viewAllLabel": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "View all products",
+          "note": "Text of the link to the All products block. Empty hides it."
+        },
+        "products": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "products",
+          "schema": {
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "price": {
+                  "type": "string",
+                  "pattern": "^\\d{1,9}(\\.\\d{1,2})?$"
+                },
+                "category": {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "imageUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500,
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "description",
+                "price",
+                "category",
+                "imageUrl"
+              ]
+            }
+          },
+          "default": [],
+          "note": "Up to 12 featured products. The owner's products, copied from the Owner Portal catalog. Never invented or edited here; the live site shows the catalog's."
+        }
+      }
+    },
+    "AllProducts": {
+      "label": "All products",
+      "maxPerPage": 1,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "columns": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "2",
+              "3",
+              "4"
+            ]
+          },
+          "default": "3",
+          "note": "Columns of the grid on a wide screen; phones always show fewer."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "All products",
+          "note": "Heading over the product list."
+        },
+        "searchPlaceholder": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "Search products…",
+          "note": "Hint text in the product search box."
+        },
+        "categories": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "products",
+          "schema": {
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          "default": [],
+          "note": "The category filter chips, from the Owner Portal catalog."
+        },
+        "products": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "products",
+          "schema": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "price": {
+                  "type": "string",
+                  "pattern": "^\\d{1,9}(\\.\\d{1,2})?$"
+                },
+                "category": {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "imageUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500,
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "description",
+                "price",
+                "category",
+                "imageUrl"
+              ]
+            }
+          },
+          "default": [],
+          "note": "The full product list (up to 200). The owner's products, copied from the Owner Portal catalog. Never invented or edited here; the live site shows the catalog's."
+        },
+        "pageSize": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "setting",
+          "schema": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 24
+          },
+          "default": 6,
+          "note": "Products per page of the grid (2–24); a setting, not wording."
+        }
+      }
+    },
+    "About": {
+      "label": "About",
+      "maxPerPage": 1,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "About us",
+          "note": "Heading of the About block."
+        },
+        "body": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "default": "Who you are, how you started and what makes you different.",
+          "note": "The business's story. On the live site the Owner Portal's business description replaces it when set."
+        },
+        "imageUrl": {
+          "required": true,
+          "nullable": true,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": null,
+          "note": "Main photo; null shows the template's placeholder."
+        },
+        "secondImageUrl": {
+          "required": false,
+          "nullable": true,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": "Second photo (some templates); older pages leave it out."
+        },
+        "imageAlt": {
+          "required": false,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 150
+          },
+          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; empty means decorative."
+        },
+        "secondImageAlt": {
+          "required": false,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 150
+          },
+          "note": "What the picture shows, in a few words, for screen readers and search engines (added in 0.3.0). Optional: older pages leave it out; empty means decorative. For the second photo."
+        },
+        "caption": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "default": "",
+          "note": "Caption under the photo or a quote attribution (some templates). Empty hides it."
+        },
+        "stats": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "maxLength": 12
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "value",
+                "label"
+              ]
+            }
+          },
+          "default": [],
+          "note": "Up to 3 small facts (value and label), e.g. 10+ years open."
+        }
+      }
+    },
+    "VisitUs": {
+      "label": "Visit us",
+      "maxPerPage": 1,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "Come and see us",
+          "note": "Heading of the block with the address, hours, phone and map (those come from the page root)."
+        }
+      }
+    },
+    "Footer": {
+      "label": "Footer",
+      "maxPerPage": 1,
+      "topLevelOnly": true,
+      "aiOperations": [
+        "UPDATE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "tagline": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "default": "",
+          "note": "Short line under the business name in the footer. Empty hides it."
+        }
+      }
+    },
+    "Testimonials": {
+      "label": "Testimonials",
+      "maxPerPage": 1,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "What our customers say",
+          "note": "Heading over the quotes."
+        },
+        "items": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "owner",
+          "schema": {
+            "minItems": 1,
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "quote": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                },
+                "role": {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                "photoUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500,
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "quote",
+                "name",
+                "role",
+                "photoUrl"
+              ]
+            }
+          },
+          "default": [
+            {
+              "quote": "Replace this with words a real customer said about you.",
+              "name": "Customer’s name",
+              "role": "",
+              "photoUrl": null
+            }
+          ],
+          "note": "1–6 quotes from real customers: quote (required), name (required), role (e.g. Regular since 2020, empty hides it) and an optional photo. Only the owner writes them."
+        }
+      }
+    },
+    "FAQ": {
+      "label": "FAQ",
+      "maxPerPage": 1,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "eyebrow": "",
+        "heading": "Questions and answers",
+        "items": [
+          {
+            "question": "Do you deliver?",
+            "answer": "Write how and where you deliver, and how long it takes."
+          },
+          {
+            "question": "How can I pay?",
+            "answer": "List the ways customers can pay you."
+          }
+        ],
+        "align": "left",
+        "spacing": "normal"
+      },
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "Questions and answers",
+          "note": "Heading over the questions."
+        },
+        "items": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "minItems": 1,
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "answer": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 400
+                }
+              },
+              "required": [
+                "question",
+                "answer"
+              ]
+            }
+          },
+          "default": [
+            {
+              "question": "Do you deliver?",
+              "answer": "Write how and where you deliver, and how long it takes."
+            },
+            {
+              "question": "How can I pay?",
+              "answer": "List the ways customers can pay you."
+            }
+          ],
+          "note": "1–12 questions, each with its answer (both required). The site shows them as an accordion."
+        }
+      }
+    },
+    "Gallery": {
+      "label": "Gallery",
+      "maxPerPage": 2,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "columns": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "2",
+              "3",
+              "4"
+            ]
+          },
+          "default": "3",
+          "note": "Columns of the grid on a wide screen; phones always show fewer."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "A look inside",
+          "note": "Heading over the pictures. Empty hides it."
+        },
+        "images": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "minItems": 2,
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "imageUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500,
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "caption": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "required": [
+                "imageUrl",
+                "caption"
+              ]
+            }
+          },
+          "default": [
+            {
+              "imageUrl": null,
+              "caption": ""
+            },
+            {
+              "imageUrl": null,
+              "caption": ""
+            },
+            {
+              "imageUrl": null,
+              "caption": ""
+            }
+          ],
+          "note": "2–12 pictures, each an uploaded file or an https:// link (null shows a placeholder) with an optional short caption."
+        }
+      }
+    },
+    "CallToAction": {
+      "label": "Call to action",
+      "maxPerPage": 3,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "eyebrow": "",
+        "heading": "Come and visit us",
+        "body": "One short line that makes people want to act.",
+        "buttonLabel": "Get directions",
+        "buttonAction": "directions",
+        "align": "center",
+        "spacing": "normal"
+      },
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "default": "Come and visit us",
+          "note": "The banner's headline (required)."
+        },
+        "body": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "default": "One short line that makes people want to act.",
+          "note": "One line under the headline. Empty hides it."
+        },
+        "buttonLabel": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "Get directions",
+          "note": "Text of the button. Empty hides the button."
+        },
+        "buttonAction": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "shop",
+              "visit",
+              "call",
+              "email",
+              "directions"
+            ]
+          },
+          "default": "directions",
+          "note": "Where the button goes: shop (the products), visit (the Visit us block), call, email or directions (Google Maps). There is no free-form link."
+        }
+      }
+    },
+    "Services": {
+      "label": "Services",
+      "maxPerPage": 2,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "eyebrow": "",
+        "heading": "What we offer",
+        "columns": "3",
+        "items": [
+          {
+            "icon": "star",
+            "title": "Your first service",
+            "text": "Say what it is and why customers like it."
+          },
+          {
+            "icon": "heart",
+            "title": "Your second service",
+            "text": "Say what it is and why customers like it."
+          },
+          {
+            "icon": "chat",
+            "title": "Your third service",
+            "text": "Say what it is and why customers like it."
+          }
+        ],
+        "align": "left",
+        "spacing": "normal"
+      },
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "columns": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "2",
+              "3",
+              "4"
+            ]
+          },
+          "default": "3",
+          "note": "Columns of the grid on a wide screen; phones always show fewer."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "What we offer",
+          "note": "Heading over the cards."
+        },
+        "items": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "minItems": 2,
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "icon": {
+                  "type": "string",
+                  "enum": [
+                    "box",
+                    "delivery",
+                    "shop",
+                    "card",
+                    "clock",
+                    "call",
+                    "location",
+                    "star",
+                    "heart",
+                    "gift",
+                    "coffee",
+                    "cake",
+                    "brush",
+                    "scissors",
+                    "shield",
+                    "medal",
+                    "people",
+                    "tag",
+                    "sparkle",
+                    "chat"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 160
+                }
+              },
+              "required": [
+                "icon",
+                "title",
+                "text"
+              ]
+            }
+          },
+          "default": [
+            {
+              "icon": "star",
+              "title": "Your first service",
+              "text": "Say what it is and why customers like it."
+            },
+            {
+              "icon": "heart",
+              "title": "Your second service",
+              "text": "Say what it is and why customers like it."
+            },
+            {
+              "icon": "chat",
+              "title": "Your third service",
+              "text": "Say what it is and why customers like it."
+            }
+          ],
+          "note": "2–6 cards, each with an icon from the fixed set, a title (required) and a short text. The icon keys are fixed; the site draws its own icon for each key."
+        }
+      }
+    },
+    "Stats": {
+      "label": "Stats",
+      "maxPerPage": 2,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Text alignment of the block: left, center or right."
+        },
+        "spacing": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "tight",
+              "normal",
+              "roomy"
+            ]
+          },
+          "default": "normal",
+          "note": "Space above and below the block: tight, normal or roomy."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": "",
+          "note": "Heading over the numbers. Empty hides it."
+        },
+        "items": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "owner",
+          "schema": {
+            "minItems": 2,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "value",
+                "label"
+              ]
+            }
+          },
+          "default": [
+            {
+              "value": "00",
+              "label": "Your first number"
+            },
+            {
+              "value": "00",
+              "label": "Your second number"
+            },
+            {
+              "value": "00",
+              "label": "Your third number"
+            }
+          ],
+          "note": "2–4 big numbers with a label each (both required), e.g. 500 / Happy customers. Only the owner sets them."
+        }
+      }
+    },
+    "Section": {
+      "label": "Section",
+      "maxPerPage": 8,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "background": "muted",
+        "backgroundImageUrl": null,
+        "overlay": "dark",
+        "padding": "medium",
+        "width": "normal",
+        "anchorId": "",
+        "content": []
+      },
+      "props": {
+        "background": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "none",
+              "muted",
+              "accent",
+              "inverse",
+              "gradient-soft",
+              "gradient-accent",
+              "image"
+            ]
+          },
+          "default": "muted",
+          "note": "The surface behind the section, from the theme: none, muted, accent, inverse, gradient-soft or gradient-accent (both from the palette) or image. The site keeps text over it readable (WCAG AA)."
+        },
+        "backgroundImageUrl": {
+          "required": true,
+          "nullable": true,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": null,
+          "note": "The picture used when background is image: an uploaded file or an https:// link; null falls back to none. Decorative, so it has no alt text."
+        },
+        "overlay": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "dark",
+              "light"
+            ]
+          },
+          "default": "dark",
+          "note": "The tint over a background picture, so text over it stays readable: dark or light. Only used with image."
+        },
+        "padding": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "none",
+              "small",
+              "medium",
+              "large"
+            ]
+          },
+          "default": "medium",
+          "note": "Space inside the section, from the theme's spacing scale: none, small, medium or large."
+        },
+        "width": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "narrow",
+              "normal",
+              "wide",
+              "full"
+            ]
+          },
+          "default": "normal",
+          "note": "How wide the content runs: narrow, normal, wide or full (edge to edge)."
+        },
+        "anchorId": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "setting",
+          "schema": {
+            "type": "string",
+            "pattern": "^([a-z][a-z0-9-]{1,39})?$"
+          },
+          "default": "",
+          "note": "Link name of the section (the #name in an address), 2–40 small letters, numbers and -. Empty for none. Unique on the page, and never top, shop or visit (the site's own)."
+        }
+      },
+      "slots": {
+        "content": {
+          "label": "Content",
+          "allow": "any",
+          "disallow": [
+            "Section"
+          ],
+          "minItems": 0,
+          "maxItems": 12,
+          "note": "The blocks this slot holds, in order: a list of blocks, each {type, props} as at the top level (a Puck slot)."
+        }
+      }
+    },
+    "Columns": {
+      "label": "Columns",
+      "maxPerPage": 6,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "ratio": "50-50",
+        "gap": "medium",
+        "stackOnMobile": true,
+        "verticalAlign": "top",
+        "column1": [],
+        "column2": [],
+        "column3": [],
+        "column4": []
+      },
+      "props": {
+        "ratio": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "50-50",
+              "33-67",
+              "67-33",
+              "25-75",
+              "75-25",
+              "33-33-33",
+              "25-50-25",
+              "50-25-25",
+              "25-25-50",
+              "25-25-25-25"
+            ]
+          },
+          "default": "50-50",
+          "note": "The columns and their widths in percent, left to right, e.g. 33-67. The number of parts is the number of columns (2–4); the slots past it stay empty."
+        },
+        "gap": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "large"
+            ]
+          },
+          "default": "medium",
+          "note": "Space between the columns: small, medium or large."
+        },
+        "stackOnMobile": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "boolean"
+          },
+          "default": true,
+          "note": "true: on a phone the columns stack, first column on top. false: they stay side by side."
+        },
+        "verticalAlign": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "top",
+              "center",
+              "bottom"
+            ]
+          },
+          "default": "top",
+          "note": "How columns of different heights line up: top, center or bottom."
+        }
+      },
+      "slots": {
+        "column1": {
+          "label": "Column 1",
+          "allow": [
+            "Heading",
+            "RichText",
+            "Text",
+            "Image",
+            "Buttons",
+            "Icon",
+            "Spacer",
+            "Divider",
+            "Quote",
+            "Video",
+            "Map",
+            "Card"
+          ],
+          "minItems": 0,
+          "maxItems": 6,
+          "note": "The blocks this slot holds, in order: a list of blocks, each {type, props} as at the top level (a Puck slot). The first (left) column."
+        },
+        "column2": {
+          "label": "Column 2",
+          "allow": [
+            "Heading",
+            "RichText",
+            "Text",
+            "Image",
+            "Buttons",
+            "Icon",
+            "Spacer",
+            "Divider",
+            "Quote",
+            "Video",
+            "Map",
+            "Card"
+          ],
+          "minItems": 0,
+          "maxItems": 6,
+          "note": "The blocks this slot holds, in order: a list of blocks, each {type, props} as at the top level (a Puck slot). The second column."
+        },
+        "column3": {
+          "label": "Column 3",
+          "allow": [
+            "Heading",
+            "RichText",
+            "Text",
+            "Image",
+            "Buttons",
+            "Icon",
+            "Spacer",
+            "Divider",
+            "Quote",
+            "Video",
+            "Map",
+            "Card"
+          ],
+          "minItems": 0,
+          "maxItems": 6,
+          "activeWhen": {
+            "prop": "ratio",
+            "in": [
+              "33-33-33",
+              "25-50-25",
+              "50-25-25",
+              "25-25-50",
+              "25-25-25-25"
+            ]
+          },
+          "note": "The blocks this slot holds, in order: a list of blocks, each {type, props} as at the top level (a Puck slot). The third column; only with a three- or four-part ratio, else empty."
+        },
+        "column4": {
+          "label": "Column 4",
+          "allow": [
+            "Heading",
+            "RichText",
+            "Text",
+            "Image",
+            "Buttons",
+            "Icon",
+            "Spacer",
+            "Divider",
+            "Quote",
+            "Video",
+            "Map",
+            "Card"
+          ],
+          "minItems": 0,
+          "maxItems": 6,
+          "activeWhen": {
+            "prop": "ratio",
+            "in": [
+              "25-25-25-25"
+            ]
+          },
+          "note": "The blocks this slot holds, in order: a list of blocks, each {type, props} as at the top level (a Puck slot). The fourth column; only with the 25-25-25-25 ratio, else empty."
+        }
+      }
+    },
+    "Grid": {
+      "label": "Grid",
+      "maxPerPage": 4,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "columns": "3",
+        "gap": "medium",
+        "items": []
+      },
+      "props": {
+        "columns": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "2",
+              "3",
+              "4"
+            ]
+          },
+          "default": "3",
+          "note": "Columns of the grid on a wide screen (2–4); phones always show fewer."
+        },
+        "gap": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "large"
+            ]
+          },
+          "default": "medium",
+          "note": "Space between the items: small, medium or large."
+        }
+      },
+      "slots": {
+        "items": {
+          "label": "Items",
+          "allow": [
+            "Card",
+            "Image",
+            "Quote",
+            "Icon",
+            "Heading",
+            "RichText",
+            "Text",
+            "Buttons",
+            "Video"
+          ],
+          "minItems": 0,
+          "maxItems": 12,
+          "note": "The blocks this slot holds, in order: a list of blocks, each {type, props} as at the top level (a Puck slot). Each block is one cell of the grid, filled row by row."
+        }
+      }
+    },
+    "Card": {
+      "label": "Card",
+      "maxPerPage": 16,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "surface": "plain",
+        "border": "subtle",
+        "radius": "medium",
+        "shadow": "none",
+        "padding": "medium",
+        "content": []
+      },
+      "props": {
+        "surface": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "plain",
+              "muted",
+              "accent"
+            ]
+          },
+          "default": "plain",
+          "note": "The card's background from the theme: plain, muted or accent."
+        },
+        "border": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "none",
+              "subtle",
+              "strong"
+            ]
+          },
+          "default": "subtle",
+          "note": "The card's border: none, subtle or strong."
+        },
+        "radius": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "none",
+              "small",
+              "medium",
+              "large"
+            ]
+          },
+          "default": "medium",
+          "note": "Corner rounding from the theme's radius scale: none, small, medium or large."
+        },
+        "shadow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "none",
+              "soft",
+              "strong"
+            ]
+          },
+          "default": "none",
+          "note": "The card's shadow: none, soft or strong."
+        },
+        "padding": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "large"
+            ]
+          },
+          "default": "medium",
+          "note": "Space inside the card: small, medium or large."
+        }
+      },
+      "slots": {
+        "content": {
+          "label": "Content",
+          "allow": [
+            "Heading",
+            "RichText",
+            "Text",
+            "Image",
+            "Buttons",
+            "Icon",
+            "Spacer",
+            "Divider",
+            "Quote"
+          ],
+          "minItems": 0,
+          "maxItems": 6,
+          "note": "The blocks this slot holds, in order: a list of blocks, each {type, props} as at the top level (a Puck slot)."
+        }
+      }
+    },
+    "Heading": {
+      "label": "Heading",
+      "maxPerPage": 16,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "text": "A short, clear heading",
+        "level": "2",
+        "size": "large",
+        "align": "left",
+        "tone": "default"
+      },
+      "props": {
+        "text": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "default": "A short, clear heading",
+          "note": "The heading's words (required)."
+        },
+        "level": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "2",
+              "3",
+              "4"
+            ]
+          },
+          "default": "2",
+          "note": "The heading level for screen readers and search engines: 2, 3 or 4 (the page's level-1 heading is the Hero's). Pick by the page's outline, not by size."
+        },
+        "size": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "large",
+              "xlarge"
+            ]
+          },
+          "default": "large",
+          "note": "How big it looks, from the theme's type scale: small, medium, large or xlarge."
+        },
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Alignment inside its place: left, center or right."
+        },
+        "tone": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "default",
+              "accent",
+              "muted"
+            ]
+          },
+          "default": "default",
+          "note": "Its colour from the theme: default, accent or muted."
+        }
+      }
+    },
+    "RichText": {
+      "label": "Rich text",
+      "maxPerPage": 10,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "body": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Write a few sentences here. Select words to make them bold, italic or a link."
+                }
+              ]
+            }
+          ]
+        },
+        "align": "left",
+        "size": "normal"
+      },
+      "props": {
+        "body": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "doc"
+              },
+              "content": {
+                "minItems": 1,
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "paragraph"
+                        },
+                        "content": {
+                          "maxItems": 30,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "text"
+                              },
+                              "text": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "marks": {
+                                "maxItems": 3,
+                                "type": "array",
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "bold"
+                                        }
+                                      },
+                                      "required": [
+                                        "type"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "italic"
+                                        }
+                                      },
+                                      "required": [
+                                        "type"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "link"
+                                        },
+                                        "attrs": {
+                                          "type": "object",
+                                          "properties": {
+                                            "href": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "shop",
+                                                    "visit",
+                                                    "call",
+                                                    "email",
+                                                    "directions"
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "string",
+                                                  "maxLength": 300,
+                                                  "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "href"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "attrs"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "text"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "heading"
+                        },
+                        "attrs": {
+                          "type": "object",
+                          "properties": {
+                            "level": {
+                              "type": "integer",
+                              "minimum": 2,
+                              "maximum": 4
+                            }
+                          },
+                          "required": [
+                            "level"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "content": {
+                          "maxItems": 30,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "text"
+                              },
+                              "text": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              "marks": {
+                                "maxItems": 3,
+                                "type": "array",
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "bold"
+                                        }
+                                      },
+                                      "required": [
+                                        "type"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "italic"
+                                        }
+                                      },
+                                      "required": [
+                                        "type"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "type": "string",
+                                          "const": "link"
+                                        },
+                                        "attrs": {
+                                          "type": "object",
+                                          "properties": {
+                                            "href": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "shop",
+                                                    "visit",
+                                                    "call",
+                                                    "email",
+                                                    "directions"
+                                                  ]
+                                                },
+                                                {
+                                                  "type": "string",
+                                                  "maxLength": 300,
+                                                  "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "href"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "attrs"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "text"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "attrs"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "bulletList"
+                        },
+                        "content": {
+                          "minItems": 1,
+                          "maxItems": 12,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "listItem"
+                              },
+                              "content": {
+                                "minItems": 1,
+                                "maxItems": 3,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "paragraph"
+                                    },
+                                    "content": {
+                                      "maxItems": 30,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "type": {
+                                            "type": "string",
+                                            "const": "text"
+                                          },
+                                          "text": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 500
+                                          },
+                                          "marks": {
+                                            "maxItems": 3,
+                                            "type": "array",
+                                            "items": {
+                                              "oneOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "type": {
+                                                      "type": "string",
+                                                      "const": "bold"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "type"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "type": {
+                                                      "type": "string",
+                                                      "const": "italic"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "type"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "type": {
+                                                      "type": "string",
+                                                      "const": "link"
+                                                    },
+                                                    "attrs": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "href": {
+                                                          "anyOf": [
+                                                            {
+                                                              "type": "string",
+                                                              "enum": [
+                                                                "shop",
+                                                                "visit",
+                                                                "call",
+                                                                "email",
+                                                                "directions"
+                                                              ]
+                                                            },
+                                                            {
+                                                              "type": "string",
+                                                              "maxLength": 300,
+                                                              "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                            }
+                                                          ]
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "href"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "type",
+                                                    "attrs"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "type",
+                                          "text"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "content"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "content"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "orderedList"
+                        },
+                        "content": {
+                          "minItems": 1,
+                          "maxItems": 12,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "listItem"
+                              },
+                              "content": {
+                                "minItems": 1,
+                                "maxItems": 3,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "paragraph"
+                                    },
+                                    "content": {
+                                      "maxItems": 30,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "type": {
+                                            "type": "string",
+                                            "const": "text"
+                                          },
+                                          "text": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 500
+                                          },
+                                          "marks": {
+                                            "maxItems": 3,
+                                            "type": "array",
+                                            "items": {
+                                              "oneOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "type": {
+                                                      "type": "string",
+                                                      "const": "bold"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "type"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "type": {
+                                                      "type": "string",
+                                                      "const": "italic"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "type"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "type": {
+                                                      "type": "string",
+                                                      "const": "link"
+                                                    },
+                                                    "attrs": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "href": {
+                                                          "anyOf": [
+                                                            {
+                                                              "type": "string",
+                                                              "enum": [
+                                                                "shop",
+                                                                "visit",
+                                                                "call",
+                                                                "email",
+                                                                "directions"
+                                                              ]
+                                                            },
+                                                            {
+                                                              "type": "string",
+                                                              "maxLength": 300,
+                                                              "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                            }
+                                                          ]
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "href"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "type",
+                                                    "attrs"
+                                                  ],
+                                                  "additionalProperties": false
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "type",
+                                          "text"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "content"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "content"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "type",
+              "content"
+            ],
+            "additionalProperties": false
+          },
+          "default": {
+            "type": "doc",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Write a few sentences here. Select words to make them bold, italic or a link."
+                  }
+                ]
+              }
+            ]
+          },
+          "note": "Formatted text as a node tree (see the catalog's `richText`): paragraphs, headings 2–4, bullet and numbered lists, bold, italic and links to vetted targets. Never HTML."
+        },
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Alignment inside its place: left, center or right."
+        },
+        "size": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "small",
+              "normal",
+              "large"
+            ]
+          },
+          "default": "normal",
+          "note": "Text size from the theme: small, normal or large."
+        }
+      }
+    },
+    "Image": {
+      "label": "Image",
+      "maxPerPage": 16,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "imageUrl": {
+          "required": true,
+          "nullable": true,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": null,
+          "note": "The picture: an uploaded file (/…) or an https:// link; null shows a placeholder."
+        },
+        "alt": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 150
+          },
+          "default": "",
+          "note": "What the picture shows, in a few words, for screen readers and search engines. Required once a picture is set: a picture without it doesn't save."
+        },
+        "caption": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "default": "",
+          "note": "Short line under the picture. Empty hides it."
+        },
+        "aspectRatio": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "original",
+              "1:1",
+              "4:3",
+              "3:2",
+              "16:9",
+              "3:4"
+            ]
+          },
+          "default": "original",
+          "note": "The picture's shape: original, 1:1, 4:3, 3:2, 16:9 or 3:4. Anything but original crops it."
+        },
+        "focus": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "center",
+              "top",
+              "bottom",
+              "left",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Which part stays in view when the shape crops it: center, top, bottom, left or right."
+        },
+        "radius": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "none",
+              "small",
+              "medium",
+              "large"
+            ]
+          },
+          "default": "medium",
+          "note": "Corner rounding from the theme's radius scale: none, small, medium or large."
+        }
+      }
+    },
+    "Buttons": {
+      "label": "Buttons",
+      "maxPerPage": 8,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "items": [
+          {
+            "label": "See products",
+            "link": "shop",
+            "style": "primary"
+          }
+        ],
+        "size": "medium",
+        "align": "left"
+      },
+      "props": {
+        "items": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "minItems": 1,
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                },
+                "link": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "shop",
+                        "visit",
+                        "call",
+                        "email",
+                        "directions"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "maxLength": 300,
+                      "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                    }
+                  ]
+                },
+                "style": {
+                  "type": "string",
+                  "enum": [
+                    "primary",
+                    "secondary",
+                    "outline",
+                    "text"
+                  ]
+                }
+              },
+              "required": [
+                "label",
+                "link",
+                "style"
+              ]
+            }
+          },
+          "default": [
+            {
+              "label": "See products",
+              "link": "shop",
+              "style": "primary"
+            }
+          ],
+          "note": "1–3 buttons, each with a label (required), a link and a style (primary, secondary, outline or text). Link: Where it goes: shop, visit, call, email or directions (as the Hero buttons), or an https:// address of the vetted shape. Nothing else saves."
+        },
+        "size": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "large"
+            ]
+          },
+          "default": "medium",
+          "note": "Button size: small, medium or large."
+        },
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "left",
+          "note": "Alignment inside its place: left, center or right."
+        }
+      }
+    },
+    "Icon": {
+      "label": "Icon",
+      "maxPerPage": 16,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "icon": "star",
+        "size": "medium",
+        "tone": "accent",
+        "background": "circle",
+        "label": "",
+        "align": "center"
+      },
+      "props": {
+        "icon": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "box",
+              "delivery",
+              "shop",
+              "card",
+              "clock",
+              "call",
+              "location",
+              "star",
+              "heart",
+              "gift",
+              "coffee",
+              "cake",
+              "brush",
+              "scissors",
+              "shield",
+              "medal",
+              "people",
+              "tag",
+              "sparkle",
+              "chat"
+            ]
+          },
+          "default": "star",
+          "note": "An icon from the fixed set (the same keys as Services); the site draws its own icon for each key."
+        },
+        "size": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "large"
+            ]
+          },
+          "default": "medium",
+          "note": "small, medium or large."
+        },
+        "tone": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "default",
+              "accent",
+              "muted"
+            ]
+          },
+          "default": "accent",
+          "note": "Its colour from the theme: default, accent or muted."
+        },
+        "background": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "none",
+              "circle",
+              "rounded"
+            ]
+          },
+          "default": "circle",
+          "note": "A shape behind the icon: none, circle or rounded."
+        },
+        "label": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "What the icon means, for screen readers. Empty: decorative (the words next to it say it)."
+        },
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Alignment inside its place: left, center or right."
+        }
+      }
+    },
+    "Spacer": {
+      "label": "Spacer",
+      "maxPerPage": 12,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "size": "medium"
+      },
+      "props": {
+        "size": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "large",
+              "xlarge"
+            ]
+          },
+          "default": "medium",
+          "note": "Empty space from the theme's spacing scale: small, medium, large or xlarge."
+        }
+      }
+    },
+    "Divider": {
+      "label": "Divider",
+      "maxPerPage": 12,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "ADD",
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "addDefaults": {
+        "style": "solid",
+        "width": "full",
+        "tone": "muted"
+      },
+      "props": {
+        "style": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "solid",
+              "dashed",
+              "dotted"
+            ]
+          },
+          "default": "solid",
+          "note": "The line: solid, dashed or dotted."
+        },
+        "width": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "short",
+              "half",
+              "full"
+            ]
+          },
+          "default": "full",
+          "note": "How far it runs: short, half or full."
+        },
+        "tone": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "muted",
+              "accent"
+            ]
+          },
+          "default": "muted",
+          "note": "Its colour from the theme: muted or accent."
+        }
+      }
+    },
+    "ImageBanner": {
+      "label": "Image banner",
+      "maxPerPage": 3,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "imageUrl": {
+          "required": true,
+          "nullable": true,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(\\/[^/]|https:\\/\\/)"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": null,
+          "note": "The banner picture behind the text: an uploaded file or an https:// link; null shows a placeholder."
+        },
+        "imageAlt": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 150
+          },
+          "default": "",
+          "note": "What the picture shows, for screen readers. Empty means decorative (the text over it says what matters)."
+        },
+        "eyebrow": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small label above the heading. Empty hides it."
+        },
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "default": "A short, clear headline.",
+          "note": "The banner's headline (required)."
+        },
+        "body": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "default": "One line that makes people want to look closer.",
+          "note": "One or two lines under the headline. Empty hides it."
+        },
+        "buttonLabel": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "default": "See products",
+          "note": "Text of the button. Empty hides the button."
+        },
+        "buttonLink": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "shop",
+                  "visit",
+                  "call",
+                  "email",
+                  "directions"
+                ]
+              },
+              {
+                "type": "string",
+                "maxLength": 300,
+                "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+              }
+            ]
+          },
+          "default": "shop",
+          "note": "Where it goes: shop, visit, call, email or directions (as the Hero buttons), or an https:// address of the vetted shape. Nothing else saves."
+        },
+        "overlay": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "dark",
+              "light",
+              "accent"
+            ]
+          },
+          "default": "dark",
+          "note": "The tint between the picture and the text, so the text stays readable: dark, light or accent."
+        },
+        "textPosition": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "center",
+              "left",
+              "right",
+              "bottom-left",
+              "bottom-center"
+            ]
+          },
+          "default": "center",
+          "note": "Where the text sits on the picture: center, left, right, bottom-left or bottom-center."
+        },
+        "height": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "large"
+            ]
+          },
+          "default": "medium",
+          "note": "The banner's height: small, medium or large."
+        }
+      }
+    },
+    "LogoStrip": {
+      "label": "Logo strip",
+      "maxPerPage": 2,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "heading": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Small heading over the logos. Empty hides it."
+        },
+        "logos": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "minItems": 2,
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "imageUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500,
+                      "pattern": "^(\\/[^/]|https:\\/\\/)"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "alt": {
+                  "type": "string",
+                  "maxLength": 80
+                }
+              },
+              "required": [
+                "imageUrl",
+                "alt"
+              ]
+            }
+          },
+          "default": [
+            {
+              "imageUrl": null,
+              "alt": ""
+            },
+            {
+              "imageUrl": null,
+              "alt": ""
+            }
+          ],
+          "note": "2–12 logos of brands the business carries or works with, each an uploaded picture (null shows a placeholder) with its alt: the brand's name, required once the picture is set. Only the owner picks them."
+        },
+        "style": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "color",
+              "mono"
+            ]
+          },
+          "default": "mono",
+          "note": "color keeps each logo's colours; mono shows them all in one theme colour."
+        },
+        "size": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "large"
+            ]
+          },
+          "default": "medium",
+          "note": "Logo size: small, medium or large."
+        }
+      }
+    },
+    "Quote": {
+      "label": "Quote",
+      "maxPerPage": 6,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "quote": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "owner",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "default": "Replace this with words someone really said.",
+          "note": "Someone's real words (required). Only the owner writes them."
+        },
+        "author": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "owner",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "Their name",
+          "note": "Who said it. Empty hides it. Only the owner sets it."
+        },
+        "role": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "owner",
+          "schema": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "default": "",
+          "note": "Who they are, e.g. Founder. Empty hides it. Only the owner sets it."
+        },
+        "style": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "plain",
+              "large",
+              "card"
+            ]
+          },
+          "default": "large",
+          "note": "plain, large (a big pull quote) or card."
+        },
+        "align": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "default": "center",
+          "note": "Alignment inside its place: left, center or right."
+        }
+      }
+    },
+    "Video": {
+      "label": "Video",
+      "maxPerPage": 4,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "url": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "media",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": ""
+              },
+              {
+                "type": "string",
+                "maxLength": 300,
+                "pattern": "^https:\\/\\/(((www|m)\\.)?youtube\\.com\\/(watch\\?v=|embed\\/|shorts\\/)|www\\.youtube-nocookie\\.com\\/embed\\/|youtu\\.be\\/)[A-Za-z0-9_-]{11}([?&](si|t|start)=[A-Za-z0-9_-]{1,40}){0,3}$|^https:\\/\\/((www\\.)?vimeo\\.com\\/\\d{6,12}(\\/[0-9a-f]{6,20})?|player\\.vimeo\\.com\\/video\\/\\d{6,12}(\\?h=[0-9a-f]{6,20})?)$"
+              }
+            ]
+          },
+          "default": "",
+          "note": "A YouTube or Vimeo video address (watch, youtu.be, shorts, embed or vimeo.com); empty shows a placeholder in the editor and nothing on the site. The site builds the player; no other address saves."
+        },
+        "title": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "default": "Video",
+          "note": "The video player's name for screen readers (required), e.g. How we roast our coffee."
+        },
+        "aspectRatio": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "16:9",
+              "4:3",
+              "1:1",
+              "9:16"
+            ]
+          },
+          "default": "16:9",
+          "note": "The player's shape: 16:9, 4:3, 1:1 or 9:16 (phone videos)."
+        },
+        "caption": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "default": "",
+          "note": "Short line under the video. Empty hides it."
+        }
+      }
+    },
+    "Map": {
+      "label": "Map",
+      "maxPerPage": 1,
+      "topLevelOnly": false,
+      "aiOperations": [
+        "UPDATE",
+        "MOVE",
+        "REMOVE"
+      ],
+      "props": {
+        "url": {
+          "required": true,
+          "nullable": false,
+          "ai": "none",
+          "flag": "owner",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": ""
+              },
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "pattern": "^https:\\/\\/www\\.google\\.com\\/maps\\/embed\\?pb=[A-Za-z0-9!._%:+-]{1,1800}$"
+              }
+            ]
+          },
+          "default": "",
+          "note": "The address from Google Maps › Share › Embed a map (https://www.google.com/maps/embed?pb=…); empty shows a placeholder in the editor and nothing on the site. No other address saves."
+        },
+        "title": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "default": "Map showing where to find us",
+          "note": "The map's name for screen readers (required)."
+        },
+        "height": {
+          "required": true,
+          "nullable": false,
+          "ai": "edit",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "small",
+              "medium",
+              "large"
+            ]
+          },
+          "default": "medium",
+          "note": "The map's height: small, medium or large."
+        }
+      }
+    }
+  },
+  "richText": {
+    "usedBy": [
+      "RichText.body"
+    ],
+    "nodes": [
+      "doc",
+      "paragraph",
+      "heading",
+      "bulletList",
+      "orderedList",
+      "listItem",
+      "text"
+    ],
+    "marks": [
+      "bold",
+      "italic",
+      "link"
+    ],
+    "headingLevels": [
+      2,
+      3,
+      4
+    ],
+    "maxTextLength": 2000,
+    "note": "Rich text is a restricted node tree in the TipTap/ProseMirror JSON shape (a subset of it), never HTML. A doc holds paragraphs, headings (attrs.level 2–4) and bullet or numbered lists; a list holds listItems, each holding paragraphs; paragraphs and headings hold text runs, each with optional marks: bold, italic, link (attrs.href: a CtaAction target or a vetted https:// address). Objects are strict: any other node, mark or key (class, style, target…) is refused. The site builds the elements itself.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "doc"
+        },
+        "content": {
+          "minItems": 1,
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "paragraph"
+                  },
+                  "content": {
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "text"
+                        },
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "marks": {
+                          "maxItems": 3,
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "bold"
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "italic"
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "link"
+                                  },
+                                  "attrs": {
+                                    "type": "object",
+                                    "properties": {
+                                      "href": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "shop",
+                                              "visit",
+                                              "call",
+                                              "email",
+                                              "directions"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "maxLength": 300,
+                                            "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "href"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "attrs"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "heading"
+                  },
+                  "attrs": {
+                    "type": "object",
+                    "properties": {
+                      "level": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "maximum": 4
+                      }
+                    },
+                    "required": [
+                      "level"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "content": {
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "text"
+                        },
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "marks": {
+                          "maxItems": 3,
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "bold"
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "italic"
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "link"
+                                  },
+                                  "attrs": {
+                                    "type": "object",
+                                    "properties": {
+                                      "href": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "enum": [
+                                              "shop",
+                                              "visit",
+                                              "call",
+                                              "email",
+                                              "directions"
+                                            ]
+                                          },
+                                          {
+                                            "type": "string",
+                                            "maxLength": 300,
+                                            "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "href"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "attrs"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "type",
+                  "attrs"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "bulletList"
+                  },
+                  "content": {
+                    "minItems": 1,
+                    "maxItems": 12,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "listItem"
+                        },
+                        "content": {
+                          "minItems": 1,
+                          "maxItems": 3,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "paragraph"
+                              },
+                              "content": {
+                                "maxItems": 30,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "text"
+                                    },
+                                    "text": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "marks": {
+                                      "maxItems": 3,
+                                      "type": "array",
+                                      "items": {
+                                        "oneOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "bold"
+                                              }
+                                            },
+                                            "required": [
+                                              "type"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "italic"
+                                              }
+                                            },
+                                            "required": [
+                                              "type"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "link"
+                                              },
+                                              "attrs": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "href": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "shop",
+                                                          "visit",
+                                                          "call",
+                                                          "email",
+                                                          "directions"
+                                                        ]
+                                                      },
+                                                      {
+                                                        "type": "string",
+                                                        "maxLength": 300,
+                                                        "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "href"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "required": [
+                                              "type",
+                                              "attrs"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "text"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "type"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "content"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "type",
+                  "content"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "orderedList"
+                  },
+                  "content": {
+                    "minItems": 1,
+                    "maxItems": 12,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "listItem"
+                        },
+                        "content": {
+                          "minItems": 1,
+                          "maxItems": 3,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "paragraph"
+                              },
+                              "content": {
+                                "maxItems": 30,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "text"
+                                    },
+                                    "text": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "marks": {
+                                      "maxItems": 3,
+                                      "type": "array",
+                                      "items": {
+                                        "oneOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "bold"
+                                              }
+                                            },
+                                            "required": [
+                                              "type"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "italic"
+                                              }
+                                            },
+                                            "required": [
+                                              "type"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "type": {
+                                                "type": "string",
+                                                "const": "link"
+                                              },
+                                              "attrs": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "href": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "shop",
+                                                          "visit",
+                                                          "call",
+                                                          "email",
+                                                          "directions"
+                                                        ]
+                                                      },
+                                                      {
+                                                        "type": "string",
+                                                        "maxLength": 300,
+                                                        "pattern": "^https:\\/\\/[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#][^\\s\"'<>\\\\^`{|}]*)?$"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "href"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            },
+                                            "required": [
+                                              "type",
+                                              "attrs"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "text"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "type"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "content"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "type",
+                  "content"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "images": {
+    "note": "Where each picture gets its alt text. required: a set picture (not null) with an empty alt doesn't save. prop: an alt prop the owner or WebBlock AI fills; empty means decorative or not written yet. fallback: no alt prop; the site uses this text. decorative: always alt=\"\". \"logos[].alt\" is the alt of each item of logos; block root is the page root.",
+    "rules": [
+      {
+        "block": "root",
+        "image": "logoUrl",
+        "alt": "businessName",
+        "kind": "fallback"
+      },
+      {
+        "block": "Hero",
+        "image": "imageUrl",
+        "alt": "imageAlt",
+        "kind": "prop"
+      },
+      {
+        "block": "Hero",
+        "image": "sideImages[].imageUrl",
+        "alt": "sideImages[].label",
+        "kind": "fallback"
+      },
+      {
+        "block": "Text",
+        "image": "imageUrl",
+        "alt": "imageAlt",
+        "kind": "prop"
+      },
+      {
+        "block": "ProductCards",
+        "image": "products[].imageUrl",
+        "alt": "products[].name",
+        "kind": "fallback"
+      },
+      {
+        "block": "AllProducts",
+        "image": "products[].imageUrl",
+        "alt": "products[].name",
+        "kind": "fallback"
+      },
+      {
+        "block": "About",
+        "image": "imageUrl",
+        "alt": "imageAlt",
+        "kind": "prop"
+      },
+      {
+        "block": "About",
+        "image": "secondImageUrl",
+        "alt": "secondImageAlt",
+        "kind": "prop"
+      },
+      {
+        "block": "Testimonials",
+        "image": "items[].photoUrl",
+        "alt": null,
+        "kind": "decorative"
+      },
+      {
+        "block": "Gallery",
+        "image": "images[].imageUrl",
+        "alt": "images[].caption",
+        "kind": "fallback"
+      },
+      {
+        "block": "Section",
+        "image": "backgroundImageUrl",
+        "alt": null,
+        "kind": "decorative"
+      },
+      {
+        "block": "Image",
+        "image": "imageUrl",
+        "alt": "alt",
+        "kind": "required"
+      },
+      {
+        "block": "ImageBanner",
+        "image": "imageUrl",
+        "alt": "imageAlt",
+        "kind": "prop"
+      },
+      {
+        "block": "LogoStrip",
+        "image": "logos[].imageUrl",
+        "alt": "logos[].alt",
+        "kind": "required"
+      }
+    ]
+  }
+}

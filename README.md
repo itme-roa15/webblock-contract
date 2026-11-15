@@ -183,7 +183,10 @@ props with their JSON Schema (draft 2020-12), whether a prop is required or null
 blocks per type, the Footer last), and what WebBlock AI may do (`ai`: `edit` or `none`, with a `flag` saying why:
 `media`, `products`, `setting`, or since 0.2.0 `owner`; `aiOperations`; `addDefaults`). Since 0.2.0 each prop also
 has a `note` (what it is and how the site shows it) and, on block props, the `default` a newly dropped block holds.
-`version` is the `componentCatalogVersion` Project stores with each page.
+Since 0.3.0 blocks nest: containers list their `slots`, every component says whether it is `topLevelOnly`, `page`
+gains `topLevelLimit`, `maxDepth`, `uniqueBlockIds`, `anchors` and a `notes` line per rule, and two new top-level keys
+describe the rich text tree (`richText`, with its JSON Schema) and where every picture's alt text comes from
+(`images`). `version` is the `componentCatalogVersion` Project stores with each page.
 
 - OWNED BY webui. It is generated from the editor's own save check by `pnpm puck:catalog --contracts <checkout>` in
   webblock-web-ui (src/features/editor/catalog.ts), never edited by hand. `--check` says whether a file still matches.
@@ -201,6 +204,7 @@ has a `note` (what it is and how the site shows it) and, on block props, the `de
 |---|---|---|
 | 0.1.0 | Hero, Text, ProductCards, AllProducts, About, VisitUs, Footer | 12 blocks a page, the Footer last |
 | 0.2.0 | 0.1.0's seven, unchanged, plus Testimonials, FAQ, Gallery, CallToAction, Services, Stats (content only: no products, no new data, images through the existing media upload) | 16 blocks a page, the Footer last |
+| 0.3.0 (DRAFT for review) | 0.2.0's thirteen, unchanged (only new optional alt props on Hero, Text and About), plus the containers Section, Columns, Grid, Card and the design blocks Heading, RichText, Image, Buttons, Icon, Spacer, Divider, ImageBanner, LogoStrip, Quote, Video, Map; root gains optional `seoTitle`, `seoDescription` | 40 blocks a page at every depth, 16 at the top level, depth 3, Hero and Footer top level only, the Footer last, block ids unique across the tree |
 
 - **A newer 0.x only adds.** Every block, prop and value rule of the older version is the same in the newer one,
   and its page rules are the same or looser. So every page valid under 0.1.0 is valid under 0.2.0. A version that
@@ -246,6 +250,87 @@ has a `note` (what it is and how the site shows it) and, on block props, the `de
 - **New projects:** Project creates them at the newest version it pins.
 - **The live site:** the site template renders every block of the newest version (unknown types are never on a
   saved page, since Project refuses them). The template needs no per-version branch.
+
+#### 0.3.0: containers and design blocks (DRAFT for review)
+
+- **Additive.** 0.2.0's thirteen blocks keep every prop, value rule, `default`, `note`, `maxPerPage`, `aiOperations`
+  and `addDefaults` byte for byte; the root's 0.2.0 props too. New on old blocks are only optional props (`required:
+  false`): `Hero.imageAlt`, `Text.imageAlt`, `About.imageAlt`, `About.secondImageAlt`, root `seoTitle` and
+  `seoDescription`. The web UI's tests compare 0.3.0 with this repository's 0.2.0 file.
+- **Containers and slots.** Section, Columns, Grid and Card hold blocks in slot props (Puck slots): each slot is a
+  prop whose value is a list of blocks, `{type, props}` exactly as at the top level. Slot props are listed under the
+  component's `slots`, not under `props`. Each slot has:
+  - `allow`: a list of block types, or `"any"`: every type whose `topLevelOnly` is false, minus `disallow`;
+  - `minItems` and `maxItems` (Section 0–12, Columns 0–6 per column, Grid 0–12, Card 0–6);
+  - for Columns, `activeWhen`: `column1` and `column2` always, `column3` with a three- or four-part `ratio`, `column4`
+    only with `25-25-25-25`. A slot that is not in use must be empty; the save check refuses blocks in it.
+  - What fits: a Section takes any block but Hero, Footer and Section; a column takes the small blocks (Heading,
+    RichText, Text, Image, Buttons, Icon, Spacer, Divider, Quote), Video, Map and Card; a Grid takes Card, Image,
+    Quote, Icon, Heading, RichText, Text, Buttons and Video; a Card takes the small blocks.
+- **Depth and budgets.** A top-level block is depth 1, a block in its slot depth 2, one more level depth 3;
+  `page.maxDepth` is 3, so a container at depth 3 (a Card in Columns in a Section) stays empty. `page.blockLimit` is
+  40 and counts blocks at every depth; `page.topLevelLimit` is 16 (0.2.0's `blockLimit`). Each `maxPerPage` counts
+  nested blocks too (five Text blocks, wherever they sit). For a flat 0.1.0 or 0.2.0 page every count is what it was.
+- **topLevelOnly.** Hero and Footer are never inside a container; the Footer is still the last top-level block.
+- **Unique ids.** Every block's `props.id` is unique across the whole tree, slots included. This is the one rule
+  that is new for old pages too. The editor (Puck) and the assistant's ADD always made unique ids, so no saved page
+  should break; Project can confirm on its stored drafts before it pins 0.3.0.
+- **Anchors.** A Section's `anchorId` is empty or 2–40 small letters, digits and `-` starting with a letter; when
+  set it is unique on the page and never `top`, `shop` or `visit` (the site's own anchors). It is `setting` for the
+  assistant: other pages and posts may link to it.
+- **Rich text** (`RichText.body`) is a restricted node tree in the TipTap/ProseMirror JSON shape, never HTML.
+  Nodes: `doc`, `paragraph`, `heading` (`attrs.level` 2–4), `bulletList`, `orderedList`, `listItem` (paragraphs
+  only, so no nested lists), `text`; marks: `bold`, `italic`, `link` (`attrs.href` is a link target, below). Objects
+  are strict (`additionalProperties: false`): any other node, mark or key (`class`, `style`, `target`, `onclick`) is
+  refused, not dropped. `richText.schema` is the full JSON Schema, inline with no `$ref`, and is the same as
+  `RichText.body`'s; `richText.maxTextLength` (2000 characters, all text runs of one tree) is the one limit a JSON
+  Schema can't hold, checked on the page.
+- **Security patterns, all as JSON Schema patterns** (no flags, no lookarounds; the same strings pass in JavaScript,
+  Python `re` and Java `java.util.regex`):
+  - **Links** (`Buttons.items[].link`, `ImageBanner.buttonLink`, a rich text link's `href`): a `CtaAction` target
+    (`shop`, `visit`, `call`, `email`, `directions`) or an `https://` address whose host is letters, digits, dots and
+    hyphens with at least one dot, with an optional port and a path without spaces, quotes, angle brackets,
+    backslashes or braces. No `javascript:`, `data:`, `http:`, `mailto:`, relative paths, `#anchors`, `localhost` or
+    `user:password@`. The 0.1.0 and 0.2.0 buttons keep their `CtaAction` only.
+  - **Video** (`Video.url`): empty, or YouTube (`watch?v=`, `embed/`, `shorts/`, `youtu.be/`,
+    `www.youtube-nocookie.com/embed/`, then an 11-character id and at most three of the `si`, `t`, `start`
+    parameters) or Vimeo (`vimeo.com/<id>[/<hash>]`, `player.vimeo.com/video/<id>[?h=<hash>]`). The site builds the
+    player from the id.
+  - **Map** (`Map.url`): empty, or `https://www.google.com/maps/embed?pb=…` (Google Maps › Share › Embed a map).
+  - **Plain text only.** No prop takes HTML, CSS, a script or an iframe; every string is shown as text. Video and Map
+    are the only embeds, built by the site. Style props are theme tokens (palette surfaces and gradients, the
+    spacing and radius scales), never a colour or a size; the site keeps text over a background readable (WCAG AA).
+- **Pictures and SEO** (owed from 0.2.0). `images.rules` lists every picture prop with where its alt text comes
+  from: `required` (Image `alt`, LogoStrip `logos[].alt`: a set picture with an empty alt doesn't save), `prop` (an
+  alt prop next to the picture: the new Hero, Text and About ones, ImageBanner `imageAlt`; empty means decorative or
+  not written yet), `fallback` (no alt prop; the site uses that text: Hero side images' `label`, products' `name`,
+  Gallery `caption`, the root logo's `businessName`), `decorative` (Testimonials photos, the Section background).
+  The root's `seoTitle` (≤ 60) and `seoDescription` (≤ 160) are the page's title and search snippet; missing or empty
+  falls back to the business name and no description. All of them are `ai: edit`, so /seo and /a11y can fix them.
+- **0.3.0's AI policy:**
+  - WebBlock AI may add the containers (empty, from `addDefaults`, then blocks into their slots) and Heading,
+    RichText, Buttons, Icon, Spacer and Divider. It never adds Image, ImageBanner, LogoStrip, Video (`media`),
+    Quote or Map (`owner`).
+  - `Quote.quote`, `author`, `role` are `owner`: someone's real words. `Map.url` is `owner` (the business's place).
+    `Image.imageUrl`, `ImageBanner.imageUrl`, `LogoStrip.logos`, `Video.url`, `Section.backgroundImageUrl` are
+    `media`; `Section.anchorId` is `setting`. Style props are the assistant's (/layout, /style).
+  - It writes a link only as a `CtaAction` target, or as an `https://` address the owner gave in the prompt or that
+    is already on the page: it never invents an address.
+  - Placing a block inside a container, moving a block into or out of one, and wrapping blocks in a Section or
+    Columns are ADD and MOVE operations with a parent and slot in their position. That position shape is AI
+    Codegen's change-set contract (`openapi/ai-codegen-v2.yaml`), not part of this file; `aiOperations` keeps the
+    same four values. Removing a container removes what it holds.
+- **How a page moves to 0.3.0:** exactly as for 0.2.0, on its next save from a 0.3.0 client, with the same optional
+  `componentCatalogVersion` on both page saves. The 0.3.0 editor sends `"0.3.0"`; a 0.1.0 or 0.2.0 page is a valid
+  0.3.0 page, so it moves up unchanged. Forward only: a version older than the stored one is `400 VALIDATION_FAILED`.
+  A restore keeps the stored version. Pages never saved again stay at their version and keep working.
+- **Rollout order** (as for 0.2.0, nothing sends `"0.3.0"` before its readers take it):
+  1. AI Codegen's site template renders the new blocks and nested slots (with equality tests), and its catalog
+     loader reads `slots`, `topLevelOnly`, the new `page` keys and the new top-level keys `richText` and `images`
+     (a loader that refuses unknown keys must be widened first);
+  2. Project pins 0.3.0 and checks the whole tree: slots and what they allow, `activeWhen`, depth, both budgets,
+     `maxPerPage` at every depth, `topLevelOnly`, unique ids, anchors, the rich text length and the required alts;
+  3. then the 0.3.0 web editor and AI Codegen sending `"0.3.0"`.
 
 ## WebBlock AI skills
 
