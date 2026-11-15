@@ -206,7 +206,7 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
 |---|---|---|
 | 0.1.0 | Hero, Text, ProductCards, AllProducts, About, VisitUs, Footer | 12 blocks a page, the Footer last |
 | 0.2.0 | 0.1.0's seven, unchanged, plus Testimonials, FAQ, Gallery, CallToAction, Services, Stats (content only: no products, no new data, images through the existing media upload) | 16 blocks a page, the Footer last |
-| 0.3.0 (DRAFT for review) | 0.2.0's thirteen, unchanged (only new optional alt props on Hero, Text and About), plus the containers Section, Columns, Grid, Card and the design blocks Heading, RichText, Image, Buttons, Icon, Spacer, Divider, ImageBanner, LogoStrip, Quote, Video, Map; root gains optional `seoTitle`, `seoDescription` | 40 blocks a page at every depth, 16 at the top level, depth 3, Hero and Footer top level only, the Footer last, live-data blocks (ProductCards, AllProducts, About, VisitUs) in no slot, block ids unique across the tree, `zones` empty; 0.3.0 blocks and props strict |
+| 0.3.0 (DRAFT for review) | 0.2.0's thirteen, unchanged (only new optional alt props on Hero, Text and About), plus the containers Section, Columns, Grid, Card and the design blocks Heading, RichText, Image, Buttons, Icon, Spacer, Divider, ImageBanner, LogoStrip, Quote, Video, Map; root gains optional `seoTitle`, `seoDescription` | 40 blocks a page at every depth, 16 at the top level, depth 3, Hero and Footer top level only, the Footer last, live-data blocks (ProductCards, AllProducts, About, VisitUs) in no slot, block ids unique across the tree, `zones` empty; 0.3.0 blocks and props strict; no WhatsApp links (`page.links.blockedHosts`); the `telegram` CtaAction and root `telegramUrl` |
 
 - **A newer 0.x only adds.** Every block, prop and value rule of the older version is the same in the newer one,
   and its page rules are the same or looser. So every page valid under 0.1.0 is valid under 0.2.0. A version that
@@ -334,10 +334,44 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
   - **Lengths** in the editor count UTF-16 code units. A reader whose `maxLength` counts code points is looser for
     emoji; AI Codegen counts UTF-16 already.
   - **Links** (`Buttons.items[].link`, `ImageBanner.buttonLink`, a rich text link's `href`): a `CtaAction` target
-    (`shop`, `visit`, `call`, `email`, `directions`) or an `https://` address. The host is dot-separated labels of
-    letters, digits and hyphens whose last label starts with a letter (so no IP literal and no `localhost`), with an
-    optional port. The path, query and fragment hold URL characters only. No `javascript:`, `data:`, `http:`, `mailto:`,
-    relative paths, `#anchors` or `user:password@`. The 0.1.0 and 0.2.0 buttons keep their `CtaAction` only.
+    (`shop`, `visit`, `call`, `email`, `directions`, and since 0.3.0 `telegram`) or an `https://` address. The host is
+    dot-separated labels of letters, digits and hyphens whose last label starts with a letter (so no IP literal and no
+    `localhost`), with an optional port. The path, query and fragment hold URL characters only. No `javascript:`,
+    `data:`, `http:`, `mailto:`, relative paths, `#anchors` or `user:password@`, and no blocked host (below). The 0.1.0
+    and 0.2.0 buttons keep their `CtaAction` only.
+  - **No WhatsApp** (the owner's decision of 15 November 2026). `page.links.blockedHosts` is `wa.me`, `whatsapp.com`,
+    `whatsapp.net` and `wa.link`, with `hostMatch: "suffix"`: a link is refused when its host, lower-cased and without
+    a trailing dot, equals an entry or ends in `.` + an entry.
+    - The host is what a WHATWG URL parser reads (JavaScript `new URL(v).hostname`, Python `urlsplit(v).hostname`,
+      Java `URI.getHost()`). For a 0.3.0 link it is simply the text between `https://` and the first `:`, `/`, `?` or
+      `#`, since the link pattern allows no userinfo, backslash or percent sign there.
+    - Every reader enforces it on `page.links.appliesTo`: `Buttons.items[].link`, `ImageBanner.buttonLink`, rich text
+      hrefs and `root.telegramUrl`. The editor's save check also enforces it on the 0.2.0 social links
+      (`page.links.editorAlsoChecks`: `root.facebookUrl`, `root.instagramUrl`), so a page holding such a link no
+      longer saves from the 0.3.0 editor until the link is changed.
+    - Refused: `https://wa.me/85512345678`, `https://WA.ME/85512345678`,
+      `https://api.whatsapp.com/send?phone=85512345678&text=Hello`, `https://chat.whatsapp.com/x`,
+      `https://www.whatsapp.com/`, `https://web.whatsapp.net/x`, `https://wa.link/abc123`. They match the link
+      pattern, so only the host rule refuses them (`page.links.examples.blocked`, `patterns.link.blockedByHost`).
+    - Not blocked (`page.links.examples.allowed`): `https://t.me/riversideroasters`, `https://notwa.me/x`,
+      `https://mywhatsapp.com/x`, `https://whatsapp.com.example.com/x`, `https://wa.linked.example.com/x`.
+    - In the web UI the list and its matcher live in one file, `src/features/editor/link-rules.ts`.
+  - **Telegram** (the owner's decision of 15 November 2026: a first-class contact link, since most Cambodian shop
+    owners use it).
+    - `root.telegramUrl` (optional, `since` 0.3.0, flag `owner`) is empty or `^https://t\.me/[A-Za-z0-9_]{5,32}$`
+      (`patterns.telegramUrl`, enforced like every 0.3.0 pattern). It is shown in the Footer's social links and used
+      by the `telegram` action.
+    - The `telegram` CtaAction, labelled "Message us on Telegram" (`page.links.ctaActions`), goes to `telegramUrl`;
+      when that is empty, to `https://t.me/<root.telegram>` from the older username prop, else to `#visit` (as `call`
+      and `email` do without a phone or an email).
+    - Widening the CtaAction enum is the one change 0.3.0 makes to 0.1.0/0.2.0 props (`Hero.primaryAction`,
+      `Hero.secondaryAction`, `CallToAction.buttonAction`). Every older value still saves; those props' notes predate
+      the new value.
+    - A `telegram` action on a page without `telegramUrl` is a /check finding (rollout step 0).
+    - Renderer: a Telegram link (the Footer's and a `telegram` button's) shows a Telegram icon and opens in a new tab
+      with `target="_blank" rel="noopener noreferrer"`, in the web UI's designs and in AI Codegen's site template.
+    - The Owner Portal's business profile gaining a Telegram field (to fill `telegramUrl` from the portal) is a later
+      Project item, not part of 0.3.0.
   - **Pictures new in 0.3.0** (`Section.backgroundImageUrl`, `Image.imageUrl`, `ImageBanner.imageUrl`,
     `LogoStrip.logos[].imageUrl`): a file on the site's own origin (`/media/…`, `/mock/templates/…`, never `//host`
     or `/\host`) or an `https://` address such as Project's media URLs
@@ -380,9 +414,9 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
     RichText, Buttons, Icon, Spacer and Divider. It never adds Image, ImageBanner, LogoStrip, Video (`media`),
     Quote or Map (`owner`).
   - `Quote.quote`, `author`, `role` are `owner`: someone's real words. `Map.url` is `owner` (the business's place).
-    `Image.decorative` is `owner`: the assistant can't see the picture. `Image.imageUrl`, `ImageBanner.imageUrl`,
-    `LogoStrip.logos`, `Video.url`, `Section.backgroundImageUrl` are `media`; `Section.anchorId` is `setting`. Style
-    props are the assistant's (/layout, /style).
+    `Image.decorative` is `owner`: the assistant can't see the picture. `root.telegramUrl` is `owner`.
+    `Image.imageUrl`, `ImageBanner.imageUrl`, `LogoStrip.logos`, `Video.url`, `Section.backgroundImageUrl` are `media`;
+    `Section.anchorId` is `setting`. Style props are the assistant's (/layout, /style).
   - **Which alts it can write.** It may write only `Image.alt`, `ImageBanner.imageAlt`, the `prop`-kind alts (Hero,
     Text and About `imageAlt`, About `secondImageAlt`) and the root's `seoTitle` and `seoDescription`. LogoStrip
     `logos[].alt`, Gallery captions and Hero side-image labels sit inside `media` lists: they are the owner's, and
@@ -391,18 +425,34 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
     from text on the page that is clearly about the same picture: its caption, a product name, the block's heading.
     Otherwise it leaves the alt as it is and asks in its reply which picture shows what.
   - It writes a link only as a `CtaAction` target, or as an `https://` address the owner gave in the prompt or that
-    is already on the page: it never invents an address.
-  - **Nested operations** (DEFAULT pending coordinator; specified in `openapi/ai-codegen-v2.yaml`,
-    `ChangeItemPosition`):
+    is already on the page: it never invents an address, and never writes a blocked host. It uses the `telegram`
+    action when the page has a `telegramUrl`; otherwise it asks the owner for their Telegram link.
+  - **Nested operations** (accepted by ai_codegen with its changes of 15 November; specified in
+    `openapi/ai-codegen-v2.yaml`, `ChangeItemPosition`):
     - ADD and MOVE carry `position {parentId, slot, index}`, where `parentId: null` is the top level. A position with
-      only `{index}` is still read as top level.
-    - An ADD may carry a `ref` that later items' `parentId` names within one change set; the server maps it to the
-      block's generated id.
+      only `{index}` is still read as top level. An ADD without an `index` goes at the end of its list, as today.
     - `componentId` (and an "@" `BlockRef`) finds a block at any depth, since ids are unique across the tree.
-    - Every write checks the slot's `allow`/`disallow`, `activeWhen`, `minItems`/`maxItems`, `maxDepth` and the
-      budgets. REMOVE of a container removes its whole subtree.
-    - There is no WRAP operation: wrapping blocks in a Section or Columns is an ADD of the container plus MOVEs into
-      it. `aiOperations` keeps the same four values.
+    - Each item is checked structurally as it is applied: the parent exists, `slot` is one of the parent's `slots`,
+      and `index` is at most the target list's length.
+    - The catalog's rules are checked once, on the FINAL tree of the change set, not after each item: `allow`/
+      `disallow`, `activeWhen`, `minItems`/`maxItems`, `maxDepth`, `topLevelOnly`, both budgets, unique ids, anchors
+      and every value rule. A change set that breaks one is refused whole. So a wrap at the 16 top-level limit works:
+      ADD the Section, then MOVE the blocks into it.
+    - Slot props never appear in an UPDATE's `propsPatch`: a container's children change only through ADD, MOVE and
+      REMOVE. On ADD a slot key may only be `[]`, as the containers' `addDefaults` have it.
+    - MOVE's `index` counts in the target list after the block has been taken out of its old place, as the top-level
+      MOVE does today. A MOVE into the moved block's own subtree is refused.
+    - Turning off a Columns slot that still holds blocks (a three-part `ratio` changed to a two-part one with
+      `column3` filled) fails the final-tree check (`activeWhen`), for the model and in the editor alike: MOVE or
+      REMOVE those blocks first. The editor says so when the owner picks such a ratio; it never hides or drops them.
+    - REMOVE of a container removes its whole subtree.
+    - There is no WRAP or UNWRAP: wrap = ADD the container, then MOVE the blocks into its slot; unwrap = MOVE the
+      blocks out, then REMOVE the container. `aiOperations` keeps the same four values.
+    - Refs are the model's only. In its output an ADD may name the block it adds with a `ref` (`^[a-z][a-z0-9-]{0,39}$`)
+      that later items' `position.parentId` may use. A ref may not equal an existing block id or another ref of the
+      set, and may be used only after its own ADD; otherwise the change set is refused. AI Codegen generates the ADD's
+      id when the change is proposed and resolves the refs then, so stored and returned change sets carry real ids and
+      never a ref.
 - **How a page moves to 0.3.0:** exactly as for 0.2.0, on its next save from a 0.3.0 client, with the same optional
   `componentCatalogVersion` on both page saves.
   - The 0.3.0 editor sends `"0.3.0"`; a 0.1.0 or 0.2.0 page is a valid 0.3.0 page, so it moves up unchanged.
@@ -417,23 +467,33 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
      `seoTitle` ≤ 60 and `seoDescription` ≤ 160 from facts on the page), `a11y.md` (`Heading.level` by the page's
      outline, and the alt rules above), `add.md`, `ideas.md` and `design.md` (the new addable blocks, 16 at the top
      level and 40 in all), and `rules.md` rule 2 (a `CtaAction` target, or an `https://` address the owner gave or
-     that is already on the page). It also gets the rich text placeholders (see WebBlock AI skills, Placeholders). The
-     skills index's `catalog` must be the newest catalog AI Codegen edits with. AI Codegen pins it in step 1 and the
-     web UI in step 3a.
+     that is already on the page, never a blocked host). It also gets the rich text placeholders (see WebBlock AI
+     skills, Placeholders).
+     - /cta and /check know the `telegram` action; /check reports a `telegram` action on a page without
+       `telegramUrl`. (The portal's business profile gaining a Telegram field is a later Project item, not in 0.3.0.)
+     - With "@" on a container, its descendants count as in scope: for the "only the @ blocks" rule and in the eval
+       check.
+     - The skills index's `catalog` must be the newest catalog AI Codegen edits with. AI Codegen pins it in step 1 and
+       the web UI in step 3a.
   1. **AI Codegen.**
      - Its catalog loader reads `since`, `slots`, `topLevelOnly`, the new `page` keys (`strictSince`, `blockId`,
-       `document`, `topLevelLimit`, `maxDepth`, `uniqueBlockIds`, `anchors`) and the new top-level keys `richText`,
-       `images` and `patterns`. It takes the schema keywords `additionalProperties` and `uniqueItems`; a loader that
-       refuses unknown keys or keywords must be widened first.
+       `document`, `links`, `topLevelLimit`, `maxDepth`, `uniqueBlockIds`, `anchors`) and the new top-level keys
+       `richText`, `images` and `patterns`. It takes the schema keywords `additionalProperties` and `uniqueItems`; a
+       loader that refuses unknown keys or keywords must be widened first.
      - Its site template renders the new blocks and nested slots (with equality tests), the new alt props with their
-       fallbacks, the SEO precedence above, pictures in CSS only as escaped `url("…")`, and the three renamed ids.
+       fallbacks, the SEO precedence above, pictures in CSS only as escaped `url("…")`, the three renamed ids, and
+       Telegram links (the Footer's and the `telegram` action's, with the fallback above) with a Telegram icon, opening
+       in a new tab with `target="_blank" rel="noopener noreferrer"`.
      - Its operation check enforces the 0.3.0 keywords, the rich text length (UTF-16) and `marksOncePerRun`, the
-       required alts, the tree rules and the nested positions, so it never proposes what Project refuses.
+       required alts, the blocked hosts on `page.links.appliesTo`, the tree rules on the final tree and the nested
+       positions as specified, so it never proposes what Project refuses.
   2. **Project** pins 0.3.0 and checks the whole tree: slots and what they allow, `activeWhen`, depth, both budgets,
      `maxPerPage` at every depth, `topLevelOnly`, unique ids, anchors, `zones` empty, the rich text length and
-     `marksOncePerRun`, and the required alts. It enforces every keyword of `since` props (above). Its tests must
-     answer `400` to at least a Buttons link `javascript:alert(1)`, a Map url `https://evil.example/` and a rich text
-     href `data:text/html,x`, and must agree with every `patterns` string and every `richText.examples` tree.
+     `marksOncePerRun`, the required alts, and the blocked hosts on `page.links.appliesTo`. It enforces every keyword
+     of `since` props (above), `root.telegramUrl`'s pattern included. Its tests must answer `400` to at least a Buttons
+     link `javascript:alert(1)`, a Map url `https://evil.example/`, a rich text href `data:text/html,x`, a Buttons link
+     `https://wa.me/85512345678` and a rich text href `https://api.whatsapp.com/send?phone=85512345678`. They must
+     agree with every `patterns` string, every `page.links.examples` string and every `richText.examples` tree.
   3. **The editor and the templates:**
      - 3a. the 0.3.0 web editor is live (it sends `"0.3.0"` and pins the step-0 skills index);
      - 3b. then AI Codegen turns on its 0.3.0 page upgrades, and the templates' `componentCatalogVersion` (Project's

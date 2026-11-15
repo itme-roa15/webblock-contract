@@ -852,19 +852,30 @@ components:
         items:
           type: array
           description: |
-            The operations, applied in `order`. Catalog 0.3.0 additions (DRAFT, proposed by webui, waits for ai_codegen;
-            additive, so a 0.2.0 change set reads the same):
+            The operations, applied in `order`. Catalog 0.3.0 additions (DRAFT, proposed by webui; ai_codegen agrees,
+            with its changes of 15 November folded in; additive, so a 0.2.0 change set reads the same):
             - `componentId` names a block at any depth: block ids are unique across the whole tree (catalog
               `page.uniqueBlockIds`), slots included. The same holds for the "@" `BlockRef` ids.
             - ADD and MOVE carry a `ChangeItemPosition`. A position with only `index` is the top level, as before.
-            - An ADD may carry a `ref`, which a later item's `position.parentId` names within the same change set; the
-              server maps it to the block's generated id. A ref is never stored on the page.
-            - Every write keeps the catalog's rules for the target slot: `allow`/`disallow`, `activeWhen`,
-              `minItems`/`maxItems`, `page.maxDepth`, `topLevelOnly` and both budgets. A change set that breaks one is
-              refused whole.
+            - Each item is checked structurally as it is applied: the parent exists, `slot` is one of the parent's
+              catalog `slots`, and `index` is at most the target list's length.
+            - The catalog's rules are checked once, on the FINAL tree of the change set, not after each item:
+              `allow`/`disallow`, `activeWhen`, `minItems`/`maxItems`, `page.maxDepth`, `topLevelOnly`, both budgets,
+              unique ids and anchors (and every value rule). A change set that breaks one is refused whole. So a wrap
+              at the top-level limit works: ADD the Section, then MOVE the blocks into it.
+            - Slot props are never in an UPDATE's `propsPatch`: a container's children change only through ADD, MOVE
+              and REMOVE. On ADD, a slot key may only be `[]` (as the catalog's `addDefaults` have it).
+            - MOVE's `index` counts in the target list after the block has been taken out of its old place, as the
+              top-level MOVE does today. A MOVE into the moved block's own subtree is refused.
+            - An ADD without an `index` goes at the end of its list, as today.
+            - An UPDATE that turns off a Columns slot still holding blocks (a three-part `ratio` changed to a two-part
+              one with `column3` filled) fails the final-tree check (`activeWhen`): MOVE or REMOVE those blocks first.
             - REMOVE of a container removes its whole subtree.
-            - There is no WRAP: wrapping blocks in a Section or Columns is an ADD of the container followed by MOVEs
-              into its slot.
+            - There is no WRAP or UNWRAP: wrapping blocks in a Section or Columns is an ADD of the container followed by
+              MOVEs into its slot; unwrapping is MOVEs out of it, then a REMOVE of the container.
+            - Positions here always carry real block ids. The model may name a container it adds in the same change set
+              by a `ref` (README "Editor component catalog", 0.3.0's AI policy); AI Codegen generates the ADD's id when
+              the change is proposed and resolves every ref then, so a stored or returned change set never holds one.
           items:
             type: object
             properties:
@@ -874,12 +885,6 @@ components:
               componentType: { type: [string, "null"] }
               position:
                 oneOf: [{ $ref: "#/components/schemas/ChangeItemPosition" }, { type: "null" }]
-              ref:
-                type: [string, "null"]
-                pattern: "^[a-z][a-z0-9-]{0,39}$"
-                description: |
-                  Additive, catalog 0.3.0 (DRAFT). Only on ADD: a name for the block being added, unique within the
-                  change set, so later items can place blocks into it (`position.parentId: <ref>`) before it has an id.
               propsPatch: { type: [object, "null"] }
         createdAt: { type: string, format: date-time }
         decidedAt: { type: [string, "null"], format: date-time }
@@ -890,21 +895,25 @@ components:
         Additive: `{index}` alone is still a top-level position, as in catalog 0.1.0 and 0.2.0.
       type: object
       additionalProperties: false
-      required: [index]
       properties:
         parentId:
           type: [string, "null"]
           minLength: 1
           maxLength: 100
           description: |
-            The container's block id (catalog `page.blockId`), or the `ref` of a container added earlier in the same
-            change set. Null or absent: the top level.
+            The container's block id (catalog `page.blockId`): always a real id here, never a model-side ref. Null or
+            absent: the top level.
         slot:
           type: [string, "null"]
           maxLength: 40
           description: |
             A key of the parent's catalog `slots` (e.g. `content`, `column2`). Null or absent exactly when parentId is.
-        index: { type: integer, minimum: 0, description: "Position in the list, 0 first; at most its current length." }
+        index:
+          type: integer
+          minimum: 0
+          description: |
+            Position in the target list, 0 first, at most its length. For a MOVE it counts in the target list after the
+            block has been taken out of its old place. An ADD without it goes at the end of the list.
     ChangeSetPage:
       type: object
       additionalProperties: false
