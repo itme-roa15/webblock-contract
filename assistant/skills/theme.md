@@ -37,7 +37,7 @@ km_reviewed: false
 - A colour the owner names without a code: use the palette of that colour (red: cherry; pink: rose; purple: plum;
   blue: ocean, indigo or lavender; blue green: teal; green: sage or olive; orange: terracotta; yellow or gold:
   mustard; brown: coffee or bakery). An accentColor override wins over the palette, so set accentColor to null with
-  it (as the editor's Visual style does); keep backgroundColor and textColor.
+  it; keep backgroundColor and textColor.
 - Use the three colour overrides only for an exact colour the owner gives (a brand colour), each as #rrggbb, or null
   to go back to the palette.
 - Keep text readable (WCAG AA, 4.5:1): the text colour on the background, and white button text on the accent. When
