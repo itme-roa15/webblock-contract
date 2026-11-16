@@ -5679,6 +5679,56 @@
       "km_reviewed": false,
       "rules": "- A client skill: the chat answers it from this list (grouped Design, Content, Utility, with each summary) and never\n  sends it to AI Codegen.",
       "examples": []
+    },
+    {
+      "name": "new",
+      "title": "New chat",
+      "skill": "New chat",
+      "group": "utility",
+      "order": 7,
+      "command": "/new",
+      "aliases": [
+        "/clear"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [],
+      "mode": "client",
+      "maxTokens": null,
+      "summary": "Starts a new chat. Earlier chats stay in /resume; nothing is sent.",
+      "summary_km": "ចាប់ផ្តើមការជជែកថ្មី។ ការជជែកមុនៗនៅតែមានក្នុង /resume ហើយមិនផ្ញើអ្វីទៅណាទេ។",
+      "example": "/new",
+      "example_km": "/new",
+      "km_reviewed": false,
+      "rules": "- A client skill: the chat answers it itself and never sends it to AI Codegen. It closes the chat on screen and opens\n  an empty one; the next message starts a new conversation, which carries none of the earlier messages to the model.\n- Nothing on the page changes, and earlier chats are kept: /resume opens them again.",
+      "examples": []
+    },
+    {
+      "name": "resume",
+      "title": "Resume a chat",
+      "skill": "Chat history",
+      "group": "utility",
+      "order": 8,
+      "command": "/resume",
+      "aliases": [
+        "/history"
+      ],
+      "args": null,
+      "blocks": [
+        "*"
+      ],
+      "triggers": [],
+      "mode": "client",
+      "maxTokens": null,
+      "summary": "Lists this website's earlier chats, newest first, and opens the one you pick.",
+      "summary_km": "បង្ហាញការជជែកមុនៗរបស់គេហទំព័រនេះ ថ្មីបំផុតមុន ហើយបើកមួយដែលអ្នកជ្រើស។",
+      "example": "/resume",
+      "example_km": "/resume",
+      "km_reviewed": false,
+      "rules": "- A client skill: the chat answers it itself from this website's conversations and never sends it to AI Codegen.\n- Each chat shows its first message as its title, its date and how many messages it has. Picking one shows its\n  messages and continues it: the next message goes to that conversation.",
+      "examples": []
     }
   ]
 }
