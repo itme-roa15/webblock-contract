@@ -369,12 +369,21 @@ paths:
     get:
       tags: [admin]
       operationId: listAdminSubscriptionPayments
-      summary: The payments of one subscription, newest first
-      description: Payments that have ended; one still waiting for the owner is not listed.
+      summary: The payments of one subscription, newest first unless sorted
+      description: |
+        Payments that have ended; one still waiting for the owner is not listed. `amount` is a JSON string (e.g.
+        "12.50"), like every amount in this API.
       x-replaces: "GET /api/payment/v1/ui/admin/subscriptions/{id}/payments"
       parameters:
         - $ref: '#/components/parameters/page'
         - $ref: '#/components/parameters/size'
+        - name: sort
+          in: query
+          description: |
+            `createdAt`, `amount` or `status`, then `,asc` or `,desc`. Default `createdAt,desc`. Equal values keep a
+            stable order (by id). Another field or direction is 400 `invalid-sort`. The v1 route it replaces takes the
+            same parameter.
+          schema: { type: string, example: 'amount,desc' }
       responses:
         '200':
           description: One page of payments.
