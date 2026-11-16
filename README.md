@@ -766,7 +766,7 @@ folder), never edited by hand.
   - `args`: `null` or `{"name", "hint", "hint_km", "required"}`, e.g. `/translate <language>`;
   - `blocks` (block types it suits, `*` for any) and `triggers` (English and Khmer words for the router's fallback);
   - `mode`: `change` (proposes operations), `reply` (answers only, no operations) or `client` (answered by the chat
-    itself, never sent: `/help`); `maxTokens` 300–1000 (null for client): the prompt budget for the skill's rules
+    itself, never sent: `/help`); `maxTokens` 300–2000 (null for client): the prompt budget for the skill's rules
     and the worked examples that fit;
   - `summary` (at most 80 characters) and `example`, with `summary_km` and `example_km` in Khmer, and
     `km_reviewed`: false until a person has checked the Khmer.

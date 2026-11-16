@@ -452,8 +452,8 @@ for (const name of files) {
   if (!MODES.includes(front.mode)) fail(file, `mode is one of ${MODES.join(", ")}`);
   if ([...(front.summary ?? "")].length > 80) fail(file, "summary is longer than 80 characters");
   if ([...(front.summary_km ?? "")].length > 120) fail(file, "summary_km is longer than 120 characters");
-  if (front.mode === "client" ? front.maxTokens !== null : !(front.maxTokens >= 300 && front.maxTokens <= 1000)) {
-    fail(file, "maxTokens is 300–1000 (null for a client skill)");
+  if (front.mode === "client" ? front.maxTokens !== null : !(front.maxTokens >= 300 && front.maxTokens <= 2000)) {
+    fail(file, "maxTokens is 300–2000 (null for a client skill)");
   }
   if (front.args && !(typeof front.args.name === "string" && typeof front.args.hint === "string" && typeof front.args.required === "boolean")) {
     fail(file, 'args is null or {"name", "hint", "hint_km", "required"}');
