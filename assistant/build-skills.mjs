@@ -4,22 +4,26 @@
 //
 //   node assistant/build-skills.mjs           check, then write the index
 //   node assistant/build-skills.mjs --check   check, and compare with the index on disk; exit 1 if different
+//   ... --skills <dir>                        read the skill files from <dir> instead of assistant/skills (drafts,
+//                                             checked before they are installed); the index is the same either way
 //
 // Frontmatter is YAML restricted so every value is one line of JSON (`key: "text"`, `key: ["a", "b"]`,
 // `key: {"name": "language"}`), which any YAML reader and this script both read the same way.
 //
-// A released index never changes: skills-0.1.0.json (catalog 0.2.0) stays as it was released, and this script now
-// builds skills-0.2.0.json against catalog 0.3.0, whose blocks nest (README "Editor component catalog", 0.3.0).
+// A released index never changes: skills-0.1.0.json (catalog 0.2.0) and skills-0.2.0.json (catalog 0.3.0) stay as
+// they were released, and this script now builds skills-0.3.0.json against catalog 0.4.0, whose root palette has ten
+// more values (README "Editor component catalog", 0.4.0).
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const SKILLS_VERSION = "0.2.0";
+export const SKILLS_VERSION = "0.3.0";
 /** The editor catalog the worked examples are checked against. */
-const CATALOG = "puck/catalog-0.3.0.json";
+const CATALOG = "puck/catalog-0.4.0.json";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const DIR = path.join(ROOT, "assistant", "skills");
+const SKILLS_ARG = process.argv.indexOf("--skills");
+const DIR = SKILLS_ARG === -1 ? path.join(ROOT, "assistant", "skills") : path.resolve(process.argv[SKILLS_ARG + 1] ?? "");
 const OUT = path.join(ROOT, "assistant", `skills-${SKILLS_VERSION}.json`);
 const GROUPS = ["design", "content", "utility"];
 /**
@@ -448,8 +452,8 @@ for (const name of files) {
   if (!MODES.includes(front.mode)) fail(file, `mode is one of ${MODES.join(", ")}`);
   if ([...(front.summary ?? "")].length > 80) fail(file, "summary is longer than 80 characters");
   if ([...(front.summary_km ?? "")].length > 120) fail(file, "summary_km is longer than 120 characters");
-  if (front.mode === "client" ? front.maxTokens !== null : !(front.maxTokens >= 300 && front.maxTokens <= 800)) {
-    fail(file, "maxTokens is 300–800 (null for a client skill)");
+  if (front.mode === "client" ? front.maxTokens !== null : !(front.maxTokens >= 300 && front.maxTokens <= 2000)) {
+    fail(file, "maxTokens is 300–2000 (null for a client skill)");
   }
   if (front.args && !(typeof front.args.name === "string" && typeof front.args.hint === "string" && typeof front.args.required === "boolean")) {
     fail(file, 'args is null or {"name", "hint", "hint_km", "required"}');
