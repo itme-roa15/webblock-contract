@@ -188,7 +188,8 @@ gains `topLevelLimit`, `maxDepth`, `uniqueBlockIds`, `anchors` and a `notes` lin
 describe the rich text tree (`richText`, with its JSON Schema) and where every picture's alt text comes from
 (`images`). The 0.3.0 file also states which rules are strict (`page.strictSince`, `since` on every 0.3.0 block,
 prop and slot), the block id rule (`page.blockId`), the document's shape (`page.document`) and conformance strings for
-its patterns (`patterns`). `version` is the `componentCatalogVersion` Project stores with each page.
+its patterns (`patterns`). 0.4.0 only widens `root.palette` (ten more colour palettes). `version` is the
+`componentCatalogVersion` Project stores with each page.
 
 - OWNED BY webui. It is generated from the editor's own save check by `pnpm puck:catalog --contracts <checkout>` in
   webblock-web-ui (src/features/editor/catalog.ts), never edited by hand. `--check` says whether a file still matches.
@@ -207,6 +208,7 @@ its patterns (`patterns`). `version` is the `componentCatalogVersion` Project st
 | 0.1.0 | Hero, Text, ProductCards, AllProducts, About, VisitUs, Footer | 12 blocks a page, the Footer last |
 | 0.2.0 | 0.1.0's seven, unchanged, plus Testimonials, FAQ, Gallery, CallToAction, Services, Stats (content only: no products, no new data, images through the existing media upload) | 16 blocks a page, the Footer last |
 | 0.3.0 (DRAFT for review) | 0.2.0's thirteen, unchanged except new optional props (alts, Products to show), the `telegram` CtaAction value and no WhatsApp in the root's social links, plus the containers Section, Columns, Grid, Card and the design blocks Heading, RichText, Image, Buttons, Icon, Spacer, Divider, ImageBanner, LogoStrip, Quote, Video, Map; root gains optional `seoTitle`, `seoDescription` | 40 blocks a page at every depth, 16 at the top level, depth 3, Hero and Footer top level only, the Footer last, live-data blocks (ProductCards, AllProducts, About, VisitUs) in no slot, block ids unique across the tree, `zones` empty; 0.3.0 blocks and props strict; no WhatsApp links (`page.links.blockedHosts`); the `telegram` CtaAction and root `telegramUrl`; ProductCards and AllProducts choose which catalog products they show (`source`, `category`, `productIds`, AllProducts `defaultCategory`), and Project checks the ids |
+| 0.4.0 | 0.3.0's twenty-nine, byte for byte; the root's `palette` enum gains ten values after `sage`: `terracotta`, `ocean`, `teal`, `indigo`, `plum`, `rose`, `cherry`, `mustard`, `olive`, `coffee` | 0.3.0's, unchanged |
 
 - **A newer 0.x only adds.** Every block, prop and value rule of the older version is the same in the newer one,
   and its page rules are the same or looser. So every page valid under 0.1.0 is valid under 0.2.0. (0.3.0 names its
@@ -693,6 +695,55 @@ Owner Portal's catalog to fill that choice.
      0.3.0" above. Here: field `content[i].<Type>.productIds[j]`, code `VALUE_INVALID` (Project's code for a value that
      names nothing of this website, as on a product's `imageUrl`), the same for an unknown id and another website's
      product.
+
+#### 0.4.0: more colour palettes
+
+The owner's request of 16 November 2026: ten more palettes for the whole site ("Layout & Design · Visual style").
+
+- **Additive, one change.** `root.palette`'s enum gains ten values at its end, after `sage`. Nothing else changes:
+  the file is 0.3.0's byte for byte but `version` and that enum (the web UI's tests compare it with this repository's
+  0.3.0 file). `palette` is a 0.1.0 prop, so it carries no `since` and `page.strictSince` stays `"0.3.0"`, as when
+  0.3.0 widened the `CtaAction` enum. No rule is stricter: every 0.3.0 page is a valid 0.4.0 page.
+- **How a page moves to 0.4.0:** exactly as for 0.3.0 ("How a page moves to 0.3.0"): on its next save from a 0.4.0
+  client, with the optional `componentCatalogVersion` on both page saves; forward only; a restore keeps the stored
+  version; a page never saved again stays at its version. The 0.4.0 editor sends `"0.4.0"` and moves a 0.3.0 page up
+  unchanged. A 0.3.0 editor opens a 0.4.0 page read-only and asks the owner to reload (whatever its palette).
+- **The palettes** (the source of truth for every site renderer: the web editor's canvas and AI Codegen's site
+  template). A palette sets the accent only, so each template keeps its own backgrounds and text; `accentColor`,
+  `backgroundColor` and `textColor`, when set, still win over it. `original` keeps the template's own colours. Text on
+  the accent (buttons) is the accent foreground; the soft accent is the light tint behind accent-coloured text
+  (badges, soft bands). White on every accent is at least WCAG AA (4.5:1), and so is the accent on its soft tint.
+
+  | Key | Label | Accent | Accent foreground | Soft accent | Since |
+  |---|---|---|---|---|---|
+  | `original` | Original | the template's | the template's | the template's | 0.1.0 |
+  | `lavender` | Lavender | `#2a5fbd` | `#ffffff` | `#eef4fd` | 0.1.0 |
+  | `bakery` | Bakery | `#b4601e` | `#ffffff` | `#fbf5e8` | 0.1.0 |
+  | `sage` | Sage | `#3e6b45` | `#ffffff` | `#eef1ea` | 0.1.0 |
+  | `terracotta` | Terracotta | `#b5462b` | `#ffffff` | `#fbece6` | 0.4.0 |
+  | `ocean` | Ocean | `#14718a` | `#ffffff` | `#e7f3f6` | 0.4.0 |
+  | `teal` | Teal | `#0f766e` | `#ffffff` | `#e6f4f2` | 0.4.0 |
+  | `indigo` | Indigo | `#3b44a8` | `#ffffff` | `#ecedf8` | 0.4.0 |
+  | `plum` | Plum | `#6d3fa3` | `#ffffff` | `#f2ecf8` | 0.4.0 |
+  | `rose` | Rose | `#b23a63` | `#ffffff` | `#faeaf0` | 0.4.0 |
+  | `cherry` | Cherry | `#b4232c` | `#ffffff` | `#fbe9ea` | 0.4.0 |
+  | `mustard` | Mustard | `#7a5c00` | `#ffffff` | `#f8f2df` | 0.4.0 |
+  | `olive` | Olive | `#5b6b1f` | `#ffffff` | `#f1f3e4` | 0.4.0 |
+  | `coffee` | Coffee | `#6b4a2b` | `#ffffff` | `#f4eee7` | 0.4.0 |
+
+  White on the ten new accents is 5.4:1 (terracotta) to 8.2:1 (indigo); the accent on its soft tint at least 4.7:1.
+  The first four are the web UI's `[data-site-palette]` colours as released.
+- **Rollout order** (nothing sends `"0.4.0"` before its readers take it):
+  0. webui builds a skills index 0.3.0 here, with `CATALOG = puck/catalog-0.4.0.json` (`skills-0.2.0.json` stays as
+     released). `theme.md` learns the ten palettes, what each looks like and good pairings with a font and a button
+     shape.
+  1. **AI Codegen.** Its catalog loader takes catalog 0.4.0 and skills index 0.3.0; its site template's palette CSS
+     has the ten, with the colours above; /theme proposes them (its operation check reads the enum from the catalog).
+  2. **Project** pins 0.4.0 (the palette enum check).
+  3. **The editor and the templates:**
+     - 3a. the 0.4.0 web editor is live: it sends `"0.4.0"`, pins the step-0 skills index, and its canvas and Visual
+       style picker show the ten palettes;
+     - 3b. then the templates' `componentCatalogVersion` (Project's templates.json) moves to 0.4.0.
 
 ## WebBlock AI skills
 
