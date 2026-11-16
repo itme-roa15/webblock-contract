@@ -712,7 +712,8 @@ The owner's request of 16 November 2026: ten more palettes for the whole site ("
   template). A palette sets the accent only, so each template keeps its own backgrounds and text; `accentColor`,
   `backgroundColor` and `textColor`, when set, still win over it. `original` keeps the template's own colours. Text on
   the accent (buttons) is the accent foreground; the soft accent is the light tint behind accent-coloured text
-  (badges, soft bands). White on every accent is at least WCAG AA (4.5:1), and so is the accent on its soft tint.
+  (badges, soft bands). White on every accent is at least WCAG AA (4.5:1). The accent on its soft tint is too, for every palette but
+  bakery (4.2:1 as released in 0.1.0: AA for large text only).
 
   | Key | Label | Accent | Accent foreground | Soft accent | Since |
   |---|---|---|---|---|---|
@@ -739,18 +740,21 @@ The owner's request of 16 November 2026: ten more palettes for the whole site ("
      shape.
   1. **AI Codegen.** Its catalog loader takes catalog 0.4.0 and skills index 0.3.0; its site template's palette CSS
      has the ten, with the colours above; /theme proposes them (its operation check reads the enum from the catalog).
+     It edits each page at the page's own version: `EDITOR_CATALOG_UPGRADE_UP_TO` stays at 0.3.0 until step 3b.
   2. **Project** pins 0.4.0 (the palette enum check).
   3. **The editor and the templates:**
      - 3a. the 0.4.0 web editor is live: it sends `"0.4.0"`, pins the step-0 skills index, and its canvas and Visual
        style picker show the ten palettes;
-     - 3b. then the templates' `componentCatalogVersion` (Project's templates.json) moves to 0.4.0.
+     - 3b. then AI Codegen raises `EDITOR_CATALOG_UPGRADE_UP_TO` to 0.4.0, and the templates'
+       `componentCatalogVersion` (Project's templates.json) moves to 0.4.0.
 
 ## WebBlock AI skills
 
 `assistant/skills/<name>.md` are the WebBlock AI chat's skills, one file per "/" command: what the command does for
 the owner (in English and Khmer), when the router picks it, its rules, and worked examples. `assistant/rules.md` holds
 the rules every skill follows. `assistant/skills-<version>.json` is the index built from them by
-`node assistant/build-skills.mjs` (`--check` compares), never edited by hand.
+`node assistant/build-skills.mjs` (`--check` compares; `--skills <dir>` checks draft skill files from another
+folder), never edited by hand.
 
 - OWNED BY webui (the files and the index), reviewed by the AWS config session. Readers: ai_codegen (the router,
   the prompts, the evals) and the web UI (the "/" menu, `/help`, the chat's empty state, the reply's skill tag, and
@@ -812,7 +816,9 @@ the rules every skill follows. `assistant/skills-<version>.json` is the index bu
   - `skills-0.2.0.json`: catalog 0.3.0 (rollout step 0): page title and description (/seo), alt text and heading
     levels (/a11y), containers and the new addable blocks (/add, /design, /ideas, /tidy), rich text placeholders,
     the `telegram` action (/cta, /check), a WhatsApp Facebook or Instagram link (/check) and Products to show
-    (/products, /check). The build writes only this one.
+    (/products, /check), kept as released.
+  - `skills-0.3.0.json`: catalog 0.4.0 (rollout step 0 of 0.4.0): /theme knows the ten new palettes, what each
+    looks like and good pairings with a font and a button shape. The build writes only this one.
 
 ## How to ask for a change
 
