@@ -10,7 +10,7 @@ args: {"name": "language", "hint": "<language>", "hint_km": "<ភាសា>", "r
 blocks: ["*"]
 triggers: ["translate", "in khmer", "in english", "in korean", "khmer version", "english version", "korean version", "បកប្រែ", "ជាភាសាខ្មែរ", "ជាភាសាអង់គ្លេស", "ជាភាសាកូរ៉េ", "한국어"]
 mode: "change"
-maxTokens: 800
+maxTokens: 1000
 summary: "Translates your text into another language. Names and prices stay the same."
 summary_km: "បកប្រែអត្ថបទរបស់អ្នកទៅភាសាផ្សេង។ ឈ្មោះ និងតម្លៃនៅដដែល។"
 example: "/translate km with @Hero"

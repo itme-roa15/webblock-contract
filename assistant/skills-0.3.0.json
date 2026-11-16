@@ -3132,7 +3132,7 @@
         "한국어"
       ],
       "mode": "change",
-      "maxTokens": 800,
+      "maxTokens": 1000,
       "summary": "Translates your text into another language. Names and prices stay the same.",
       "summary_km": "បកប្រែអត្ថបទរបស់អ្នកទៅភាសាផ្សេង។ ឈ្មោះ និងតម្លៃនៅដដែល។",
       "example": "/translate km with @Hero",
