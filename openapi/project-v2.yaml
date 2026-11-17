@@ -1866,7 +1866,9 @@ components:
         (BUILD 50 % / 49 s, PRODUCTS 0 % / none, PACKAGE 25 % / 80 s, LAUNCH 15 % / 46 s, SSL 0 % / none, LIVE 10 % /
         32 s; 207 s in all). The percent is the shares of the DONE steps plus, for each step that started and is not
         done, its share times min(0.9, seconds since its start / expectedSeconds) while RUNNING, and times 0.9 once
-        FAILED. 100 only when SUCCEEDED, else at most 99. Along the newest deployment, as polled, it does not go down,
+        FAILED. While the code generates, BUILD fills from AI Codegen's run progress instead (round 2, 18 Nov
+        2026: its stage, the files once GLM's answer is complete, the build phases) when AI Codegen sends it, else
+        from the time; never below what it showed. 100 only when SUCCEEDED, else at most 99. Along the newest deployment, as polled, it does not go down,
         except while Provisioning does not answer: then the stored state is shown (50 until the release outcome is
         known, or that outcome). Older rows of the list always show the stored state. Rare: the owner's DEPLOY of a
         failed release within a step's usual time reads by time again, below the FAILED read.
