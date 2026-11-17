@@ -1861,6 +1861,15 @@ components:
         The UI's Deployment. `id` is Project's generation request id. Steps, in order: BUILD (code generation),
         PRODUCTS, PACKAGE (build), LAUNCH (deploy), SSL, LIVE (promoted). `stage` adds the owner's one-word stage
         (COMMON 3a): generating, building, deploying, live, failed.
+
+        `percent` (B2, 17 Nov 2026) is weighted: each step has a share of the bar and a usual time, measured on AWS
+        (BUILD 50 % / 49 s, PRODUCTS 0 % / none, PACKAGE 25 % / 80 s, LAUNCH 15 % / 46 s, SSL 0 % / none, LIVE 10 % /
+        32 s; 207 s in all). The percent is the shares of the DONE steps plus, for each step that started and is not
+        done, its share times min(0.9, seconds since its start / expectedSeconds) while RUNNING, and times 0.9 once
+        FAILED. 100 only when SUCCEEDED, else at most 99. Along the newest deployment, as polled, it does not go down,
+        except while Provisioning does not answer: then the stored state is shown (50 until the release outcome is
+        known, or that outcome). Older rows of the list always show the stored state. Rare: the owner's DEPLOY of a
+        failed release within a step's usual time reads by time again, below the FAILED read.
       required: [id, websiteId, kind, status, percent, secondsLeft, domain, steps, startedAt, finishedAt]
       properties:
         id: {type: string, format: uuid}
@@ -1875,11 +1884,24 @@ components:
           type: array
           items:
             type: object
-            required: [key, status, seconds]
+            required: [key, status, seconds, startedAt, expectedSeconds]
             properties:
               key: {type: string, enum: [BUILD, PRODUCTS, PACKAGE, LAUNCH, SSL, LIVE]}
               status: {type: string, enum: [DONE, IN_PROGRESS, UP_NEXT, WAITING, FAILED, NOT_STARTED]}
               seconds: {type: [integer, 'null']}
+              startedAt:
+                type: [string, 'null']
+                format: date-time
+                description: |
+                  B2: when the step began (UTC), null until it starts or when unknown. BUILD: the deploy's start, once
+                  the request left captured; PRODUCTS: the same, once DONE. PACKAGE: the release build's first attempt. LAUNCH:
+                  the earlier of ACCESS_SETUP and CANDIDATE. LIVE: PROMOTION's first attempt. SSL: LIVE's start once
+                  SSL is DONE. A retried step keeps its first attempt's start.
+              expectedSeconds:
+                type: [integer, 'null']
+                description: |
+                  B2: the step's usual time in seconds (the medians in the Deployment description), null for a step
+                  without a time of its own (PRODUCTS, SSL).
         startedAt: {type: string, format: date-time}
         finishedAt: {type: [string, 'null'], format: date-time}
     DeploymentPage:
