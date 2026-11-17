@@ -400,12 +400,18 @@ components:
             logo at website creation is the first library file and is stored without asking.
     ClientEntitlement:
       type: object
-      required: [planCode, websitesUsed]
+      required: [planCode, websitesUsed, draftsUsed]
       properties:
         planCode: { type: string, description: '`trial`, the plan code, or "" without a plan.' }
         trialEndsAt: { type: string, format: date-time }
-        websitesUsed: { type: integer }
-        websitesLimit: { type: integer, description: Absent = unlimited. }
+        websitesUsed: { type: integer, description: 'Live (deployed, not deleted) websites (owner, 17 Nov).' }
+        websitesLimit:
+          type: integer
+          description: How many websites the plan may deploy (the trial's deploy limit; 0 without a plan). Absent = unlimited.
+        draftsUsed: { type: integer, description: 'Every website of the account, deployed or not.' }
+        draftsLimit:
+          type: integer
+          description: The draft cap (projects_created; trial 20, paid plans 50). Absent = unlimited.
         attemptsUsed: { type: integer }
         attemptsLimit: { type: integer }
         periodEnd: { type: string, format: date-time }
