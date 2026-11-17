@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://webblock.invalid/contracts/events/payment/payment_needs_refund.v1.schema.json",
   "title": "Payment: payment needs refund v1",
-  "description": "OWNED BY payment. Agreed with notification. Owner decision Payment 8 (10 November 2026): money reached a bill Payment can't apply, so it is recorded, never kept quietly, the admins are alerted (Notification, admin bell) and support refunds the payer by hand. BILL_VOIDED: paid on a voided QR (the bill stays VOID); SUBSCRIPTION_ENDED: a bill paid after its subscription ended; PLAN_CHANGED: an upgrade's difference paid when the plan was no longer active. Sent on payment.events with routing key payment_needs_refund.v1, persistent, application/json, AMQP type = message_type, through Payment's outbox after the database commit. One event per payment received: event_key is needs-refund:<provider>:<provider_reference>, so a redelivery dedupes. No payer name, phone or account number: support reads those in Payment or the provider.",
+  "description": "OWNED BY payment. Agreed with notification. Owner decision Payment 8 (10 November 2026): money reached a bill Payment can't apply, so it is recorded, never kept quietly, the admins are alerted (Notification, admin bell) and support refunds the payer by hand. BILL_VOIDED: paid on a voided QR (the bill stays VOID); SUBSCRIPTION_ENDED: a bill paid after its subscription ended; PLAN_CHANGED: an upgrade's difference paid when the plan was no longer active. Sent on payment.events with routing key payment_needs_refund.v1, persistent, application/json, AMQP type = message_type, through Payment's outbox after the database commit. One event per payment received: event_key is needs-refund:<provider>:<provider_reference>, so a redelivery dedupes. No payer name, phone or account number: support reads those in Payment or the provider. project_id is optional: absent when the subscription names no website (plans belong to the account, Payment a14a4cb, 17 Nov 2026).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -11,7 +11,6 @@
     "message_type",
     "occurred_at",
     "correlation_id",
-    "project_id",
     "event_key",
     "reason",
     "bill_id",

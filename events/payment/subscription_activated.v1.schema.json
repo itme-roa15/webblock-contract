@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://webblock.invalid/contracts/events/payment/subscription_activated.v1.schema.json",
   "title": "Payment: subscription activated v1",
-  "description": "OWNED BY payment. Owner: payment. Sent on payment.events with routing key subscription_activated.v1 (message_type without the 'payment.' prefix), persistent, application/json, AMQP type = message_type, through Payment's outbox after the database commit (at least once: event_key is stable, so a consumer drops a repeat). A paid month started or was renewed: the subscription is ACTIVE until current_period_end. Notification tells the admins.",
+  "description": "OWNED BY payment. Owner: payment. Sent on payment.events with routing key subscription_activated.v1 (message_type without the 'payment.' prefix), persistent, application/json, AMQP type = message_type, through Payment's outbox after the database commit (at least once: event_key is stable, so a consumer drops a repeat). A paid month started or was renewed: the subscription is ACTIVE until current_period_end. Notification tells the admins. project_id is optional: absent when the subscription names no website (plans belong to the account, Payment a14a4cb, 17 Nov 2026).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -11,7 +11,6 @@
     "message_type",
     "occurred_at",
     "correlation_id",
-    "project_id",
     "event_key",
     "subscription_id",
     "client_user_id",

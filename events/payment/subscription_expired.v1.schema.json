@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://webblock.invalid/contracts/events/payment/subscription_expired.v1.schema.json",
   "title": "Payment: subscription expired v1",
-  "description": "OWNED BY payment. Owner: payment. Sent on payment.events with routing key subscription_expired.v1 (message_type without the 'payment.' prefix), persistent, application/json, AMQP type = message_type, through Payment's outbox after the database commit (at least once: event_key is stable, so a consumer drops a repeat). Access has ended (the grace time is over, a canceled month ran out, or the owner's account was deleted); access_until is null.",
+  "description": "OWNED BY payment. Owner: payment. Sent on payment.events with routing key subscription_expired.v1 (message_type without the 'payment.' prefix), persistent, application/json, AMQP type = message_type, through Payment's outbox after the database commit (at least once: event_key is stable, so a consumer drops a repeat). Access has ended (the grace time is over, a canceled month ran out, or the owner's account was deleted); access_until is null. project_id is optional: absent when the subscription names no website (plans belong to the account, Payment a14a4cb, 17 Nov 2026).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -11,7 +11,6 @@
     "message_type",
     "occurred_at",
     "correlation_id",
-    "project_id",
     "event_key",
     "subscription_id",
     "client_user_id",
