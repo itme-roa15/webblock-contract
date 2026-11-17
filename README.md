@@ -188,7 +188,8 @@ gains `topLevelLimit`, `maxDepth`, `uniqueBlockIds`, `anchors` and a `notes` lin
 describe the rich text tree (`richText`, with its JSON Schema) and where every picture's alt text comes from
 (`images`). The 0.3.0 file also states which rules are strict (`page.strictSince`, `since` on every 0.3.0 block,
 prop and slot), the block id rule (`page.blockId`), the document's shape (`page.document`) and conformance strings for
-its patterns (`patterns`). 0.4.0 only widens `root.palette` (ten more colour palettes). `version` is the
+its patterns (`patterns`). 0.4.0 only widens `root.palette` (ten more colour palettes); 0.5.0 only adds Visit us's
+optional `mapUrl` (the owner's own Google Maps embed). `version` is the
 `componentCatalogVersion` Project stores with each page.
 
 - OWNED BY webui. It is generated from the editor's own save check by `pnpm puck:catalog --contracts <checkout>` in
@@ -209,6 +210,7 @@ its patterns (`patterns`). 0.4.0 only widens `root.palette` (ten more colour pal
 | 0.2.0 | 0.1.0's seven, unchanged, plus Testimonials, FAQ, Gallery, CallToAction, Services, Stats (content only: no products, no new data, images through the existing media upload) | 16 blocks a page, the Footer last |
 | 0.3.0 (DRAFT for review) | 0.2.0's thirteen, unchanged except new optional props (alts, Products to show), the `telegram` CtaAction value and no WhatsApp in the root's social links, plus the containers Section, Columns, Grid, Card and the design blocks Heading, RichText, Image, Buttons, Icon, Spacer, Divider, ImageBanner, LogoStrip, Quote, Video, Map; root gains optional `seoTitle`, `seoDescription` | 40 blocks a page at every depth, 16 at the top level, depth 3, Hero and Footer top level only, the Footer last, live-data blocks (ProductCards, AllProducts, About, VisitUs) in no slot, block ids unique across the tree, `zones` empty; 0.3.0 blocks and props strict; no WhatsApp links (`page.links.blockedHosts`); the `telegram` CtaAction and root `telegramUrl`; ProductCards and AllProducts choose which catalog products they show (`source`, `category`, `productIds`, AllProducts `defaultCategory`), and Project checks the ids |
 | 0.4.0 | 0.3.0's twenty-nine, byte for byte; the root's `palette` enum gains ten values after `sage`: `terracotta`, `ocean`, `teal`, `indigo`, `plum`, `rose`, `cherry`, `mustard`, `olive`, `coffee` | 0.3.0's, unchanged |
+| 0.5.0 | 0.4.0's twenty-nine; VisitUs gains the optional `mapUrl` (a Google Maps "Embed a map" address, or `""`; `ai: none`, `flag: owner`, `since: 0.5.0`), and the `map` pattern's `usedBy` lists it | 0.4.0's, unchanged |
 
 - **A newer 0.x only adds.** Every block, prop and value rule of the older version is the same in the newer one,
   and its page rules are the same or looser. So every page valid under 0.1.0 is valid under 0.2.0. (0.3.0 names its
@@ -748,6 +750,26 @@ The owner's request of 16 November 2026: ten more palettes for the whole site ("
      - 3b. then AI Codegen raises `EDITOR_CATALOG_UPGRADE_UP_TO` to 0.4.0, and the templates'
        `componentCatalogVersion` (Project's templates.json) moves to 0.4.0.
 
+#### 0.5.0: the owner's own map in Visit us
+
+The owner's request of 17 November 2026: Visit us shows the business's own Google Maps place, not only its address.
+
+- **Additive, one change.** `VisitUs.mapUrl` is new and optional: `""` or a Google Maps "Embed a map" address
+  (`https://www.google.com/maps/embed?pb=…`, at most 2000 characters, the `map` pattern's shape, whose `usedBy` now
+  lists it next to `Map.url`). Google My Maps embeds (`/maps/d/embed`) don't save. `ai: none` and `flag: owner`: the
+  owner sets it in the editor, and WebBlock AI never writes it. Everything else is 0.4.0's: `page.strictSince` stays
+  `"0.3.0"`, and every 0.4.0 page is a valid 0.5.0 page.
+- **How the site shows it:** Visit us's map shows the `mapUrl` place when it is set; empty or missing, it shows a
+  Google map of the root's address.
+- **How a page moves to 0.5.0:** as for 0.4.0 (on its next save from a 0.5.0 client, forward only). A 0.4.0 editor
+  opens a 0.5.0 page read-only and asks the owner to reload.
+- **Rollout order** (backend first: nothing sends `"0.5.0"` before its readers take it):
+  1. **AI Codegen** pins 0.5.0 (the assistant never sets `mapUrl`), and its site renderer, re-vendored from the web
+     UI, reads `mapUrl`.
+  2. **Project** pins 0.5.0 (the page check on save).
+  3. **The editor and the templates:** the 0.5.0 web editor goes live and sends `"0.5.0"`; then AI Codegen raises
+     `EDITOR_CATALOG_UPGRADE_UP_TO` to 0.5.0, and the templates' `componentCatalogVersion` moves to 0.5.0.
+
 ## WebBlock AI skills
 
 `assistant/skills/<name>.md` are the WebBlock AI chat's skills, one file per "/" command: what the command does for
@@ -819,7 +841,8 @@ folder), never edited by hand.
     the `telegram` action (/cta, /check), a WhatsApp Facebook or Instagram link (/check) and Products to show
     (/products, /check), kept as released.
   - `skills-0.3.0.json`: catalog 0.4.0 (rollout step 0 of 0.4.0): /theme knows the ten new palettes, what each
-    looks like and good pairings with a font and a button shape. The build writes only this one.
+    looks like and good pairings with a font and a button shape. The build writes only this one. It also serves
+    catalog 0.5.0 pages (0.5.0 adds no prop the assistant may write).
 
 ## How to ask for a change
 
