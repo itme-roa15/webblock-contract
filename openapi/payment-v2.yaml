@@ -246,7 +246,16 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: |
+            `confirmation-pending` (code CONFIRMATION_PENDING, owner 18 Nov): a bill of this subscription may still turn
+            out paid (PENDING with confirmation delayed, or past its expiry before its final check), so no new code is
+            made; it is allowed again once that bill is PAID or EXPIRED. The UI says "We're still confirming your last
+            payment with the bank. If you already paid, don't pay again; it will be confirmed shortly." Other conflicts
+            as before (e.g. `open-bill-exists`, `idempotency-conflict`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '422': { $ref: '#/components/responses/Unprocessable' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
