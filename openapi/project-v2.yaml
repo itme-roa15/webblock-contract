@@ -1104,6 +1104,12 @@ paths:
         deploy without the check. A replay of a known `Idempotency-Key` answers its deployment without asking again.
         The v1 deploy routes make the same check and answer these codes with `422`. Agreed with payment (agent
         76e8d818); Payment's generation admission refuses with `DEPLOY_LIMIT_REACHED` too, as a backstop.
+
+        Plan limit (owner decision of 18 November 2026: after a downgrade the websites online the longest stay up):
+        when Payment's entitlement says `planLimited: true` (with publish `LIMIT_REACHED`, or hosting `ENDED`), or hosting
+        `ENDED` with reason `PLAN_LIMIT` or `PLAN_LIMIT_REACHED`, the deploy is `402` with code `PLAN_LIMIT_REACHED`, type
+        `urn:webblock:problem:plan-limit-reached`, title "Your plan's online website limit is reached." (v1: `422`). An
+        older Payment that sends no `planLimited` keeps `DEPLOY_LIMIT_REACHED`.
       x-phase: 2
       x-replaces: ["POST /api/v1/ui/projects/{projectId}/deployments", "POST /api/v1/ui/projects/{projectId}/page/publish", "POST /api/v1/projects/{projectId}/generation-requests"]
       parameters:
@@ -1920,7 +1926,11 @@ components:
       enum: [FREE_TRIAL, PLUS, PRO, ULTRA]
     SiteStatus:
       type: string
-      enum: [ONLINE, NOT_DEPLOYED, OFFLINE_BILLING, SUSPENDED]
+      description: |
+        Known values: ONLINE, NOT_DEPLOYED, OFFLINE_BILLING, OFFLINE_PLAN_LIMIT (18 November 2026: offline only for the
+        plan's online website limit) and SUSPENDED. Open on purpose (no enum): Project relays Provisioning's value as
+        sent, Provisioning may add values later, and clients show an unknown one as offline.
+      examples: [ONLINE, NOT_DEPLOYED, OFFLINE_BILLING, OFFLINE_PLAN_LIMIT, SUSPENDED]
     ReleaseStatus:
       type: string
       enum: [LIVE, GOING_LIVE, FAILED]
@@ -1942,7 +1952,10 @@ components:
         ownerEmail: {type: [string, 'null'], description: From User.}
         ownerAvatarUrl: {type: [string, 'null'], description: From User.}
         siteStatus:
-          description: From Provisioning (and Payment for OFFLINE_BILLING); phase 2 derives it from Project's status.
+          description: |
+            From Provisioning, relayed as sent (Payment for OFFLINE_BILLING, the plan limit for OFFLINE_PLAN_LIMIT);
+            phase 2 derives it from Project's status. The list's `siteStatus` filter takes OFFLINE_BILLING and
+            OFFLINE_PLAN_LIMIT but matches no website with them (Project does not hold that state).
           oneOf:
             - $ref: '#/components/schemas/SiteStatus'
             - type: 'null'
