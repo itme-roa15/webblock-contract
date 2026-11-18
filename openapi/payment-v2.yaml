@@ -96,6 +96,52 @@ paths:
               schema: { $ref: '#/components/schemas/Problem' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /me/subscription/plan-change-preview:
+    get:
+      tags: [me]
+      operationId: previewMyPlanChange
+      summary: Which websites stay online and which go offline if the plan changes (the downgrade warning)
+      description: |
+        Owner decision 18 Nov 2026 (rule B, Payment `payment/plan-limit-downgrade.md`): a paid plan's websites limit
+        counts ONLINE websites; when it drops, the websites online the longest stay up (ties: created first), the others
+        go offline for `plan_limit` (not deleted) and come back, in the same order, when the limit rises or a website
+        is deleted. The owner does not pick. This answer comes from the same ordering the switch uses; it shows today's
+        websites (the switch decides again at `effectiveAt`). Websites an admin suspended, the owner paused or never
+        deployed are not listed. The UI joins `projectId` to its own websites list for names. Gateway: new exact route.
+      parameters:
+        - name: planId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The change's effect on the websites.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanChangePreview' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: No such plan (`plan-not-found`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          description: The account has no ACTIVE paid plan inside its period (`no-active-subscription`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: The plan is already the account's (`plan-unchanged`) or has no price (`plan-price-not-found`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503':
+          description: Which websites are online cannot be read now (`hosting-unavailable`); the UI blocks the confirm.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
   /me/orders:
     get:
       tags: [me]
@@ -649,10 +695,42 @@ components:
         startingPrice: { $ref: '#/components/schemas/Money' }
         usage: { type: array, items: { $ref: '#/components/schemas/UsageMetric' } }
         includes: { type: array, items: { type: string } }
+        pendingPlanId:
+          type: [string, 'null']
+          format: uuid
+          description: |
+            Additive (18 Nov): the plan of a downgrade the owner scheduled, else null. The pending notice asks
+            `plan-change-preview?planId=` with it for what goes offline.
+        pendingEffectiveAt: { type: [string, 'null'], format: date-time, description: When that downgrade starts (the end of the paid period). }
+
+    PlanChangePreview:
+      type: object
+      required: [planId, planCode, effectiveAt, limit, onlineNow, keepOnline, goOffline, restore, warning]
+      properties:
+        planId: { type: string, format: uuid }
+        planCode: { type: string, example: PRO }
+        effectiveAt: { type: string, format: date-time, description: 'Now for a dearer plan; the end of the paid period for any other.' }
+        limit: { type: [integer, 'null'], description: Websites the plan allows online; null = unlimited. }
+        onlineNow: { type: integer, description: Websites online now (not offline for plan_limit). }
+        keepOnline:
+          type: array
+          description: The websites that stay or come online, online the longest first (`restore` is the part of it offline for plan_limit now).
+          items: { $ref: '#/components/schemas/PreviewWebsite' }
+        goOffline: { type: array, description: The websites the plan leaves out; they go offline for plan_limit at effectiveAt., items: { $ref: '#/components/schemas/PreviewWebsite' } }
+        restore: { type: array, items: { $ref: '#/components/schemas/PreviewWebsite' } }
+        warning: { type: boolean, description: '`goOffline` is not empty: show the downgrade warning.' }
+    PreviewWebsite:
+      type: object
+      required: [projectId, onlineSince]
+      properties:
+        projectId: { type: string, format: uuid }
+        onlineSince: { type: [string, 'null'], format: date-time, description: The start of its current (or, offline, its last) online stretch. }
 
     DeployReason:
       type: string
-      enum: [FIRST_FREE_DEPLOY, WITHIN_PLAN, SUBSCRIPTION_REQUIRED, PLAN_EXPIRED, WEBSITE_LIMIT, REDEPLOY_LIMIT]
+      enum: [FIRST_FREE_DEPLOY, WITHIN_PLAN, SUBSCRIPTION_REQUIRED, PLAN_EXPIRED, WEBSITE_LIMIT, REDEPLOY_LIMIT,
+             PLAN_LIMIT_REACHED]
+      description: '`PLAN_LIMIT_REACHED` (18 Nov): the website is offline because the plan allows fewer websites online; it comes back with an upgrade or a deleted website.'
     DeployAccess:
       type: object
       required: [allowed, reason, plan, planName, firstDeploy]

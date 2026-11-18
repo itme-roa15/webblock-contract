@@ -398,6 +398,13 @@ components:
             the owner known (TRIAL_ENDED, GRACE_EXPIRED, PLAN_CANCELED) → the FREE_TRIAL row's, so a library never
             turns unlimited; NOT_ADMITTED → 0. Absent only for a plan an admin made unlimited (JSON null). The wizard's
             logo at website creation is the first library file and is stored without asking.
+        planLimited:
+          type: boolean
+          description: |
+            Additive (owner, 18 Nov, rule B): true when the website is offline because the plan allows fewer websites
+            online (`plan_limit`); `publish` is then `LIMIT_REACHED` and Project answers `PLAN_LIMIT_REACHED`.
+            `hosting` stays the billing answer (ENTITLED for a paid account), so Provisioning's billing recheck is not
+            affected. Always sent.
     ClientEntitlement:
       type: object
       required: [planCode, websitesUsed, draftsUsed]
