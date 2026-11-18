@@ -873,7 +873,7 @@ components:
 
     ReleaseStep:
       type: object
-      required: [name, attempt, status, startedAt, finishedAt, failureCode]
+      required: [name, attempt, status, startedAt, finishedAt, failureCode, subStage, subStageStartedAt]
       properties:
         name: { type: string, enum: [BUILD, CANDIDATE, PROMOTION, ROLLBACK, ACCESS_SETUP, OBSERVATION] }
         attempt: { type: integer, minimum: 1 }
@@ -881,6 +881,16 @@ components:
         startedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
         finishedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
         failureCode: { type: [string, 'null'] }
+        subStage: { $ref: '#/components/schemas/SubStage' }
+        subStageStartedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+
+    SubStage:
+      type: [string, 'null']
+      description: |
+        Where a step or a promote command is now, or where it ended; null when not known (an older row, or a build
+        whose log gave no marker). BUILD step: `CLONE`, `BUILD`, `PUSH`; CANDIDATE step: `ROLLOUT`; PROMOTE command:
+        `PROBE` (the private preview check), `ROUTE_SWITCH`, `CONFIRM` (the public check). New values may be added:
+        a reader must accept a value it does not know. `subStageStartedAt` is when it began.
 
     Release:
       type: object
@@ -928,7 +938,7 @@ components:
             13 November 2026 (additive). See "waits for its owner" above for how it shapes `stage`.
           oneOf:
             - type: object
-              required: [id, kind, status, failureCode, failureRetryable, updatedAt]
+              required: [id, kind, status, failureCode, failureRetryable, updatedAt, subStage, subStageStartedAt]
               properties:
                 id: { type: string, format: uuid }
                 kind: { type: string, enum: [DEPLOY, PROMOTE, ROLLBACK, REDEPLOY] }
@@ -936,6 +946,8 @@ components:
                 failureCode: { type: [string, 'null'] }
                 failureRetryable: { type: [boolean, 'null'] }
                 updatedAt: { $ref: '#/components/schemas/Timestamp' }
+                subStage: { $ref: '#/components/schemas/SubStage' }
+                subStageStartedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
             - type: 'null'
         steps:
           type: array
@@ -960,7 +972,8 @@ components:
 
     Command:
       type: object
-      required: [id, websiteId, releaseId, kind, number, status, failureCode, failureRetryable, createdAt, updatedAt]
+      required: [id, websiteId, releaseId, kind, number, status, failureCode, failureRetryable, createdAt, updatedAt,
+                 subStage, subStageStartedAt]
       properties:
         id: { type: string, format: uuid }
         websiteId: { type: string, format: uuid }
@@ -972,6 +985,8 @@ components:
         failureRetryable: { type: [boolean, 'null'] }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        subStage: { $ref: '#/components/schemas/SubStage' }
+        subStageStartedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
 
     AdminCommand:
       allOf:
