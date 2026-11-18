@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://webblock.invalid/contracts/events/payment/websites_plan_limited.v1.schema.json",
+  "title": "Payment: websites plan limited v1",
+  "description": "Owner: payment (owner decision 18 Nov 2026, rule B; Payment payment/plan-limit-downgrade.md). Sent once per plan-limit run that changed something, after the per-website hosting_entitlement_ended / _restored events of that run and in the same transaction. The account's plan allows websites_limit websites online: went_offline lists the websites the run took offline for plan_limit (not deleted), restored the ones it brought back; both in rank order (online the longest first), one of them may be empty. For the owner's email or bell (Notification's Knock workflow). Routing key websites_plan_limited.v1 on Payment's exchange. event_key is unique per run; a consumer uses it to drop a repeat.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "message_id", "message_type", "occurred_at", "correlation_id", "event_key", "client_user_id", "plan_code", "websites_limit", "went_offline", "restored"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "message_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "not": {"enum": ["00000000-0000-0000-0000-000000000000"]} },
+    "message_type": { "const": "payment.websites_plan_limited.v1" },
+    "occurred_at": { "type": "string", "format": "date-time", "maxLength": 40 },
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
+    "event_key": { "type": "string", "minLength": 1, "maxLength": 255, "description": "payment.websites_plan_limited.v1:<client_user_id>:<message_id>" },
+    "client_user_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "plan_code": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[^a-z]+$", "description": "Always set: the plan the account has now, upper case (PLUS, PRO, ULTRA)." },
+    "websites_limit": { "type": ["integer", "null"], "minimum": 0, "description": "Websites the plan allows online; always present, null = unlimited." },
+    "went_offline": { "type": "array", "items": { "type": "string", "format": "uuid" }, "description": "project_id of each website taken offline for plan_limit; always present, [] when none." },
+    "restored": { "type": "array", "items": { "type": "string", "format": "uuid" }, "description": "project_id of each website brought back; always present, [] when none." }
+  }
+}
