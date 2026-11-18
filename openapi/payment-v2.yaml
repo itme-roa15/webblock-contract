@@ -250,16 +250,46 @@ paths:
         '422': { $ref: '#/components/responses/Unprocessable' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /me/orders/{orderId}/events:
+    parameters:
+      - $ref: '#/components/parameters/orderId'
+    get:
+      tags: [me]
+      operationId: streamMyOrderStatus
+      summary: The order's stored status as Server-Sent Events (owner, 18 Nov)
+      description: |
+        Owner-checked like `GET /me/orders/{orderId}`. Never asks the payment provider.
+        - `event: status` with `OrderStatusEvent` data: once on connect (the current status, so a reconnect is right),
+          then on every change.
+        - `: heartbeat` (a comment) every 15 s while nothing else is sent.
+        - The server closes after a terminal status (PAID, EXPIRED) or 2 minutes after the QR's expiry. Closed while
+          still PENDING (that stop, a restart): read the order once, then reconnect with backoff while it is PENDING.
+        - A plan change with nothing to pay sends PAID and closes.
+        Headers: `Cache-Control: no-cache`, `X-Accel-Buffering: no`. Gateway: new exact route; infra confirmed SSE passes.
+      responses:
+        '200':
+          description: The stream.
+          content:
+            text/event-stream:
+              schema: { type: string, description: 'SSE: event `status` (data `OrderStatusEvent`), comment `heartbeat`.' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: Another owner's or an unknown order (`order-not-found`), as a problem, before any stream opens.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
   /me/orders/{orderId}:
     parameters:
       - $ref: '#/components/parameters/orderId'
     get:
       tags: [me]
       operationId: getMyOrder
-      summary: One order (the UI polls it), or its PDF receipt
+      summary: One order (its stored status), or its PDF receipt
       description: |
-        `Accept: application/json` (default) answers the order. While it is `PENDING` the read also asks the payment
-        provider, at most once every 5 seconds per order, so polling this route replaces v1's `status-check`.
+        `Accept: application/json` (default) answers the order with its STORED status: since 18 Nov a read never asks
+        the payment provider (only Payment's check job does, flat every 30 s plus a final check at expiry, within the
+        provider's daily limit). For live updates listen on `GET /me/orders/{orderId}/events`.
 
         `Accept: application/pdf` answers the receipt of a paid order as a download
         (`Content-Disposition: attachment; filename=webblock-receipt-<reference>.pdf`). The billed-to name and email
@@ -856,6 +886,25 @@ components:
           description: |
             The provider the order's bill was made with (the order's `provider`, else the server's default). Absent for
             a plan change that needed no payment (no bill). The web UI doesn't read it.
+        reason:
+          type: [string, 'null']
+          enum: [CONFIRMATION_DELAYED, EXPIRED, FAILED, VOID, null]
+          description: |
+            Additive (18 Nov). PENDING + `CONFIRMATION_DELAYED`: the provider's daily check limit holds the confirmation
+            back; it comes later (the next day), keep showing the QR. EXPIRED + `EXPIRED`/`FAILED`/`VOID`: how the
+            unpaid order ended. Null otherwise.
+
+    OrderStatusEvent:
+      description: |
+        The `data` of an `event: status` on `GET /me/orders/{orderId}/events` (one JSON line). `paidAt` only when PAID;
+        `reason` as `PaymentOrder.reason`.
+      type: object
+      required: [orderId, status, paidAt, reason]
+      properties:
+        orderId: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, PAID, EXPIRED] }
+        paidAt: { type: [string, 'null'], format: date-time }
+        reason: { type: [string, 'null'], enum: [CONFIRMATION_DELAYED, EXPIRED, FAILED, VOID, null] }
 
     SubscriptionStatus:
       type: string
