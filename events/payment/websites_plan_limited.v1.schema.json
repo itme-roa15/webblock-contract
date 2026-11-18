@@ -14,9 +14,9 @@
     "correlation_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]{1,128}$" },
     "event_key": { "type": "string", "minLength": 1, "maxLength": 255, "description": "payment.websites_plan_limited.v1:<client_user_id>:<message_id>" },
     "client_user_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
-    "plan_code": { "type": "string", "minLength": 1, "maxLength": 64, "description": "The plan the account has now, upper case (PLUS, PRO, ULTRA)." },
-    "websites_limit": { "type": ["integer", "null"], "minimum": 0, "description": "Websites the plan allows online; null = unlimited." },
-    "went_offline": { "type": "array", "items": { "type": "string", "format": "uuid" }, "description": "project_id of each website taken offline for plan_limit." },
-    "restored": { "type": "array", "items": { "type": "string", "format": "uuid" }, "description": "project_id of each website brought back." }
+    "plan_code": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[^a-z]+$", "description": "Always set: the plan the account has now, upper case (PLUS, PRO, ULTRA)." },
+    "websites_limit": { "type": ["integer", "null"], "minimum": 0, "description": "Websites the plan allows online; always present, null = unlimited." },
+    "went_offline": { "type": "array", "items": { "type": "string", "format": "uuid" }, "description": "project_id of each website taken offline for plan_limit; always present, [] when none." },
+    "restored": { "type": "array", "items": { "type": "string", "format": "uuid" }, "description": "project_id of each website brought back; always present, [] when none." }
   }
 }
