@@ -960,9 +960,9 @@ components:
                   type: boolean
                   description: |
                     True while the command is unfinished and its newest attempt failed on a cause the platform tries
-                    again inside the deploy, after a growing wait (`lastFailureCode`: `image_pull_failed`,
-                    `insufficient_resources`, `tenant_not_ready`, `cluster_unavailable`, `dependency_unavailable`). The
-                    owner's "We're retrying" view. False otherwise.
+                    again inside the deploy, after a growing wait (`lastFailureCode` `image_pull_failed` or
+                    `insufficient_resources`). The owner's "We're retrying" view. False otherwise, also while a deploy
+                    waits for its tenant or for the cluster's API before its attempt (those waits fail no attempt).
                 lastFailureCode:
                   type: [string, 'null']
                   description: |
