@@ -142,6 +142,28 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
 
+  /me/subscription/pending-change:
+    delete:
+      tags: [me]
+      operationId: cancelMyPendingPlanChange
+      summary: Cancel the downgrade the owner scheduled
+      description: |
+        (18 Nov) The next period keeps the current plan: `pendingPlanId` and `pendingEffectiveAt` become null. The 0.00
+        CHANGE order stays as history. Done under the subscription's row lock, as the renewal bill's creation and
+        payment; a renewal that already switched the plan leaves nothing pending. A renewal QR priced for the new plan
+        and paid after the cancel renews the kept plan. Gateway: new exact route.
+      responses:
+        '204': { description: The scheduled downgrade is canceled. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: |
+            `no-pending-change`: nothing is scheduled (or the renewal already switched the plan).
+            `pending-change-in-progress`: an open renewal QR is already priced for the new plan; once it expires the
+            cancel works.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
   /me/orders:
     get:
       tags: [me]
