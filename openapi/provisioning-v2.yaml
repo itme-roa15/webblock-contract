@@ -970,7 +970,8 @@ components:
       type: object
       description: admin `Deploy`.
       required: [id, websiteId, websiteName, websiteThumbnailUrl, websiteLogoUrl, ownerName, number, status,
-                 currentStep, totalSteps, stepLabel, startedAt, durationSeconds, state, requestedBySubject]
+                 currentStep, totalSteps, stepLabel, startedAt, durationSeconds, state, requestedBySubject,
+                 retiredReason]
       properties:
         id: { type: string, format: uuid }
         websiteId: { type: string, format: uuid }
@@ -994,6 +995,13 @@ components:
         durationSeconds: { type: [integer, 'null'], minimum: 0 }
         state: { $ref: '#/components/schemas/ReleaseState' }
         requestedBySubject: { type: [string, 'null'] }
+        retiredReason:
+          type: [string, 'null']
+          enum: [WEBSITE_DELETED, null]
+          description: |
+            `WEBSITE_DELETED` on the `REPLACED` release the website's deletion retired (it was live when the website
+            was deleted; nothing went live after it): "Retired: website deleted". Null on every other release, a
+            release replaced by a newer live deploy included ("Replaced").
 
     AdminRedeployment:
       allOf:
