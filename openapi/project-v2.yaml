@@ -1878,7 +1878,7 @@ components:
         except while Provisioning does not answer: then the stored state is shown (50 until the release outcome is
         known, or that outcome). Older rows of the list always show the stored state. Rare: the owner's DEPLOY of a
         failed release within a step's usual time reads by time again, below the FAILED read.
-      required: [id, websiteId, kind, status, percent, secondsLeft, domain, steps, startedAt, finishedAt]
+      required: [id, websiteId, kind, status, percent, secondsLeft, domain, steps, startedAt, finishedAt, failureCode]
       properties:
         id: {type: string, format: uuid}
         websiteId: {type: string, format: uuid}
@@ -1912,6 +1912,16 @@ components:
                   without a time of its own (PRODUCTS, SSL).
         startedAt: {type: string, format: date-time}
         finishedAt: {type: [string, 'null'], format: date-time}
+        failureCode:
+          type: [string, 'null']
+          pattern: '^[a-z][a-z0-9_]{0,99}$'
+          description: |
+            18 Nov 2026: the code of the failure that ended this deployment, only when `status` is FAILED, else null;
+            null when unknown. A release that failed: Provisioning's code (for example insufficient_resources,
+            image_pull_failed, deadline_exceeded, progress_deadline_exceeded, route_change_unconfirmed), its failed
+            last command's on the polled deployment, else the one `publish_failed` reported. A deploy that failed at Project: Project's code
+            (project_unavailable, admission_unavailable, admission_error, codegen_timeout, input_hash_mismatch,
+            artifact_invalid, repository_publish_failed, codegen_error). Open: clients show an unknown code generically.
     DeploymentPage:
       type: object
       required: [items, page, size, totalItems]
