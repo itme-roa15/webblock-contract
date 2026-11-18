@@ -54,7 +54,7 @@ paths:
         matching website, at most 1000, `X-Truncated: true` when there are more) are x-phase 3 and not served yet;
         a query with them is `400 validation-failed`. `hostname` is null when provisioning-api has no site domain
         configured (SITE_DOMAIN).
-      x-callers: [project-service]
+      x-callers: [project-service, payment-service]
       x-phase: 2
       parameters:
         - name: id
@@ -64,7 +64,7 @@ paths:
           schema: { type: array, maxItems: 100, items: { type: string, format: uuid } }
         - name: siteStatus
           in: query
-          schema: { type: string, enum: [ONLINE, OFFLINE_BILLING, SUSPENDED] }
+          schema: { type: string, enum: [ONLINE, OFFLINE_BILLING, OFFLINE_PLAN_LIMIT, SUSPENDED] }
         - name: releaseStatus
           in: query
           schema: { type: string, enum: [LIVE, GOING_LIVE, FAILED] }
@@ -229,16 +229,17 @@ components:
     WebsiteHosting:
       type: object
       required: [projectId, siteStatus, releaseStatus, routingStatus, liveRelease, liveReleaseId, liveSince,
-                 lastDeployAt, hostname, sslValidUntil]
+                 lastDeployAt, hostname, sslValidUntil, onlineSince, offlineReasons]
       properties:
         projectId: { type: string, format: uuid }
         siteStatus:
           type: string
-          enum: [ONLINE, NOT_DEPLOYED, OFFLINE_BILLING, SUSPENDED]
+          enum: [ONLINE, NOT_DEPLOYED, OFFLINE_BILLING, OFFLINE_PLAN_LIMIT, SUSPENDED]
           description: |
-            `ONLINE`: a live release and hosting online. `OFFLINE_BILLING`: offline for billing alone.
-            `SUSPENDED`: offline because an admin suspended the website, the owner's account is suspended or the
-            project was deleted. `NOT_DEPLOYED`: nothing went live yet.
+            `ONLINE`: a live release and hosting online. `NOT_DEPLOYED`: nothing went live yet. Offline, by precedence:
+            `SUSPENDED` while the project was deleted, an admin suspended the website, the owner's account is suspended
+            or the owner took this website offline; else `OFFLINE_BILLING` while billing holds it; else
+            `OFFLINE_PLAN_LIMIT` (the plan allows fewer websites online).
         releaseStatus:
           type: [string, 'null']
           enum: [LIVE, GOING_LIVE, FAILED, null]
@@ -250,6 +251,19 @@ components:
         lastDeployAt: { type: [string, 'null'], format: date-time, description: When the newest release finished (went live or failed). }
         hostname: { type: [string, 'null'], description: The public host the website is served on. }
         sslValidUntil: { type: [string, 'null'], format: date-time, description: Null until certificates are tracked (x-phase 3). }
+        onlineSince:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            When the website last came online with a live release (the start of its last online stretch), kept while it
+            is offline; a new release while online does not move it. Null until it first went live after migration
+            00034, or before it from an approximate backfill. Payment orders a downgrade by it (oldest stays online).
+        offlineReasons:
+          type: array
+          items:
+            type: string
+            enum: [billing, user_suspended, project_deleted, admin_suspended, owner_suspended, plan_limit]
+          description: Why the website is offline, sorted; empty when online.
 
 x-needs:
   description: |

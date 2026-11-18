@@ -349,6 +349,9 @@ paths:
         The release must belong to the website. A command the release does not take now is
         `409 release-state-invalid`; a second command while one is in flight is `409 command-in-progress`. In the production profile every command is
         `503 operation-unavailable`, as in v1.
+        - `422 project-deleted`: the website was deleted.
+        - `422 plan-limit-reached`: the website is offline because the plan allows fewer websites online; an upgrade
+          brings it back.
       x-phase: 2
       x-replaces:
         - "POST /api/provisioning/v1/projects/{projectId}/releases/{releaseId}/deploy"
@@ -473,6 +476,8 @@ paths:
         the accepted `command` inside it; `Location` names the command.
         - `409 command-in-progress`: another command of the website is in flight.
         - `422 redeploy-not-allowed`: no live release, or hosting is offline.
+        - `422 project-deleted`: the website was deleted.
+        - `422 plan-limit-reached`: the website is offline because the plan allows fewer websites online.
         - `422 route-not-stable`: the route is changing.
         - `429 redeploy-limit-reached` (`x-phase: 3`): the owner's plan has no redeploy left this month (Payment's
           entitlement route, OD-04).
@@ -781,7 +786,9 @@ components:
       description: '`payload-too-large`.'
       content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
     Unprocessable:
-      description: A business rule, e.g. `release-not-buildable`, `redeploy-not-allowed`, `route-not-stable`.
+      description: >-
+        A business rule, e.g. `release-not-buildable`, `redeploy-not-allowed`, `route-not-stable`, `project-deleted`
+        (the website was deleted), `plan-limit-reached` (offline because the plan allows fewer websites online).
       content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
     TooMany:
       description: '`redeploy-limit-reached` (x-phase 3).'
@@ -829,12 +836,20 @@ components:
 
     Hosting:
       type: object
-      required: [websiteId, liveReleaseId, routingStatus, hostingStatus, inFlightCommand, updatedAt]
+      required: [websiteId, liveReleaseId, routingStatus, hostingStatus, offlineReasons, inFlightCommand, updatedAt]
       properties:
         websiteId: { type: string, format: uuid }
         liveReleaseId: { type: [string, 'null'], format: uuid }
         routingStatus: { type: string, enum: [STABLE, UPDATING, UNCERTAIN] }
         hostingStatus: { type: string, enum: [ONLINE, OFFLINE] }
+        offlineReasons:
+          type: array
+          items:
+            type: string
+            enum: [billing, user_suspended, project_deleted, admin_suspended, owner_suspended, plan_limit]
+          description: |
+            Why the website is offline, sorted; empty when online. `plan_limit` alone: the owner's plan allows fewer
+            websites online ("Offline: your plan allows N websites online"; an upgrade brings it back).
         inFlightCommand:
           oneOf:
             - type: object
@@ -994,7 +1009,6 @@ components:
         startedAt: { $ref: '#/components/schemas/Timestamp' }
         durationSeconds: { type: [integer, 'null'], minimum: 0 }
         state: { $ref: '#/components/schemas/ReleaseState' }
-        requestedBySubject: { type: [string, 'null'] }
         retiredReason:
           type: [string, 'null']
           enum: [WEBSITE_DELETED, null]
@@ -1002,6 +1016,7 @@ components:
             `WEBSITE_DELETED` on the `REPLACED` release the website's deletion retired (it was live when the website
             was deleted; nothing went live after it): "Retired: website deleted". Null on every other release, a
             release replaced by a newer live deploy included ("Replaced").
+        requestedBySubject: { type: [string, 'null'] }
 
     AdminRedeployment:
       allOf:
