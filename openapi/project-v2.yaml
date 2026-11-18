@@ -1939,7 +1939,7 @@ components:
       description: |
         The UI's AdminWebsite. Project's own fields are always there; the fields of other services are null when that
         service did not answer (or, in phase 2, is not asked yet). `hasUndeployedChanges` is added on the single read.
-      required: [id, name, ownerId]
+      required: [id, name, ownerId, projectStatus, hostingUnavailable]
       properties:
         id: {type: string, format: uuid}
         name: {type: string}
@@ -1959,6 +1959,16 @@ components:
           oneOf:
             - $ref: '#/components/schemas/SiteStatus'
             - type: 'null'
+        projectStatus:
+          type: string
+          enum: [DRAFT, LIVE, SUSPENDED]
+          description: Project's own status of the website (as the owner's Website.status). Always sent.
+        hostingUnavailable:
+          type: boolean
+          description: |
+            True only when Provisioning's hosting read failed or timed out for this website: the hosting fields are then
+            unknown (null) and `siteStatus` is derived from `projectStatus`. False when Provisioning answered, also when
+            it does not host the website (never deployed). Always sent.
         releaseStatus:
           description: From Provisioning; null when never deployed.
           oneOf:
