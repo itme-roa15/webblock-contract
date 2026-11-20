@@ -260,7 +260,7 @@ paths:
           content:
             application/problem+json:
               schema:
-                oneOf:
+                anyOf:
                   - { $ref: '#/components/schemas/ConfirmationPendingProblem' }
                   - { $ref: '#/components/schemas/Problem' }
         '422': { $ref: '#/components/responses/Unprocessable' }
