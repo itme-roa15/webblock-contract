@@ -607,6 +607,55 @@ components:
             `componentType`). Undo is not offered from the history: only the editor that made the change, while it
             is still the latest one, offers it.
           allOf: [{ $ref: "#/components/schemas/AppliedChangeSet" }]
+        clarification:
+          description: |
+            Additive (brief BRIEF-ai-chat-clarification-2026-11-20: "the chat should ask for clarification if unclear
+            before doing the change"). Only on an ASSISTANT reply that asks instead of changing the page; absent
+            otherwise. `text` is the same question, so a client that doesn't know this field still shows it. No
+            change set is stored for a reply that asks (no `changeSet`). Kept in the history: a client offers the
+            options only while the message is the conversation's latest.
+
+            The owner answers with sendAiMessage: an option's `label` as `prompt` and its `blockRefs` (left out when
+            it has none), or any typed text. The next USER message after a question answers it; at most two
+            questions about one request, then the reply suggests pointing at the block with "@". The same in the
+            streamed `final` event: `final.message.clarification`, and `final.clarification` beside `applied`.
+          allOf: [{ $ref: "#/components/schemas/AiClarification" }]
+    AiClarification:
+      description: |
+        A question instead of a change. `CHOOSE`: more than one block fits the request, so the owner picks (the
+        model's question). `CONFIRM`: the change reaches further than asked (a button's colour is shared by every
+        button), so the owner confirms; `YES` applies it as proposed, `NO` changes nothing. The question and the
+        labels describe blocks the way the owner sees them (their text, colour and place on the page), never by
+        internal names (hero, CTA, root, block types).
+      type: object
+      additionalProperties: false
+      required: [kind, question, round, options]
+      properties:
+        kind: { type: string, enum: [CHOOSE, CONFIRM] }
+        question: { type: string, minLength: 1, maxLength: 300 }
+        round: { type: integer, minimum: 1, maximum: 2, description: The question's round about this request. }
+        options:
+          type: array
+          minItems: 1
+          maxItems: 6
+          items: { $ref: "#/components/schemas/AiClarificationOption" }
+    AiClarificationOption:
+      description: |
+        One answer. `PICK`: these blocks (`blockRefs`, 1 to 5). `ALL`: "Both" or "All" (`blockRefs` lists them when
+        there are at most 5; absent means every block that fits). `YES` and `NO`: a CONFIRM's answers, without
+        `blockRefs`. A client sends `label` as the prompt with the option's `blockRefs`; hovering an option may
+        highlight its blocks in the preview.
+      type: object
+      additionalProperties: false
+      required: [label, action]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 80 }
+        action: { type: string, enum: [PICK, ALL, "YES", "NO"] }  # quoted: YAML 1.1 reads YES and NO as booleans
+        blockRefs:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: { $ref: "#/components/schemas/BlockRef" }
     AppliedChangeSet:
       description: |
         A change set as AI Codegen applied it to the page's draft (W11.4): its items in the order they were applied,
@@ -846,6 +895,12 @@ components:
         text: { type: string }
         pageId: { type: [string, "null"], format: uuid }
         createdAt: { type: string, format: date-time }
+        clarification:
+          description: |
+            Additive. As AiMessage.clarification: only on an ASSISTANT reply that asks instead of changing the page.
+            On this route the model's questions only (CHOOSE): its change sets are proposed, so applying one is the
+            confirmation and no CONFIRM is asked here.
+          allOf: [{ $ref: "#/components/schemas/AiClarification" }]
     MessagePage:
       type: object
       additionalProperties: false
