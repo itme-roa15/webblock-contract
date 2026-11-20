@@ -251,11 +251,18 @@ paths:
             `confirmation-pending` (code CONFIRMATION_PENDING, owner 18 Nov): a bill of this subscription may still turn
             out paid (PENDING with confirmation delayed, or past its expiry before its final check), so no new code is
             made; it is allowed again once that bill is PAID or EXPIRED. The UI says "We're still confirming your last
-            payment with the bank. If you already paid, don't pay again; it will be confirmed shortly." Other conflicts
-            as before (e.g. `open-bill-exists`, `idempotency-conflict`).
+            payment with the bank. If you already paid, don't pay again; it will be confirmed shortly."
+            20 Nov (additive): also for ANOTHER plan with kind SUBSCRIBE when the account's only open orders are such
+            held orders (it was `subscription-exists`, but there is no subscription); `subscription-exists` stays for a
+            real ACTIVE / PAST_DUE / CANCELED subscription or a still-payable order. Every confirmation-pending problem
+            carries the held order's `orderId` and `confirmationExpectedBy` (ConfirmationPendingProblem).
+            Other conflicts as before (e.g. `open-bill-exists`, `subscription-exists`, `idempotency-conflict`).
           content:
             application/problem+json:
-              schema: { $ref: '#/components/schemas/Problem' }
+              schema:
+                anyOf:
+                  - { $ref: '#/components/schemas/ConfirmationPendingProblem' }
+                  - { $ref: '#/components/schemas/Problem' }
         '422': { $ref: '#/components/responses/Unprocessable' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
@@ -668,6 +675,28 @@ components:
             (or the gateway's) `X-Request-Id` when it is 1 to 128 of `[A-Za-z0-9._:-]`, else a new one.
         traceId: { type: string, description: Only on 500, to quote to support. }
 
+    ConfirmationPendingProblem:
+      description: |
+        409 `confirmation-pending` (code CONFIRMATION_PENDING). Additive (20 Nov): the held order and when Payment next
+        asks the bank about it. Both are left out when Payment can't tell; with several held orders, the one asked last.
+      allOf:
+        - { $ref: '#/components/schemas/Problem' }
+        - type: object
+          properties:
+            code: { type: string, enum: [CONFIRMATION_PENDING] }
+            orderId:
+              type: string
+              format: uuid
+              description: The held order (`GET /me/orders/{orderId}`).
+            confirmationExpectedBy:
+              type: string
+              format: date-time
+              example: '2026-11-20T17:00:00Z'
+              description: |
+                ISO-8601 UTC. When Payment next asks the bank about the held order: the later of the end of the
+                provider's hold (its daily limit: until its day resets, or an hourly probe) and the order's next retry.
+                A best estimate: refused again, it moves later. Show it in the viewer's local time.
+
     PlanCode:
       type: string
       enum: [FREE_TRIAL, PLUS, PRO, ULTRA]
@@ -902,11 +931,18 @@ components:
             Additive (18 Nov). PENDING + `CONFIRMATION_DELAYED`: the provider's daily check limit holds the confirmation
             back; it comes later (the next day), keep showing the QR. EXPIRED + `EXPIRED`/`FAILED`/`VOID`: how the
             unpaid order ended. Null otherwise.
+        confirmationExpectedBy:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            Additive (20 Nov). With PENDING + `CONFIRMATION_DELAYED` only: when Payment next asks the bank about this
+            order (as ConfirmationPendingProblem.confirmationExpectedBy), ISO-8601 UTC. Null otherwise.
 
     OrderStatusEvent:
       description: |
         The `data` of an `event: status` on `GET /me/orders/{orderId}/events` (one JSON line). `paidAt` only when PAID;
-        `reason` as `PaymentOrder.reason`.
+        `reason` and `confirmationExpectedBy` (additive, 20 Nov; sent as null when not set) as in `PaymentOrder`; a
+        change of either sends the event again.
       type: object
       required: [orderId, status, paidAt, reason]
       properties:
@@ -914,6 +950,7 @@ components:
         status: { type: string, enum: [PENDING, PAID, EXPIRED] }
         paidAt: { type: [string, 'null'], format: date-time }
         reason: { type: [string, 'null'], enum: [CONFIRMATION_DELAYED, EXPIRED, FAILED, VOID, null] }
+        confirmationExpectedBy: { type: [string, 'null'], format: date-time }
 
     SubscriptionStatus:
       type: string
