@@ -527,14 +527,25 @@ paths:
     delete:
       tags: [websites]
       operationId: deleteWebsite
-      summary: Deletes a website that was never deployed.
+      summary: Deletes the owner's website; a website that was ever deployed only with its exact name.
+      description: |
+        Decision 0024 (Project 60aed49). A website that was ever deployed (LIVE, or any deploy published) is deleted
+        only when `confirmName` equals its name exactly (no trimming, case counts): a missing or other name is
+        `422 CONFIRM_NAME_MISMATCH` and changes nothing. A website never deployed (a DRAFT, or one suspended before any
+        deploy) needs no `confirmName`. A website with a deploy in flight is `409 GENERATION_IN_PROGRESS`, even with
+        the right name. A stranger's, an unknown or an already deleted website is `404 PROJECT_NOT_FOUND`. The delete
+        sets `deleted_at` once (the row and its sub-domain stay reserved), publishes `project.project_deleted.v1`
+        (Provisioning takes the hosting down), schedules the catalog archive and frees the plan's website slot.
       x-phase: 2
       x-replaces: ["DELETE /api/v1/projects/{projectId}"]
+      parameters:
+        - $ref: '#/components/parameters/confirmName'
       responses:
         '204': {description: Deleted.}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ConfirmNameMismatch'}
 
   /projects/{projectId}/business-info:
     parameters:
@@ -1337,6 +1348,28 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
         '503': {$ref: '#/components/responses/Unavailable'}
+    delete:
+      tags: [admin]
+      operationId: adminDeleteWebsite
+      summary: The admin deletes any owner's website; one that was ever deployed only with its exact name.
+      description: |
+        Decision 0024 (Project 60aed49): the owner's delete (deleteWebsite) for any owner's website, by an admin. The
+        same rules: `confirmName` is required, exactly, only for a website that was ever deployed (else `422
+        CONFIRM_NAME_MISMATCH`, nothing changes); `409 GENERATION_IN_PROGRESS` while a deploy is in flight; an
+        unknown or already deleted website is `404 PROJECT_NOT_FOUND`; a caller who is not an admin is `403`. Logged
+        with the admin's id (Project keeps no audit table).
+      x-phase: 2
+      security:
+        - bearer: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/confirmName'
+      responses:
+        '204': {description: Deleted.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ConfirmNameMismatch'}
   /admin/projects/{projectId}/generation-requests:
     parameters:
       - $ref: '#/components/parameters/projectId'
@@ -1443,6 +1476,15 @@ components:
       required: true
       description: The website (project) id.
       schema: {type: string, format: uuid}
+    confirmName:
+      name: confirmName
+      in: query
+      required: false
+      description: |
+        The website's exact name (no trimming, case counts). Required only when the website was ever deployed (LIVE,
+        or any deploy published); ignored for a website never deployed. Missing or different: `422
+        CONFIRM_NAME_MISMATCH`.
+      schema: {type: string}
     templateId:
       name: templateId
       in: path
@@ -1473,6 +1515,14 @@ components:
       schema: {type: string}
 
   responses:
+    ConfirmNameMismatch:
+      description: |
+        The website was ever deployed and `confirmName` is missing or not its exact name: a problem with code
+        `CONFIRM_NAME_MISMATCH` (type `urn:webblock:problem:confirm-name-mismatch`, title "To delete a website that
+        was deployed, type its exact name to confirm."); nothing changed.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
     BadRequest:
       description: Invalid input (field errors in `errors`).
       content:
