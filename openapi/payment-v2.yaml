@@ -266,6 +266,73 @@ paths:
         '422': { $ref: '#/components/responses/Unprocessable' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /me/orders/open:
+    get:
+      tags: [me]
+      operationId: getMyOpenOrder
+      summary: The caller's open order (the resume card)
+      description: |
+        Added 20 Nov (owner). The caller's newest open order: PENDING with a still-valid QR (`reason` null), or held past
+        its expiry with its final check unanswered, not longer than 48 h (`reason` CONFIRMATION_DELAYED with
+        `confirmationExpectedBy`). Normally an account has at most one; with several, the newest by creation. A literal
+        path: `open` is never read as an `{orderId}`.
+      responses:
+        '200':
+          description: The open order, in the shape of `GET /me/orders/{orderId}`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentOrder' }
+        '204':
+          description: |
+            No open order. Not 404: that is what an unknown route or an unknown or foreign order answers, so "nothing to
+            resume" stays distinct from an error.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /me/orders/{orderId}/check:
+    parameters:
+      - $ref: '#/components/parameters/orderId'
+    post:
+      tags: [me]
+      operationId: checkMyOrder
+      summary: '"I''ve made the payment": ask the provider about this order now'
+      description: |
+        Added 20 Nov (owner). Asks the provider now, through the status job's own path (the same claim, the provider's
+        shared daily budget, and the same crediting under the bill lock: a paid answer is credited once, exactly as the
+        job does it; the SSE `status` event fires on change). No body.
+        - It spends the provider's shared daily budget, so: one manual check per order per cooldown (60 s,
+          `WEBBLOCK_PAYMENT_MANUAL_CHECK_COOLDOWN`) and at most a cap per user per provider day (10,
+          `WEBBLOCK_PAYMENT_MANUAL_CHECK_DAILY_PER_USER`; the day resets at midnight Asia/Phnom_Penh). Only a check that
+          asked the provider counts.
+        - While the budget holds (Bakong's daily limit, or the day's count used) the provider is NOT asked: the order
+          comes back PENDING with `reason` CONFIRMATION_DELAYED and `confirmationExpectedBy` (when Payment next asks the
+          bank). On this route CONFIRMATION_DELAYED can come before the QR's expiry ("your check is queued until ...");
+          the order read and the SSE keep their rule (delayed only past expiry).
+        - An order that is no longer PENDING comes back as it is, without a call. A provider error leaves it PENDING
+          (the job keeps trying). `WEBBLOCK_PAYMENT_MANUAL_CHECK_ENABLED=false` turns the call off: the order as it is.
+      responses:
+        '200':
+          description: The order after the check (shape of `GET /me/orders/{orderId}`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentOrder' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: '`order-not-found`: an unknown order, or another owner''s.'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429':
+          description: |
+            `manual-check-too-soon` (this order was checked by hand within the cooldown) or `manual-check-limit-reached`
+            (the user's manual checks for the provider's day are used; try again after its reset). Nothing was asked.
+          headers:
+            Retry-After:
+              description: Seconds until a manual check is allowed again.
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ManualCheckLimitProblem' }
+
   /me/orders/{orderId}/events:
     parameters:
       - $ref: '#/components/parameters/orderId'
@@ -674,6 +741,16 @@ components:
             The request's id, also in the `X-Request-Id` response header and in Payment's log lines: the caller's
             (or the gateway's) `X-Request-Id` when it is 1 to 128 of `[A-Za-z0-9._:-]`, else a new one.
         traceId: { type: string, description: Only on 500, to quote to support. }
+
+    ManualCheckLimitProblem:
+      description: 429 of `POST /me/orders/{orderId}/check` (added 20 Nov).
+      allOf:
+        - { $ref: '#/components/schemas/Problem' }
+        - type: object
+          properties:
+            code: { type: string, enum: [MANUAL_CHECK_TOO_SOON, MANUAL_CHECK_LIMIT_REACHED] }
+            orderId: { type: string, format: uuid }
+            retryAt: { type: string, format: date-time, description: 'ISO-8601 UTC: when a manual check is allowed again.' }
 
     ConfirmationPendingProblem:
       description: |
