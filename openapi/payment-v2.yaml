@@ -157,6 +157,8 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '409':
           description: |
+            `plan-change-paid` (20 Nov): the change is paid (`pendingChangePaid` true); it starts at `effectiveAt` and
+            can't be kept back (no refunds). Only a change scheduled without payment (before 20 Nov) can be canceled.
             `no-pending-change`: nothing is scheduled (or the renewal already switched the plan).
             `pending-change-in-progress`: an open renewal QR is already priced for the new plan; once it expires the
             cancel works.
@@ -210,9 +212,15 @@ paths:
         - to a more expensive plan: the new plan starts at once. The order charges the price difference for what is
           left of the paid period (half up to the cent); once it is paid the plan moves, the period stays, and the
           next renewal charges the new plan's full price.
-        - to a cheaper plan: it starts with the next period, no refund. Nothing is billed: the answer is the recorded
-          change as an order of `0.00`, already `PAID`, with `nextPaymentAt` = when the cheaper plan starts. It can be
-          read again with GET `/me/orders/{orderId}`, but it is no bill, so it is not in the order history.
+        - to a cheaper plan, a plan of the same price, or a dearer one with nothing left to charge (owner, 20 Nov: "pay
+          for that plan first, then we schedule the change"; replaces the free downgrade): 201 with a payable order
+          (KHQR) for the NEXT period at the new plan's monthly price: `plan` = the new plan, `periodStart` = the end
+          of the current period (when it starts), `nextPaymentAt` = a month after that. While unpaid nothing is
+          scheduled (`pendingPlanId` stays null; expired unpaid, nothing changes). Once paid, `pendingPlanId` = the
+          new plan, `pendingChangePaid` = true, and at the period end the plan switches with that paid period (no other
+          renewal). Until then 409 `plan-change-paid` for another `CHANGE`, `RENEW`, keeping the plan (DELETE
+          `/me/subscription/pending-change`) or canceling: the next month is bought, no refunds. The same change asked
+          again while its QR is open answers that order; another open order: 409 `open-bill-exists`.
         - to the plan it already is: 422 `plan-unchanged` (use `RENEW`). A past-due or canceled plan: 422
           `plan-change-not-supported` (renew it first).
 
@@ -869,6 +877,13 @@ components:
             Additive (18 Nov): the plan of a downgrade the owner scheduled, else null. The pending notice asks
             `plan-change-preview?planId=` with it for what goes offline.
         pendingEffectiveAt: { type: [string, 'null'], format: date-time, description: When that downgrade starts (the end of the paid period). }
+        pendingChangePaid:
+          type: boolean
+          description: |
+            Additive (20 Nov, pay first): the pending change is paid (its order prepaid the next period at that plan).
+            False for a change scheduled without payment (before 20 Nov) or when nothing is pending. Offer "Keep
+            <plan>" only when `pendingPlanId` is set and this is false.
+        pendingChangeOrderId: { type: [string, 'null'], format: uuid, description: 'The paid change''s order (`GET /me/orders/{orderId}`); null unless `pendingChangePaid`.' }
 
     PlanChangePreview:
       type: object
@@ -1014,6 +1029,12 @@ components:
           description: |
             Additive (20 Nov). With PENDING + `CONFIRMATION_DELAYED` only: when Payment next asks the bank about this
             order (as ConfirmationPendingProblem.confirmationExpectedBy), ISO-8601 UTC. Null otherwise.
+        periodStart:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            Additive (20 Nov). The start of the period the order pays for; for a plan change paid first, when the new
+            plan starts (the end of the current period). Null for a plan change without a bill.
 
     OrderStatusEvent:
       description: |
