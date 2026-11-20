@@ -899,7 +899,12 @@ components:
           description: |
             Additive. As AiMessage.clarification: only on an ASSISTANT reply that asks instead of changing the page.
             On this route the model's questions only (CHOOSE): its change sets are proposed, so applying one is the
-            confirmation and no CONFIRM is asked here.
+            confirmation and no CONFIRM is asked here. An answer to a CONFIRM asked on sendAiMessage is accepted here
+            too, when that question is still the latest message of this conversation (an older chat resumed): `YES`
+            returns the held change set PROPOSED, made against the draft's edit revision when the question was asked
+            (PATCH it to apply; 409 when the page changed since), `NO` changes nothing; neither asks the model, and
+            the same answer again straight after changes nothing more. Send such an answer here, never through
+            sendAiMessage, which always uses the project's newest conversation.
           allOf: [{ $ref: "#/components/schemas/AiClarification" }]
     MessagePage:
       type: object
